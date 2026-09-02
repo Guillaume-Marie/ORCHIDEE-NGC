@@ -1,0 +1,1901 @@
+<!-- =========================================================================================================== -->
+<!-- file_def_orchidee.xml : Definition of output files                                                          -->
+<!--                                                                                                             -->
+<!-- Definition of each output file and the list of variables they will include.                                 -->
+<!-- Change this file by adding the files and/or variables you want to write.                                    -->
+<!-- Only variables and groups existing in field_def_orchidee.xml can be used.                                   -->
+<!--                                                                                                             -->
+<!-- Note: The keyword _AUTO_ will be changed by the drivers using libIGCM configurations. It can also be        -->
+<!-- changed manually. For example instead of _AUTO_ set :  enabled=".TRUE." or enabled=".FALSE."                -->
+<!-- output_freq="1mo" for monthly, output_freq="1d" for daily, output_freq="10800s" for 3-hour output frequency,-->
+<!-- output_level="1" for few variables, output_level="12" for writing all variables (depending on file).        -->
+<!--                                                                                                             -->
+<!-- Each file can have different output frequence, different variable content and different output_level.       --> 
+<!-- A file will contain all the variables listed in its section having level lower or equal to output_level     -->
+<!-- which is specified for the file.                                                                            -->
+<!--                                                                                                             -->
+<!-- All variables needed for the monitoring done by libIGCM are set to level="0". Set output_level=0 for file   -->
+<!-- sechiba_history, stomate_history and stomate_ipcc_history to output only these variables. These files       -->
+<!-- should have output_freq="1mo" for a correct monitoring except for SPINUP_ANALYTIC where the frequency       -->
+<!-- should be output_freq="1y".                                                                                 -->
+<!--                                                                                                             -->
+<!-- Key word compression_level activates the corresponding compresion level of netcd4/hdf5 where 0              -->
+<!-- corresponds to no compression and 4 is a middle compression here set as default.                            -->
+<!--                                                                                                             -->
+<!-- Key word type="one_file" tells XIOS to gather the output to the full domain and write only one file.        -->
+<!-- Note that if running in attached mode with many cores, this option is time consuming.                       -->
+<!-- Using type="multiple_file", then XIOS outputs the local domain to different files and reconstruction is     -->
+<!-- needed. Each core of the model(when running in attached mode) will output its local domain or each server   -->
+<!-- (if running in server mode) will output its local domain. When using 1 server, the two options gives the    -->
+<!-- same result.                                                                                                -->
+<!--                                                                                                             -->
+<!-- field group "remap_1xx" do only have a meaning for unstructured grid when remapping of output is activated. -->
+<!-- For this case, remap_1xx will set a corresponding freq_op done from the fortran code.                       -->
+<!-- For regular grid, this group do not contain any attributes so it'll not make any difference.                -->
+<!--                                                                                                             -->
+<!-- $HeadURL: svn://forge.ipsl.fr/orchidee/trunk/ORCHIDEE/src_xml/file_def_orchidee.xml $               -->
+<!-- $Date: 2026-05-13 15:33:20 +0200 (mer. 13 mai 2026) $                                                      -->
+<!-- $Revision: 9541 $                                                                                           -->
+<!--                                                                                                             -->
+<!-- =========================================================================================================== -->
+
+<file_definition type="one_file" par_access="collective" enabled=".TRUE." min_digits="4" compression_level="2" >
+
+  <!-- ========================================================================================================= -->
+  <!-- Definition of output files -->
+  <!-- ========================================================================================================= -->
+
+  <!-- Definition of output files with sechiba diagnostics -->
+
+  <!-- Sechiba file 1 -->
+  <file id="sechiba1" name="sechiba_history" output_level="_AUTO_" output_freq="_AUTO_" enabled="_AUTO_">
+
+   <field_group id="groupremap_sechiba1_daily" group_ref="remap__AUTO_" grid_ref="grid_landpoints_out" enabled="_AUTO_">
+    <field field_ref="delsoilmoist_daily" level="1" />
+    <field field_ref="delintercept_daily" level="1" />
+    <field field_ref="delswe_daily" level="1" />
+    <field field_ref="delfastr_daily" level="1" />
+    <field field_ref="delslowr_daily" level="1" />
+    <field field_ref="delstreamr_daily" level="1" />
+    <field field_ref="dellaker_daily" level="1" />
+    <field field_ref="delpondr_daily" level="1" />
+    <field field_ref="delfloodr_daily" level="1" />
+    <field field_ref="delstock_routing_daily" level="1" />
+    <field field_ref="tasmax"  level="10"/>
+    <field field_ref="tasmin"  level="10"/>
+   </field_group>
+
+   <field_group id="groupremap_sechiba1" group_ref="remap_1mo" grid_ref="grid_landpoints_out" >
+    <!-- level 1 -->
+    <field field_ref="areas" level="0"/>
+    <field field_ref="LandPoints" level="20"/>
+    <field field_ref="contfrac" level="0"/>
+    <field field_ref="vevapp_day" level="0"/>
+    <field field_ref="coastalflow" level="0"/>
+    <field field_ref="riverflow" level="0"/>
+    <field field_ref="coastalflow_cpl" level="1"/>
+    <field field_ref="riverflow_cpl" level="1"/>
+    <field field_ref="temp_sol_new_C" level="0"/>
+    <field field_ref="mrsow" level="1"/>
+    <field field_ref="ksat" grid_ref="grid_nslm_out" level="1"/>
+    <field field_ref="ksref" level="1"/> 
+    <field field_ref="precip_rain" level="0" name="rain" unit="mm/d" > @precip_rain*86400  </field>
+    <field field_ref="precip_snow" level="0" name="snowf" unit="mm/d" > @precip_snow*86400  </field>
+    <field field_ref="netrad" level="1"/>
+    <field field_ref="lai" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="EFFECTIVE_LAI" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="reinf_slope" level="1"/>
+    <field field_ref="njsc" level="1"/>
+    <field field_ref="basinmap" level="1"/>
+    <field field_ref="nbrivers" level="1"/>
+    <field field_ref="npp" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="wtd" level="1"/>
+    <field field_ref="tws" level="1"/>
+    <!-- level 2 -->
+    <field field_ref="vevapsno" name="subli" level="0" unit="mm/d" > @vevapsno*86400  </field>
+    <field field_ref="runoff" name="runoff" level="0" unit="mm/d" > @runoff*86400  </field>
+    <field field_ref="drainage" name="drainage" level="0" unit="mm/d" > @drainage*86400  </field>
+    <field field_ref="riversret" level="2"/>
+    <field field_ref="hydrographs" level="2"/>
+    <field field_ref="htuhgmon" name="HTUhydrographs" grid_ref="grid_nbasmon_out" level="2"/>
+    <field field_ref="hydrotemp" name="RiverTemp" level="2"/>
+    <field field_ref="htutempmon" name="HTUTemp" grid_ref="grid_nbasmon_out" level="2"/>
+    <field field_ref="streamlimit" level="2"/>
+    <field field_ref="vevapnu" name="evapnu" level="0" unit="mm/d" > @vevapnu*86400  </field>
+    <field field_ref="evap_bare_lim" level="2"/>
+    <field field_ref="evap_bare_lim_ns" grid_ref="grid_nstm_out" level="2"/>
+    <field field_ref="evapnu_soil" grid_ref="grid_nstm_out" level="2"/>
+    <field field_ref="drainage_soil" grid_ref="grid_nstm_out" level="2"/>
+    <field field_ref="transpir_soil" grid_ref="grid_nstm_out" level="2"/>
+    <field field_ref="runoff_soil" grid_ref="grid_nstm_out" level="2"/>
+    <field field_ref="temp_air" level="0"/>
+    <field field_ref="temp_growth" level="10"/>
+    <field field_ref="rau" level="10"/>
+    <field field_ref="qair" level="2"/>
+    <field field_ref="bckgrnd_alb" grid_ref="grid_albtyp_out" level="2"/>
+    <field field_ref="albedo_vis" level="0"/>
+    <field field_ref="albedo_nir" level="0"/>
+    <field field_ref="albedo_noon_vis" level="0"/>
+    <field field_ref="albedo_noon_nir" level="0"/>
+    <field field_ref="albedo_glob" level="2"/>
+    <field field_ref="soilalb_vis" level="2"/>
+    <field field_ref="soilalb_nir" level="2"/>
+    <field field_ref="z0h" level="2"/>
+    <field field_ref="z0m" level="2"/>
+    <field field_ref="roughheight" level="2"/>
+    <field field_ref="transpir" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="inter" grid_ref="grid_nvm_out" level="0"/>
+    <!-- for water budget control -->
+    <field field_ref="vevapflo" name="evapflo" level="2" unit="mm/d" > @vevapflo*86400 </field>
+    <field field_ref="undermcr" level="2"/>
+    <field field_ref="ru_corr" level="2"/>
+    <field field_ref="ru_corr2" level="2"/>
+    <field field_ref="dr_corr" level="2"/>
+    <field field_ref="dr_force" level="2"/>
+    <field field_ref="ru_infilt" level="2"/>
+    <field field_ref="qinfilt" level="2"/>
+    <field field_ref="dr_corrnum" level="2"/>
+
+    <!-- level 3 -->
+    <field field_ref="tsol_max" level="3"/>
+    <field field_ref="tsol_min" level="3"/>
+    <field field_ref="fluxsens" level="0"/>
+    <field field_ref="fluxlat" level="0"/>
+    <field field_ref="snow" level="0"/>
+    <field field_ref="snowage" level="3"/>
+    <field field_ref="snownobioage" grid_ref="grid_nnobio_out" level="3"/>
+    <field field_ref="vegetfrac" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="maxvegetfrac" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="tot_bare_soil" level="3"/>
+    <field field_ref="nobiofrac" grid_ref="grid_nnobio_out" level="3"/>
+    <field field_ref="reinfiltration" level="3"/>
+    <field field_ref="frac_bare" grid_ref="grid_nvm_out" level="3"/>
+    <field field_ref="soiltile" grid_ref="grid_nstm_out" level="3"/>
+    <field field_ref="qflux" grid_ref="grid_nslm_out" level="3"/> 
+    <field field_ref="check_top" level="3"/>
+    <field field_ref="check_infilt" level="3"/>
+    <field field_ref="check_tr" level="3"/>
+    <field field_ref="check_over" level="3"/>
+    <field field_ref="check_under" level="3"/>
+    <!-- level 4 -->
+    <field field_ref="gsmean" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="humtot" level="4"/>
+    <field field_ref="tmc" grid_ref="grid_nstm_out" level="4"/>
+    <field field_ref="humtot_soiliq" grid_ref="grid_nstm_out" level="4"/>
+    <field field_ref="qsintveg" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="rstruct" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="r_soil" level="4"/>
+    <field field_ref="gpp" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="gpp_ipcc2" level="4"/>
+    <field field_ref="gppgrass" level="4"/>
+    <field field_ref="gppcrop" level="0"/>
+    <field field_ref="gpptree" level="4"/>
+    <field field_ref="nee" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="nee_ec" grid_ref="grid_nvm_out" level="0"/>	
+    <field field_ref="maint_resp" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="hetero_resp" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="growth_resp" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="rh_ipcc2" level="4"/>
+    <field field_ref="Fsup" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="Finf" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="rhGrass" level="4"/>
+    <field field_ref="rhCrop" level="0"/>
+    <field field_ref="rhTree" level="4"/>
+    <field field_ref="precisol" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="throughfall" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="drysoil_frac" level="4"/>
+    <field field_ref="evapot" level="4"/>
+    <field field_ref="evapot_corr" level="4"/>
+    <!-- level 5 -->
+    <field field_ref="swnet" level="5"/>
+    <field field_ref="swdown" level="0"/>
+    <field field_ref="lwdown" level="0"/>
+    <field field_ref="lwnet" level="5"/>
+    <field field_ref="diffevap" level="5"/>
+    <field field_ref="snowmelt" level="5"/>
+    <field field_ref="tot_melt" level="5"/>
+    <field field_ref="ice_sheet_melt" level="5"/>
+    <field field_ref="surf_massbal" level="5"/>
+    <field field_ref="snowmelt_from_maxmass" level="5"/>
+    <field field_ref="run_off_lic" level="5"/>
+    <field field_ref="run_off_lic_frac" level="5"/>
+    <field field_ref="zrainfall" level="5"/>
+    <field field_ref="soilcap" level="5"/>
+    <field field_ref="psi_soil_sup" grid_ref="grid_nstm_out" level="5"/>
+    <field field_ref="psi_soil_inf" grid_ref="grid_nstm_out" level="5"/>
+    <field field_ref="rsoil_scale_tile" level="5" grid_ref="grid_nstm_out"/>
+    <!-- level 6 -->
+    <field field_ref="twbr" level="0"/>
+    <field field_ref="ptn_pftmean" grid_ref="grid_ngrnd_out" level="6"/>
+
+    <!-- peatland -->
+    <field field_ref="tmc_soil" grid_ref="grid_nstm_out" level="6"/>
+    <field field_ref="mcl" grid_ref="grid_nslm_nstm_out" level="11"/>
+    <field field_ref="wt_ab" level="6"/>
+    <field field_ref="wtp" level="6"/>
+    <field field_ref="wt_ab_tide" level="6"/>
+    <field field_ref="run2man" level="6"/>  
+
+    <!-- level 7 -->
+    <field field_ref="fastr" level="7"/>
+    <field field_ref="slowr" level="7"/>
+    <field field_ref="streamr" level="7"/>
+    <field field_ref="laker" level="7"/>
+    <field field_ref="lake_overflow" level="7"/>
+    <field field_ref="mask_coast" level="7"/>
+    <!-- level 8 -->
+    <field field_ref="wbr_fast" level="8"/>
+    <field field_ref="wbr_slow" level="8"/>
+    <field field_ref="wbr_stream" level="8"/>
+    <field field_ref="wbr_lake" level="8"/>
+    <field field_ref="pondr" level="8"/>
+    <field field_ref="swampmap" level="8"/>
+    <field field_ref="irrigation" name="irrigation" level="8" unit="mm/d" > @irrigation*86400  </field>
+    <field field_ref="netirrig" name="netirrig" level="8" unit="mm/d" > @netirrig*86400  </field>
+    <field field_ref="irrigmap" level="8"/>
+    <field field_ref="floodmap" level="8"/>
+    <field field_ref="flood_frac" name="flood_frac" level="8"/>
+    <field field_ref="floodh" level="8"/> 
+    <field field_ref="floodr" level="8"/>
+    <field field_ref="floodout" level="8"/>
+    <field field_ref="k_litt" level="8"/>
+    <field field_ref="beta" level="8"/>
+    <field field_ref="raero" level="8"/>
+    <field field_ref="q_cdrag" level="8"/>
+    <field field_ref="wind" level="0"/>
+    <field field_ref="qsatt" level="8"/>
+    <field field_ref="frac_sub_snow" level="8"/>
+    <field field_ref="frac_evap_bare" level="8"/>
+    <field field_ref="frac_evap_flood" level="8"/>
+    <field field_ref="humrel" grid_ref="grid_nvm_out" level="0"/>
+
+     <!-- Irrigation scheme  -->
+     <field field_ref="irrigation" name="Qirrig" level="8"/>
+     <field field_ref="irrig_gw_source" name="Qirrig_gw" level="8"/>
+     <field field_ref="irrig_gw_source" name="irrig_gw_source" level="8" unit="mm/d" > this*86400  </field>
+     <field field_ref="irrig_fast_source" name="Qirrig_fast" level="8"/>
+     <field field_ref="irrig_fast_source" name="irrig_fast_source" level="8" unit="mm/d" > this*86400  </field>
+     <field field_ref="irrig_str_source" name="Qirrig_str" level="8"/>
+     <field field_ref="irrig_str_source" name="irrig_str_source" level="8" unit="mm/d" > this*86400  </field>
+     <field field_ref="netirrig" name="Qirrig_req" long_name="Irrigation requirement" level="8"/>
+     <field field_ref="soilflx" level="8"/>
+     <field field_ref="irrig_deficit" name="Qirrig_deficit" level="8"/>
+     <field field_ref="irrig_deficit" name="irrig_deficit" level="8" unit="mm/d" > this*86400  </field>
+     <field field_ref="irrig_adduct" name="Qirrig_adduct" level="8"/>
+     <field field_ref="irrig_adduct" name="irrig_adduct" level="8" unit="mm/d" > this*86400  </field>
+     <field field_ref="Count_failure_slow" name="Count_failure_slow" level="8"/>
+     <field field_ref="Count_failure_fast" name="Count_failure_fast" level="8"/>
+     <field field_ref="Count_failure_stre" name="Count_failure_stre" level="8"/>
+     <field field_ref="transpot" grid_ref="grid_nvm_out" level="8"/>
+     <field field_ref="root_deficit" level="8"/>
+     <field field_ref="root_mc_fc" level="8"/>
+     <field field_ref="irrigmap_dyn" level="8"/>
+     <field field_ref="aei_sw" level="8"/>
+
+     <!-- level 9 -->
+    <field field_ref="delta_c13_assim" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="leaf_ci_out" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="gpp_day" grid_ref="grid_nvm_out" level="9"/>
+
+    <!-- level 10 -->
+    <field field_ref="cimean" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="delta_temp_canopy" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="mc_sup" grid_ref="grid_nstm_out" level="10"/>
+    <field field_ref="mc_inf" grid_ref="grid_nstm_out" level="10"/>
+    <field field_ref="Ca" level="0"/>
+    <field field_ref="frac_evap_transp" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="resist_transp" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="vbeta3pot" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="rveget" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="frac_evap_intercept" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="resist_intercept" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="resist_equiv_evap_veg"  level="10"/>
+    <field field_ref="resist_equiv_evap"  level="10"/>
+    <field field_ref="resist_equiv_tot"  level="10"/>
+    <field field_ref="qsintmax" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="dtes" level="10"/>
+    <field field_ref="VPD" level="10"/>
+    <field field_ref="tairmax"  level="10"/>
+    <field field_ref="tairmin"  level="10"/>
+    <field field_ref="soilmoist" grid_ref="grid_nslm_out" level="10"/>
+    <field field_ref="shumdiag_perma" grid_ref="grid_nslm_out" level="10"/>
+    <field field_ref="transpir_unstressed" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="test_overPET_intensity" level="10" />
+    <field field_ref="test_overPET_freq" level="10" />
+ 
+    <!-- level 11 -->
+    <field field_ref="humtot_liquid" level="11"/>
+    <field field_ref="clayfraction" grid_ref="grid_nslm_out" level="0"/>
+    <field field_ref="sandfraction" grid_ref="grid_nslm_out" level="0"/>
+    <field field_ref="siltfraction" grid_ref="grid_nslm_out" level="0"/>
+    <field field_ref="humtot_top" level="0"/>
+    <field field_ref="humtot" name="mrso" level="0"/>
+    <field field_ref="runoff" name="mrros" level="0"/>
+    <field field_ref="mrro" level="11"/>
+    <field field_ref="air_relhum" level="11"/>
+    <field field_ref="f_gco2" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="F_storage" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="prveg" level="11"/>
+    <field field_ref="evspsblveg" level="0"/>
+    <field field_ref="evspsblsoi" level="11"/>
+    <field field_ref="tran" level="11"/>
+    <field field_ref="vegFrac" level="11"/>
+    <field field_ref="vegHeightTree" level="11"/>
+    <field field_ref="vegHeightGrass" level="11"/>
+    <field field_ref="vegHeight" level="11"/>
+    <field field_ref="treeFrac" level="11"/>
+    <field field_ref="treeFracNdlEvg" level="11"/>
+    <field field_ref="treeFracBdlEvg" level="11"/>
+    <field field_ref="treeFracNdlDcd" level="11"/>
+    <field field_ref="treeFracBdlDcd" level="11"/>
+    <field field_ref="grassFrac" level="11"/>
+    <field field_ref="grassFracC3" level="11"/>
+    <field field_ref="grassFracC4" level="11"/>
+    <field field_ref="cropFrac" level="11"/>
+    <field field_ref="cropFracC3" level="11"/>
+    <field field_ref="cropFracC4" level="11"/>
+    <field field_ref="baresoilFrac" level="11"/>
+    <field field_ref="residualFrac" level="11"/>
+    <field field_ref="PAR" level="11"/>
+    <field field_ref="PARsun" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="PARsh" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="laisun" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="laish" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="PARsuntab" grid_ref="grid_nlaip1_out" level="11"/>
+    <field field_ref="PARshtab" grid_ref="grid_nlaip1_out" level="11"/>
+    <field field_ref="coszang" level="11"/>
+    <field field_ref="zenith_ang_noon" level="0"/>
+    <field field_ref="PARdf" level="11"/>
+    <field field_ref="PARdr" level="11"/>
+    <field field_ref="flx_fertil_no" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="CRF" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="flx_co2_bbg_year" level="11"/>
+    <field field_ref="N_qt_WRICE_year" level="11"/>
+    <field field_ref="N_qt_OTHER_year" level="11"/>
+    <field field_ref="flx_iso" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="flx_mono" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="flx_ORVOC" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="flx_MBO" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="flx_methanol" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="flx_acetone" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="flx_acetal" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="flx_formal" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="flx_acetic" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="flx_formic" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="flx_DMS" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="flx_H2S" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="flx_no_soil" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="flx_no" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="pb" level="11"/>
+    <field field_ref="slowflow" level="11"/>
+    <field field_ref="qsintveg_tot" level="11"/>
+    <field field_ref="LAImean" level="0"/>
+    <field field_ref="mcs" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="mcr" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="mc_layh" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="mcl_layh" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="nvg" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="alphavg" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="land_root_profile" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="dlh" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="water2infilt" grid_ref="grid_nstm_out" level="11"/>
+    <field field_ref="flx_apinen" grid_ref="grid_nvm_out"  level="11" />
+    <field field_ref="flx_bpinen" grid_ref="grid_nvm_out"  level="11" />
+    <field field_ref="flx_limonen" grid_ref="grid_nvm_out" level="11" />
+    <field field_ref="flx_myrcen" grid_ref="grid_nvm_out"  level="11" />
+    <field field_ref="flx_sabinen" grid_ref="grid_nvm_out" level="11" />
+    <field field_ref="flx_camphen" grid_ref="grid_nvm_out" level="11" />
+    <field field_ref="flx_3caren" grid_ref="grid_nvm_out"  level="11" />
+    <field field_ref="flx_tbocimen" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="flx_othermono" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="flx_sesquiter" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="fco2" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="cim" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="kk_moy" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="psi_moy" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="profil_froz_hydro" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="pkappa" grid_ref="grid_ngrnd_out"  level="11"/>
+    <field field_ref="thkmoss" grid_ref="grid_ngrnd_out"  level="11"/>	    
+    <field field_ref="pkappa_snow" grid_ref="grid_nsnow_out" level="11"/>
+    <field field_ref="pcapa" grid_ref="grid_ngrnd_out"  level="11"/>
+    <field field_ref="pcapa_moss" grid_ref="grid_ngrnd_out"  level="11"/>    
+    <field field_ref="pcapa_spec" grid_ref="grid_ngrnd_out"  level="11"/>
+    <field field_ref="pcapa_snow" grid_ref="grid_nsnow_out"  level="11"/>
+    <field field_ref="zrefrz" grid_ref="grid_nsnow_out" level="11"/>
+    <field field_ref="melt_snow" grid_ref="grid_nsnow_out" level="11"/>
+    <field field_ref="ice_sheet_mask" level="11"/>
+    <field field_ref="pkappa_ice" grid_ref="grid_nice_out" level="11"/>
+    <field field_ref="pcapa_ice" grid_ref="grid_nice_out" level="11"/>
+    <field field_ref="icetemp" grid_ref="grid_nice_out" level="11"/>
+    <field field_ref="snowtemp" grid_ref="grid_nsnow_out"  level="11"/>
+    <field field_ref="snowtemp_weighted"  level="0"/>
+    <field field_ref="snowliq" grid_ref="grid_nsnow_out"  level="11"/>
+    <field field_ref="snowdz" grid_ref="grid_nsnow_out"  level="11"/>
+    <field field_ref="snowrho" grid_ref="grid_nsnow_out"  level="11"/>
+    <field field_ref="snowheat" grid_ref="grid_nsnow_out"  level="11"/>
+    <field field_ref="snowgrain" grid_ref="grid_nsnow_out"  level="11"/>
+    <field field_ref="snow_viscosity" grid_ref="grid_nsnow_out"  level="11"/>
+    <field field_ref="snowdepth"  level="11"/>
+    <field field_ref="frac_snow"  level="0"/>
+    <field field_ref="pgflux"  level="11"/>
+    <field field_ref="snowliqtot"  level="11"/>
+    <field field_ref="surfacedensity"  level="11"/>
+    <field field_ref="albedo_snow"  level="11"/>
+    <field field_ref="snowage_glob"  level="11"/>
+    <field field_ref="lake_overflow_coast" level="7"/>
+    <field field_ref="fraclut" grid_ref="grid_nlut_out" level="11"/>
+    <field field_ref="nwdFraclut" grid_ref="grid_nlut_out" level="11"/>
+    <field field_ref="humtot_lut" grid_ref="grid_nlut_out"  level="11"/>
+    <field field_ref="humtot_top_lut" grid_ref="grid_nlut_out"  level="11"/>
+    <field field_ref="mrro_lut" grid_ref="grid_nlut_out"  level="11"/>
+    <field field_ref="gpplut" grid_ref="grid_nlut_out"  level="11"/>
+    <field field_ref="nudgincswe" level="11"/>
+    <field field_ref="nudgincsm" level="11"/>
+    <field field_ref="cnc" level="11"/>
+    <field field_ref="mcfc" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="mcw" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="tmcs" level="11"/>
+    <field field_ref="tmcfc" level="11"/>
+    <field field_ref="wilt" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="fldcapacity" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="netco2flux" level="11" />
+    <field field_ref="fco2_lu" level="11" /> 
+    <field field_ref="fco2_wh" level="11" />
+    <field field_ref="fco2_ha" level="11" />
+    <field field_ref="deepC_thermo_pftmean" grid_ref="grid_ngrnd_out" level="11"/>
+    <field field_ref="poros_net_thermosoil" grid_ref="grid_ngrnd_out" level="11"/>
+    <field field_ref="F_OM" grid_ref="grid_ngrnd_out" level="11"/>
+    <field field_ref="frac_snow_veg"  level="12"/>
+    <field field_ref="frac_snow_nobio" grid_ref="grid_nnobio_out"  level="12"/>
+    <field field_ref="snowdz_read_current" grid_ref="grid_nsnow_out"  level="12"/>
+    <field field_ref="snowrho_read_current" grid_ref="grid_nsnow_out"  level="12"/>
+    <field field_ref="snowtemp_read_current" grid_ref="grid_nsnow_out"  level="12"/>
+    <field field_ref="mask_snow_interp_out" grid_ref="grid_nsnow_out"  level="12"/>
+    
+    <!-- level 13 Variables added for lake energy balance -->
+    <field field_ref="temp_sol_grid" level="13"/>
+    <field field_ref="frac_nolake" level="13"/>
+    <field field_ref="fluxsens_grid" level="13"/>
+    <field field_ref="fluxlat_grid" level="13"/>
+
+    <field field_ref="Tsfc_lake" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="frac_ice" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="h_crit" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="albedo_lake" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="Qlatent_lake" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="Qsensible_lake" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="Qmomentum_lake" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="H_ML" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="H_ice" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="H_snow" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="C_T_thermocline" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="T_snow_lake" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="T_ice_lake" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="T_ML_lake" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="T_bottom_lake" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="T_avg_lake" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="depth_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="frac_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="fetch_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="Snowf_lake_accepted" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="albedo_water_lake_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="light_ext_water_lake_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="light_ext_ice_lake_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="light_ext_snow_lake_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="depth_sed_lake_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="t_sed_lake_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="par_Coriolis_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="Q_w_flk_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="I_snow_flk_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="I_ice_flk_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="I_w_flk_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="I_h_flk_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="I_intm_0_h_flk_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="I_intm_h_D_flk_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="I_bot_flk_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="Q_momentum_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="Q_snow_flk_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="Q_ice_flk_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="Q_bot_flk_out" grid_ref="grid_nlake_out" level="13"/>
+    <field field_ref="u_star_w_flk_out" grid_ref="grid_nlake_out" level="13"/>
+
+   </field_group>
+  </file>
+
+  <!-- Sechiba file 2 -->
+  <file id="sechiba2" name="sechiba_out_2" output_level="_AUTO_" output_freq="_AUTO_" enabled="_AUTO_">
+   <field_group id="groupremap_sechiba2" group_ref="remap_1mo" grid_ref="grid_landpoints_out" >
+    <!-- level 1 -->
+    <field field_ref="areas" level="1"/>
+    <field field_ref="LandPoints" level="20"/>
+    <field field_ref="contfrac" level="1"/>
+    <field field_ref="humtot_top" level="1"/>
+    <field field_ref="mrro" level="1"/>
+    <field field_ref="ptn_pftmean" grid_ref="grid_ngrnd_out" level="1"/>
+    <field field_ref="wtd" level="1"/>
+    <field field_ref="tws" level="1"/>
+    
+    <!-- level 2 -->
+    <field field_ref="q_cdrag" level="2"/>
+    <field field_ref="soilalb_vis" level="2"/>
+    <field field_ref="soilalb_nir" level="2"/>
+    <field field_ref="albedo_glob" level="2"/>
+    <field field_ref="z0m" level="2"/>
+    <field field_ref="z0h" level="2"/>
+    <field field_ref="coastalflow" level="2"/>
+    <field field_ref="riverflow" level="2"/>
+    <field field_ref="tsol_rad" level="2"/>
+    <field field_ref="vevapnu" name="evapnu" level="2" unit="mm/d" > @vevapnu*86400  </field>
+    <field field_ref="temp_sol_new_C" level="2"/>
+    <field field_ref="qsurf" level="2"/>
+    <field field_ref="fluxsens" level="2"/>
+    <field field_ref="fluxlat" level="2"/>
+    <field field_ref="emis" level="2"/>
+    <field field_ref="riversret" level="2"/>
+    <field field_ref="hydrographs" level="2"/>
+    <field field_ref="undermcr" level="2"/>
+    <field field_ref="ru_corr" level="2"/>
+    <field field_ref="ru_corr2" level="2"/>
+    <field field_ref="dr_corr" level="2"/>
+    <field field_ref="dr_force" level="2"/>
+    <field field_ref="ru_infilt" level="2"/>
+    <field field_ref="qinfilt" level="2"/>
+    <field field_ref="dr_corrnum" level="2"/>
+    
+    <!-- level 3 -->
+    <field field_ref="vevapp_day" level="3"/>
+    <field field_ref="precip_rain" level="3" name="rain" unit="mm/d" > @precip_rain*86400  </field>
+    <field field_ref="precip_snow" level="3" name="snowf" unit="mm/d" > @precip_snow*86400  </field>
+    <field field_ref="netrad" level="3"/>
+    <field field_ref="lai" grid_ref="grid_nvm_out" level="3"/>
+    <field field_ref="basinmap" level="3"/>
+    <field field_ref="nbrivers" level="3"/>
+    <field field_ref="check_infilt" level="3"/>
+    <field field_ref="check_tr" level="3"/>
+    <field field_ref="check_over" level="3"/>
+    <field field_ref="check_under" level="3"/>
+      
+    <!-- level 4 -->
+    <field field_ref="vevapsno" name="subli" level="4" unit="mm/d" > @vevapsno*86400  </field>
+    <field field_ref="runoff" name="runoff" level="4" unit="mm/d" > @runoff*86400  </field>
+    <field field_ref="drainage" name="drainage" level="4" unit="mm/d" > @drainage*86400  </field>
+    <field field_ref="temp_air" level="4"/>
+    <field field_ref="qair" level="4"/>
+    <field field_ref="albedo_vis" level="4"/>
+    <field field_ref="albedo_nir" level="4"/>
+    <field field_ref="roughheight" level="4"/>
+    <field field_ref="transpir" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="inter" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="evapnu_soil" grid_ref="grid_nstm_out" level="4"/>
+    <field field_ref="drainage_soil" grid_ref="grid_nstm_out" level="4"/>
+    <field field_ref="transpir_soil" grid_ref="grid_nstm_out" level="4"/>
+    <field field_ref="runoff_soil" grid_ref="grid_nstm_out" level="4"/>
+    <field field_ref="EFFECTIVE_LAI" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="gsmean" grid_ref="grid_nvm_out" level="4"/>
+    
+    <!-- level 5 -->
+    <field field_ref="tsol_max" level="5"/>
+    <field field_ref="tsol_min" level="5"/>
+    <field field_ref="snow" level="5"/>
+    <field field_ref="snowage" level="5"/>
+    <field field_ref="snownobioage" grid_ref="grid_nnobio_out" level="5"/>
+    <field field_ref="snowmelt" level="5"/>
+    <field field_ref="tot_melt" level="5"/>
+    <field field_ref="ice_sheet_melt" level="5"/>
+    <field field_ref="surf_massbal" level="5"/>
+    <field field_ref="snowmelt_from_maxmass" level="5"/>
+    <field field_ref="zrainfall" level="5"/>
+    <field field_ref="soilcap" level="5"/>
+    <field field_ref="vegetfrac" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="maxvegetfrac" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="nobiofrac" grid_ref="grid_nnobio_out" level="5"/>
+    <field field_ref="psi_soil_sup" grid_ref="grid_nstm_out" level="5"/>
+    <field field_ref="psi_soil_inf" grid_ref="grid_nstm_out" level="5"/>
+    
+    <!-- level 6 -->
+    <field field_ref="humtot" level="6"/>
+    <field field_ref="tmc" grid_ref="grid_nstm_out" level="6"/>
+    <field field_ref="qsintveg" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="rstruct" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="r_soil" level="6"/>
+    <field field_ref="gpp" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="nee" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="maint_resp" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="hetero_resp" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="growth_resp" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="npp" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="precisol" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="drysoil_frac" level="6"/>
+    <field field_ref="evapot" level="6"/>
+    <field field_ref="evapot_corr" level="6"/>
+    <field field_ref="twbr" level="6"/>
+    
+    <!-- level 7 -->
+    <field field_ref="swnet" level="7"/>
+    <field field_ref="swdown" level="7"/>
+    <field field_ref="lwdown" level="7"/>
+    <field field_ref="lwnet" level="7"/>
+    <field field_ref="diffevap" level="7"/>
+    
+    <!-- level 8 -->
+    <field field_ref="fastr" level="8"/>
+    <field field_ref="slowr" level="8"/>
+    <field field_ref="streamr" level="8"/>
+    <field field_ref="floodr" level="8"/>
+    <field field_ref="floodh" level="8"/>
+    <field field_ref="pondr" level="8"/>
+    <field field_ref="laker" level="8"/>
+    <field field_ref="irrigation" name="irrigation" level="8" unit="mm/d" > @irrigation*86400  </field>
+    <field field_ref="netirrig" name="netirrig" level="8" unit="mm/d" > @netirrig*86400  </field>
+    <field field_ref="irrigmap" level="8"/>
+    <field field_ref="floodmap" level="8"/>
+    <field field_ref="flood_frac" name="flood_frac" level="8"/>
+    <field field_ref="swampmap" level="8"/>
+    <field field_ref="vevapflo" name="evapflo" level="8" unit="mm/d" > @vevapflo*86400 </field>
+
+    <!-- level 9 -->
+    <field field_ref="beta" level="9"/>
+    <field field_ref="raero" level="9"/>
+    <field field_ref="wind" level="9"/>
+    <field field_ref="qsatt" level="9"/>
+    <field field_ref="frac_sub_snow" level="9"/>
+    <field field_ref="frac_evap_bare" level="9"/>
+    <field field_ref="frac_evap_flood" level="9"/>
+    <field field_ref="reinf_slope" level="9"/>
+    <field field_ref="njsc" level="9"/>
+    <field field_ref="humrel" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="delta_c13_assim" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="leaf_ci_out" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="gpp_day" grid_ref="grid_nvm_out" level="9"/>
+    
+    <!-- level 10 -->
+    <field field_ref="cimean" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="frac_evap_transp" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="resist_transp" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="VPD" level="10"/>
+    <field field_ref="mc_sup" grid_ref="grid_nstm_out" level="10"/>
+    <field field_ref="mc_inf" grid_ref="grid_nstm_out" level="10"/>
+    <field field_ref="rveget" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="frac_evap_intercept" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="resist_intercept" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="resist_equiv_evap_veg" level="10"/>
+    <field field_ref="resist_equiv_evap" level="10"/>
+    <field field_ref="resist_equiv_tot" level="10"/>
+    <field field_ref="qsintmax" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="PAR" level="10"/>
+    <field field_ref="PARsun" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="PARsh" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="laisun" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="laish" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="PARsuntab" grid_ref="grid_nlaip1_out" level="10"/>
+    <field field_ref="PARshtab" grid_ref="grid_nlaip1_out" level="10"/>
+    <field field_ref="coszang" level="10"/>
+    <field field_ref="PARdf" level="10"/>
+    <field field_ref="PARdr" level="10"/>
+    <field field_ref="flx_fertil_no" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="CRF" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="flx_co2_bbg_year" level="10"/>
+    <field field_ref="N_qt_WRICE_year" level="10"/>
+    <field field_ref="N_qt_OTHER_year" level="10"/>
+    <field field_ref="flx_iso" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="flx_mono" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="flx_ORVOC" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="flx_MBO" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="flx_methanol" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="flx_acetone" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="flx_acetal" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="flx_formal" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="flx_acetic" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="flx_formic" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="flx_DMS" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="flx_H2S" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="flx_no_soil" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="flx_no" grid_ref="grid_nvm_out" level="10"/>
+
+    <!-- level 11 -->
+    <field field_ref="humtot_liquid" level="11"/>
+    <field field_ref="humtot_frozen" level="11"/>
+    <field field_ref="pb" level="11"/>
+    <field field_ref="slowflow" level="11"/>
+    <field field_ref="qsintveg_tot" level="11"/>
+    <field field_ref="LAImean" level="11"/>
+    <field field_ref="mcs" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="mcr" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="nvg" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="alphavg" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="land_root_profile" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="dlh" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="water2infilt" grid_ref="grid_nstm_out" level="11"/>
+    <field field_ref="kk_moy" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="psi_moy" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="profil_froz_hydro" grid_ref="grid_nslm_out" level="11"/>
+    <field field_ref="pkappa" grid_ref="grid_ngrnd_out"  level="11"/>
+    <field field_ref="pkappa_snow" grid_ref="grid_nsnow_out" level="11"/>
+    <field field_ref="pcapa" grid_ref="grid_ngrnd_out"  level="11"/>
+    <field field_ref="pcapa_spec" grid_ref="grid_ngrnd_out"  level="11"/>
+    <field field_ref="pcapa_snow" grid_ref="grid_nsnow_out"  level="11"/>
+    <field field_ref="zrefrz" grid_ref="grid_nsnow_out" level="11"/>
+    <field field_ref="melt_snow" grid_ref="grid_nsnow_out" level="11"/>
+    <field field_ref="pkappa_ice" grid_ref="grid_nice_out" level="11"/>
+    <field field_ref="pcapa_ice" grid_ref="grid_nice_out" level="11"/>
+    <field field_ref="icetemp" grid_ref="grid_nice_out" level="11"/>
+    <field field_ref="snowtemp" grid_ref="grid_nsnow_out"  level="11"/>
+    <field field_ref="snowtemp_weighted"  level="11"/>
+    <field field_ref="snowliq" grid_ref="grid_nsnow_out"  level="11"/>
+    <field field_ref="snowdz" grid_ref="grid_nsnow_out"  level="11"/>
+    <field field_ref="snowrho" grid_ref="grid_nsnow_out"  level="11"/>
+    <field field_ref="surfacedensity"  level="11"/>
+    <field field_ref="snowheat" grid_ref="grid_nsnow_out"  level="11"/>
+    <field field_ref="snowgrain" grid_ref="grid_nsnow_out"  level="11"/>
+    <field field_ref="snow_viscosity" grid_ref="grid_nsnow_out"  level="11"/>
+    <field field_ref="snowdepth"  level="11"/>
+    <field field_ref="ice_sheet_mask" level="11"/>
+    <field field_ref="mc" grid_ref="grid_nslm_nstm_out" level="20"/>   <!-- mc is a 4 dimensional variable -->
+    <field field_ref="netco2flux" level="11" />
+    <field field_ref="fco2_lu" level="11" />
+    <field field_ref="fco2_wh" level="11" />
+    <field field_ref="fco2_ha" level="11" />
+
+    <!-- Debug maintanance respiration -->
+    <field field_ref="RESP_MAINT_PART" grid_ref="grid_nvm_nparts_out" level="11"/>
+    <field field_ref="SLOPE_MAINT_PART" grid_ref="grid_nvm_nparts_out" level="11"/>
+    <field field_ref="GTEMP_MAINT_PART" grid_ref="grid_nvm_nparts_out" level="11"/>
+    <field field_ref="CN_MAINT_PART" grid_ref="grid_nvm_nparts_out" level="11"/>
+    <field field_ref="ADJUST_MAINT_PART" grid_ref="grid_nvm_nparts_out" level="11"/>   
+    <field field_ref="NPOOL_MAINT_PART" grid_ref="grid_nvm_nparts_out" level="11"/>
+    </field_group>
+
+  </file>
+
+  <!-- Sechiba file 3 -->
+  <!-- This files contains all variables having more than one vertical axis -->
+  <file id="sechiba3" name="sechiba_history_4dim" output_level="_AUTO_" output_freq="_AUTO_" enabled="_AUTO_">
+   <field_group id="groupremap_sechiba3" group_ref="remap_1mo" grid_ref="grid_landpoints_out" >
+    <field field_ref="areas" level="1"/>
+    <field field_ref="contfrac" level="1"/>
+    <field field_ref="mc" grid_ref="grid_nslm_nstm_out" level="1"/>
+    <field field_ref="mc_read_current" grid_ref="grid_nslm_nstm_out" level="2"/>
+    <field field_ref="kfact_root" grid_ref="grid_nslm_nstm_out" level="3"/>
+    <field field_ref="vegetmax_soil" grid_ref="grid_nvm_nstm_out" level="3"/>
+    <field field_ref="rootsink" grid_ref="grid_nslm_nstm_out" level="3"/>
+    <field field_ref="profil_froz_hydro_ns" grid_ref="grid_nslm_nstm_out" level="11"/>
+    <field field_ref="R_root" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="R_xylem" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="R_leaf" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="K_plant" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="psi_leaf" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="psi_root_sup" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="psi_root_inf" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="psi_xylem_trunk" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="psi_xylem_leaf" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="psi_xylem_collar" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="psi_sto_wood" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="psi_sto_leaf" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="psi_leaf_midday" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="psi_leaf_min" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="psi_leaf_mean_gs" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="SAP_INIT_DROUGHT_c" grid_ref="grid_nvm_ncirc_out" level="5"/>
+    <field field_ref="VESSEL_LOSS" grid_ref="grid_nvm_ncirc_out" level="6"/>
+    <field field_ref="KILL_VESSELS" grid_ref="grid_nvm_ncirc_out" level="6"/>
+    <field field_ref="VESSEL_LOSS_PREVIOUS" grid_ref="grid_nvm_ncirc_out" level="6"/>
+    <field field_ref="VESSEL_LOSS_DAILY" grid_ref="grid_nvm_ncirc_out" level="6"/>
+    <field field_ref="VL_DIFF_DAILY" grid_ref="grid_nvm_ncirc_out" level="6"/>
+    <field field_ref="VESSEL_MORTALITY_DAILY" grid_ref="grid_nvm_ncirc_out" level="6"/>
+    <field field_ref="Fsto_wood" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="Fsto_leaf" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="leaf_stor_norm" grid_ref="grid_nvm_ncirc_out" level="10"/>
+    <field field_ref="wood_stor_norm" grid_ref="grid_nvm_ncirc_out" level="10"/>
+   </field_group>  
+  </file>
+
+
+  <!-- Sechiba alma file 1 -->
+  <!-- This file is similar to sechiba_history.nc file but using another naming protocol. -->
+  <file id="sechiba1_alma" name="sechiba_history_alma" output_level="10" output_freq="1mo" enabled=".FALSE.">
+   <field_group id="groupremap_alma1" group_ref="remap_1mo" grid_ref="grid_landpoints_out" >
+    <field field_ref="areas" level="1"/>
+    <field field_ref="LandPoints" level="20"/>
+    <field field_ref="contfrac" level="1"/>
+    <field field_ref="soilflx" level="1"/>
+    <field field_ref="Qv" level="1"/>
+    <field field_ref="runoff" name="Qs" level="1"/>
+    <field field_ref="drainage" name="Qsb" level="1"/>
+    <field field_ref="coastalflow" name="CoastalFlow" level="1"/>
+    <field field_ref="riverflow" name="RiverFlow" level="1"/>
+    <field field_ref="surfheat_incr" level="1"/>
+    <field field_ref="coldcont_incr" level="1"/>
+    <field field_ref="fluxsens" name="Qh" level="1"/>
+    <field field_ref="fluxlat" name="Qle" level="1"/>
+    <field field_ref="lwnet" name="LWnet" level="1"/>
+    <field field_ref="swnet" name="SWnet" level="1"/>
+    <field field_ref="precip_rain" name="Rainf" level="1"/>
+    <field field_ref="precip_snow" name="Snowf" level="1"/>
+    <field field_ref="vevapp" name="Evap" level="1"/>
+    <field field_ref="tot_melt" name="Qsm" level="1"/>
+    <field field_ref="irrigation" name="Qirrig" level="1"/>
+    <field field_ref="netirrig" name="Qirrig_req" long_name="Irrigation requirement" level="1"/>
+    <field field_ref="temp_sol_new" level="1"/>
+    <field field_ref="fastr" level="1"/>
+    <field field_ref="slowr" level="1"/>
+    <field field_ref="streamr" level="1"/>
+    <field field_ref="laker" level="1"/>
+    <field field_ref="pondr" level="1"/>
+    <field field_ref="albedo_glob" level="1"/>
+    <field field_ref="bckgrnd_alb" grid_ref="grid_albtyp_out" name="Albedo_Background" level="1"/>
+    <field field_ref="SurfStor" level="1"/>
+    <field field_ref="snow" name="SWE" long_name="Snow Water Equivalent" level="1"/>
+    <field field_ref="soilwet" level="1"/>
+    <field field_ref="evapot_corr" name="PotEvap" long_name="Potential evapotranspiration" unit="kg/m^2/s" level="1"/>
+    <field field_ref="evapot" name="PotEvapOld" long_name="Potential evapotranspiration old method" unit="kg/m^2/s" level="1"/>
+    <field field_ref="ECanop" level="1"/>
+    <field field_ref="TVeg" level="1"/>
+    <field field_ref="vevapsno" name="SubSnow" level="1"/>
+    <field field_ref="irrigmap" name="IrrigationMap" level="1"/>
+    <field field_ref="floodmap" name="FloodplainsMap" level="1"/>
+    <field field_ref="flood_frac" name="flood_frac" level="1"/>
+    <field field_ref="swampmap" name="SwampMap" level="1"/>
+    <field field_ref="hydrographs" name="Dis" level="1"/>
+    <field field_ref="htuhgmon" name="HTUDis" grid_ref="grid_nbasmon_out" level="1"/>
+    <field field_ref="gpp" grid_ref="grid_nvm_out" name="GPP" level="1"/>
+    <field field_ref="nee" grid_ref="grid_nvm_out" name="NEE" level="1"/>
+    <field field_ref="maint_resp" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="hetero_resp" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="growth_resp" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="npp" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="z0m" name="Z0m" long_name="Roughness height for momentum" level="1"/>
+    <field field_ref="z0h" name="Z0h" long_name="Roughness height for heat" level="1"/>
+    <field field_ref="roughheight" name="EffectHeight" long_name="Effective displacement height (h-d)" level="1"/>
+    <field field_ref="delsoilmoist" level="1"/>
+    <field field_ref="delintercept" level="1"/>
+    <field field_ref="delswe" level="1"/>
+    <field field_ref="vevapnu" name="ESoil" level="1"/>
+    <field field_ref="vevapflo" name="EWater" level="1"/>
+    <field field_ref="temp_air" name="Tair" level="2"/>
+    <field field_ref="qair" name="Qair" level="2"/>
+    <field field_ref="vegetfrac" grid_ref="grid_nvm_out" level="3"/>
+    <field field_ref="maxvegetfrac" grid_ref="grid_nvm_out" level="3"/>
+    <field field_ref="nobiofrac" grid_ref="grid_nnobio_out" level="3"/>
+    <field field_ref="soilmoist" grid_ref="grid_nslm_out" level="7"/>
+    <field field_ref="humtot" name="RootMoist" long_name="Root zone soil water" level="1"/>
+    <field field_ref="ptn_pftmean" grid_ref="grid_ngrnd_out" name="SoilTemp" level="7"/>
+    <field field_ref="frac_sub_snow" name="SnowFrac" level="7"/>
+    <field field_ref="albedo_snow" level="7"/>
+    <field field_ref="snowdz" grid_ref="grid_nsnow_out" name="SnowDepth" level="7"/>
+    <field field_ref="temp_sol_new" name="RadT" level="1"/>
+    <field field_ref="twbr" level="1"/>
+   </field_group>
+  </file>
+
+  <!-- Sechiba alma file 2 -->
+  <file id="sechiba2_alma" name="sechiba_out_2_alma" output_level="10" output_freq="1d" enabled=".FALSE.">
+    <!-- This file is similar to sechiba_out_2.nc file but using another naming protocol. -->
+    <field_group id="groupremap_alma2" group_ref="remap_1d" grid_ref="grid_landpoints_out" >
+    <field field_ref="areas" level="1"/>
+    <field field_ref="LandPoints" level="20"/>
+    <field field_ref="contfrac" level="1"/>
+    <field field_ref="soilflx" level="1"/>
+    <field field_ref="Qv" level="1"/>
+    <field field_ref="runoff" name="Qs" level="1"/>
+    <field field_ref="drainage" name="Qsb" level="1"/>
+    <field field_ref="coastalflow" name="CoastalFlow" level="1"/>
+    <field field_ref="riverflow" name="RiverFlow" level="1"/>
+    <field field_ref="surfheat_incr" level="1"/>
+    <field field_ref="coldcont_incr" level="1"/>
+    <field field_ref="fluxsens" name="Qh" level="1"/>
+    <field field_ref="fluxlat" name="Qle" level="1"/>
+    <field field_ref="lwnet" name="LWnet" level="1"/>
+    <field field_ref="swnet" name="SWnet" level="1"/>
+    <field field_ref="precip_rain" name="Rainf" level="1"/>
+    <field field_ref="precip_snow" name="Snowf" level="1"/>
+    <field field_ref="vevapp" name="Evap" level="1"/>
+    <field field_ref="tot_melt" name="Qsm" level="1"/>
+    <field field_ref="irrigation" name="Qirrig" level="1"/>
+    <field field_ref="netirrig" name="Qirrig_req" long_name="Irrigation requirement" level="1"/>
+    <field field_ref="temp_sol_new" level="1"/>
+    <field field_ref="fastr" level="1"/>
+    <field field_ref="slowr" level="1"/>
+    <field field_ref="streamr" level="1"/>
+    <field field_ref="laker" level="1"/>
+    <field field_ref="pondr" level="1"/>
+    <field field_ref="albedo_glob" level="1"/>
+    <field field_ref="SurfStor" level="1"/>
+    <field field_ref="snow" name="SWE" long_name="Snow Water Equivalent" level="1"/>
+    <field field_ref="soilwet" level="1"/>
+    <field field_ref="ECanop" level="1"/>
+    <field field_ref="TVeg" level="1"/>
+    <field field_ref="vevapsno" name="SubSnow" level="1"/>
+    <field field_ref="irrigmap" name="IrrigationMap" level="1"/>
+    <field field_ref="floodmap" name="FloodplainsMap" level="1"/>
+    <field field_ref="flood_frac" name="flood_frac" level="1"/>
+    <field field_ref="swampmap" name="SwampMap" level="1"/>
+    <field field_ref="hydrographs" name="Dis" level="1"/>
+    <field field_ref="gpp" grid_ref="grid_nvm_out" name="GPP" level="1"/>
+    <field field_ref="nee" grid_ref="grid_nvm_out" name="NEE" level="1"/>
+    <field field_ref="maint_resp" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="hetero_resp" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="growth_resp" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="npp" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="delsoilmoist" level="1"/>
+    <field field_ref="delintercept" level="1"/>
+    <field field_ref="delswe" level="1"/>
+    <field field_ref="vevapnu" name="ESoil" level="1"/>
+    <field field_ref="vevapflo" name="EWater" level="1"/>
+    <field field_ref="soilmoist" grid_ref="grid_nslm_out" level="7"/>
+    <field field_ref="humtot" name="RootMoist" long_name="Root zone soil water" level="1"/>
+    <field field_ref="ptn_pftmean" grid_ref="grid_ngrnd_out" name="SoilTemp" level="7"/>
+    <field field_ref="frac_sub_snow" name="SnowFrac" level="7"/>
+    <field field_ref="albedo_snow" level="7"/>
+    <field field_ref="snowdz" grid_ref="grid_nsnow_out" name="SnowDepth" level="7"/>
+    <field field_ref="vegetfrac" grid_ref="grid_nvm_out" level="3"/>
+    <field field_ref="maxvegetfrac" grid_ref="grid_nvm_out" level="3"/>
+    <field field_ref="nobiofrac" grid_ref="grid_nnobio_out" level="3"/>
+    <field field_ref="temp_sol_new" name="RadT" level="5"/>
+   </field_group>
+
+  </file>
+
+  <!-- Sechiba file 4 containing variables read and interpolated from input files -->
+  <!-- This file is written in the begining of the execution. The variables are written only once. -->
+  <file id="sechiba4" name="ORCHIDEE_interp_diag" output_level="3" output_freq="1d" enabled=".FALSE.">
+    <field_group id="groupremap_sechiba4" group_ref="remap_1d" grid_ref="grid_landpoints_out" >
+
+      <field field_ref="interp_diag_veget_next" grid_ref="grid_nvmap_out" level="1"/>
+      <field field_ref="interp_diag_njsc" level="1"/>
+      <field field_ref="interp_diag_clayfraction"  level="1"/>
+      <field field_ref="interp_diag_sandfraction"  level="1"/>
+      <field field_ref="interp_diag_siltfraction"  level="1"/>
+      <field field_ref="interp_diag_reinf_slope"  level="1"/>
+      <field field_ref="interp_diag_alb_vis"  level="1"/>
+      <field field_ref="interp_diag_alb_nir"  level="1"/>
+      <field field_ref="interp_diag_N_qt_WRICE_year" level="1"/>
+      <field field_ref="interp_diag_N_qt_OTHER_year" level="1"/>
+      <field field_ref="interp_diag_flx_co2_bbg_year" level="1"/>
+      <field field_ref="interp_diag_reftemp" level="1"/>
+      <field field_ref="interp_diag_refsoc" grid_ref="grid_ngrnd_out" level="1"/>
+      <field field_ref="interp_diag_woodharvest" level="1"/>
+      <field field_ref="interp_diag_irrigmap_frac" level="1"/>
+      <field field_ref="interp_diag_aeiswmap_frac" level="1"/>
+      <!--      <field field_ref="interp_diag_lai" grid_ref="grid_from_lai" level="1"/> -->
+      <field field_ref="interp_diag_bulk" level="1"/>
+      <field field_ref="interp_diag_soil_ph" level="1"/>
+      <field field_ref="interp_diag_Nammonium" grid_ref="grid_time12_out" level="1"/>
+      <field field_ref="interp_diag_Nnitrate" grid_ref="grid_time12_out" level="1"/>
+      <field field_ref="interp_diag_Nfert" level="1"/>
+      <field field_ref="interp_diag_Nfert_cropland" level="1"/>
+      <field field_ref="interp_diag_Nfert_cropC3" level="1"/>
+      <field field_ref="interp_diag_Nfert_cropC4" level="1"/>
+      <field field_ref="interp_diag_Nfert_ammo_cropland" level="1"/>
+      <field field_ref="interp_diag_Nfert_nitr_cropland" level="1"/>
+      <field field_ref="interp_diag_Nfert_pasture" level="1"/>
+      <field field_ref="interp_diag_Nfert_ammo_pasture" level="1"/>
+      <field field_ref="interp_diag_Nfert_nitr_pasture" level="1"/>
+      <field field_ref="interp_diag_Nmanure" level="1"/>
+      <field field_ref="interp_diag_Nmanure_cropland" level="1"/>
+      <field field_ref="interp_diag_Nmanure_pasture" level="1"/>
+      <field field_ref="interp_diag_Nbnf" level="1"/>
+      <field field_ref="interp_diag_WETNHX" grid_ref="grid_time12_out" level="12"/>
+      <field field_ref="interp_diag_DRYNOY" grid_ref="grid_time12_out" level="12"/>
+      <field field_ref="interp_diag_WETNOY" grid_ref="grid_time12_out" level="12"/>
+      <field field_ref="interp_diag_DRYNOY" grid_ref="grid_time12_out" level="12"/>
+      <field field_ref="interp_diag_forest_managed" grid_ref="grid_nvmap_out" level="1"/>
+      <field field_ref="interp_diag_fraclake" grid_ref="grid_nlake_out" level="1"/>
+      <field field_ref="interp_diag_depth" grid_ref="grid_nlake_out" level="1"/>
+      <field field_ref="interp_diag_Cext" grid_ref="grid_nlake_out" level="1"/>
+      <field field_ref="interp_diag_fetch" grid_ref="grid_nlake_out" level="1"/>
+      <field field_ref="interp_diag_ice_sheet_mask" level="1"/>
+      <field field_ref="soilalb_dry" grid_ref="grid_albtyp_out" level="1"/>
+      <field field_ref="soilalb_wet" grid_ref="grid_albtyp_out" level="1"/>
+      <field field_ref="soilalb_moy" grid_ref="grid_albtyp_out" level="1"/>
+      
+      <field field_ref="interp_avail_aveget"  level="3"/>
+      <field field_ref="interp_diag_vegetrefrac" grid_ref="grid_nvmap_out" level="3"/>
+      <field field_ref="interp_avail_atext"  level="3"/>
+      <field field_ref="interp_diag_soilclass" grid_ref="grid_nscm_out" level="3"/>
+      <field field_ref="interp_avail_aslope"  level="3"/>     
+      <field field_ref="interp_avail_aalb_bg"  level="3"/>
+      <field field_ref="interp_avail_asoilcol"  level="3"/>
+      <field field_ref="interp_avail_achem_wrice" level="3"/>
+      <field field_ref="interp_avail_achem_other" level="3"/>
+      <field field_ref="interp_avail_achem_co2" level="3"/>
+      <field field_ref="interp_avail_alaimap"  level="3"/>
+      <field field_ref="interp_avail_areftemp" level="3"/>
+
+      <field field_ref="interp_diag_lightning" grid_ref="grid_time12_out" level="2"/>
+      <field field_ref="interp_diag_popdens" level="2"/>
+      <field field_ref="interp_diag_humign" level="2"/>
+      <field field_ref="interp_diag_edge_length" level="2"/>
+
+   </field_group>
+  </file>
+
+
+  <!-- Definition of files with stomate diagnostics -->
+  <!-- The stomate output files can not have output_freq less than 1d. Set output_freq="1d" for the highest frequency. -->
+
+  <!-- Stomate file 1 -->
+  <file id="stomate1" name="stomate_history" output_level="_AUTO_" output_freq="_AUTO_" enabled="_AUTO_">
+   <field_group id="groupremap_stomate1" group_ref="remap_1mo" grid_ref="grid_landpoints_out" >
+    
+    
+    <!-- level 0 -->
+    <field field_ref="RESOLUTION_X" level="0"/>
+    <field field_ref="RESOLUTION_Y" level="0"/>
+    <field field_ref="contfrac" name="CONTFRAC" level="0"/>
+    <field field_ref="areas" level="0"/>
+    <field field_ref="VEGET_MAX" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="MBC_daily_c" level="0"/>
+    <field field_ref="MBC_daily_n" level="0"/>
+    
+    <!-- level 1 -->
+    <field field_ref="T2M_MONTH" level="1"/>
+    <field field_ref="T2M_WEEK" level="1"/>
+    <field field_ref="t2m_longterm" level="1"/>
+    <field field_ref="firefrac" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="CO2_FIRE" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="ATM_TO_BM_c" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="LAI_MEAN_GS" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="AREA_BURNT" level="6"/>
+    <field field_ref="FDI" level="6"/>
+    <field field_ref="LIGHTN_IGN" level="6"/>
+    <field field_ref="FDI_NIACC" level="6"/>
+    <field field_ref="FDI_VPD_DAILY_MEAN" level="6"/>
+    <field field_ref="FDI_VPD_DAILY_MAX" level="6"/>
+    <field field_ref="FDI_VPD_MEAN_WEEK" level="6"/>
+    <field field_ref="FDI_VPD_MAX_WEEK" level="6"/>
+    <field field_ref="NUMFIRE" level="6"/>
+    <field field_ref="NUMFIRE_HUMAN" level="6"/>
+    <field field_ref="NUMFIRE_LIGHTNING" level="6"/>
+    <field field_ref="AREA_BURNT_HUMAN" level="6"/>
+    <field field_ref="AREA_BURNT_LIGHTNING" level="6"/>
+    <field field_ref="POPDENS" level="6"/>
+    <field field_ref="A_ND" level="6"/>
+    <field field_ref="FIRE_FRACTION" level="6"/>
+    <field field_ref="FIRESIZE" level="6"/>
+    <field field_ref="IGNITION_EFFICIENCY" level="6"/>
+    <field field_ref="AREA_BURNT_PFT" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="AREA_BURNABLE" level="6"/>
+    <field field_ref="CO2_FIRE_SURFACE" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="CO2_FIRE_CROWN" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="AED" level="6"/>
+    <field field_ref="AED_LIGHT" level="6"/>
+    <field field_ref="FEDGE_PGAP" level="6"/>
+    <field field_ref="AED_LIGHT_SLOWPROC" level="6"/>
+    <field field_ref="FEDGE_PGAP_SLOWPROC" level="6"/>
+    <field field_ref="EDGE_LENGTH_DYN" level="2"/>
+    <field field_ref="ALPHA_HARVEST_EFF" level="2"/>
+    <field field_ref="CLEARCUT_AREA"     level="2"/>
+    <!-- level=1 : la rotation cible est le seul canal agissant sur la dynamique,
+         et elle est requise par le test rotation realisee vs consigne.
+         /!\ grid_ref="grid_nvm_out" OBLIGATOIRE : le champ est envoye en (npts,nvm) et
+         declare grid_nvm dans field_def, mais sans ce grid_ref il sort en (time,lat,lon),
+         l'axe PFT perdu et la valeur ininterpretable. Meme defaut que AC12_R (2026-08-05).
+         Il a fait conclure a tort a une rotation cible de ~400 ans alors que ROTATION_REF
+         vaut 30 a 120 ans selon l'essence. -->
+    <field field_ref="TARGET_ROTATION_AGE" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="DA_FIRE"    level="2"/>
+    <field field_ref="DA_STORM"   level="2"/>
+    <field field_ref="DA_PEST"    level="2"/>
+    <field field_ref="DA_HARVEST" level="2"/>
+    <!-- Les trois echelles separement (2026-07-30). level=1 : sans elles la
+         decomposition n'est pas observable, et c'est le critere de validation 4 du
+         design. EDGE_MACRO non nul est aussi la seule confirmation que
+         ROAD_LENGTH_FILE a bien ete lue quand PRINTLEV=0. -->
+    <field field_ref="EDGE_MESO"  level="1"/>
+    <field field_ref="EDGE_MACRO" level="1"/>
+    <field field_ref="AC12_R" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="AC12_F_REAL" grid_ref="grid_nvm_out" level="1"/>
+    <!-- RDI_THIN_LIMIT (2026-08-12) : cible de RDI REELLEMENT utilisee par l'eclaircie,
+         apres la surcharge de bande. RDI_TARGET_LOWER ne convient pas, il est recalcule
+         pour la sortie sans cette surcharge et affiche donc autre chose. grid_nvm_out est
+         obligatoire, sinon l'axe PFT est perdu (meme defaut que AC12_R, corrige le
+         2026-08-05). -->
+    <field field_ref="RDI_THIN_LIMIT" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="CLASS0_AREA"      level="2"/>
+    <field field_ref="CLASS0_RECOVERED" level="2"/>
+    <field field_ref="FRAC_CLASS0"      level="2"/>
+    <field field_ref="CLASS0_VEG"       level="2"/>
+    <field field_ref="SLA" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="LAI_MEAN" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="LAI_MAX" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="NPP_STOMATE" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="GPP" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="NBP_pool_c" level="1"/>
+    <field field_ref="NBP_flux_c" level="1"/>
+    <field field_ref="NBP_pool_n" level="1"/>
+    <field field_ref="NBP_flux_n" level="1"/>
+    <field field_ref="ESTIMATED_NEE" level="1"/>
+    <field field_ref="PLANT_STATUS" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="MBC_NBP1_c" level="0"/>
+    <field field_ref="MBC_NBP1_n" level="0"/>
+    <field field_ref="MBC_NBP2_c" level="0"/>
+    <field field_ref="MBC_NBP2_n" level="0"/>    
+    <field field_ref="MBC_NBP3_c" level="0"/> 
+
+    <!-- level 2 -->
+    <field field_ref="LEAF_M_c" grid_ref="grid_nvm_out" level="2"/>
+    <field field_ref="SAP_M_AB_c" grid_ref="grid_nvm_out" level="2"/>
+    <field field_ref="SAP_M_BE_c" grid_ref="grid_nvm_out" level="2"/>
+    <field field_ref="HEART_M_AB_c" grid_ref="grid_nvm_out" level="2"/>
+    <field field_ref="HEART_M_BE_c" grid_ref="grid_nvm_out" level="2"/>
+    <field field_ref="ROOT_M_c" grid_ref="grid_nvm_out" level="2"/>
+    <field field_ref="FRUIT_M_c" grid_ref="grid_nvm_out" level="2"/>
+    <field field_ref="RESERVE_M_c" grid_ref="grid_nvm_out" level="2"/>
+    <field field_ref="MAINT_RESP" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="GROWTH_RESP" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="HET_RESP" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="FOREST_MANAGED" grid_ref="grid_nvm_out" level="2"/>
+    <field field_ref="LITTER_RAKE_FRAC" grid_ref="grid_nvm_out" level="2"/>
+    <field field_ref="RESERVE_TARGET_c" grid_ref="grid_nvm_out" level="2"/>
+    <field field_ref="LABILE_TARGET_c" grid_ref="grid_nvm_out" level="2"/>
+    <field field_ref="RESERVE_TARGET_n" grid_ref="grid_nvm_out" level="2"/>
+    <field field_ref="LABILE_TARGET_n" grid_ref="grid_nvm_out" level="2"/>
+    <field field_ref="IND" grid_ref="grid_nvm_out" level="2"/>
+    
+    <!-- level 3 -->
+    <field field_ref="ADAPTATION" grid_ref="grid_nvm_out" level="3"/>
+    <field field_ref="REGENERATION" grid_ref="grid_nvm_out" level="3"/>
+    <field field_ref="CN_IND" grid_ref="grid_nvm_out" level="3"/>
+    <field field_ref="WOODMASS_IND" grid_ref="grid_nvm_out" level="3"/>
+    <field field_ref="GAMMA" grid_ref="grid_nvm_out" level="3"/>
+    <field field_ref="RDI" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="RDI_TARGET_LOWER" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="RDI_TARGET_UPPER" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="SIGMA" grid_ref="grid_nvm_out" level="3"/>
+    <field field_ref="CROWN_POROSITY" grid_ref="grid_nvm_out" level="3"/>
+    <field field_ref="LIGHT_TRAN_SEASON" grid_ref="grid_nvm_out" level="3"/>
+
+    <!-- level 4 -->
+    <field field_ref="SAP_AB_TURN_c" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="ROOT_TURN_c" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="FRUIT_TURN_c" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="QC_COUNT_REPLANT" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="QC_NEGATIVE_GPP" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="MORT" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="TOTAL_BM_LITTER_c" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="LEAF_BM_LITTER_c" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="SAP_AB_BM_LITTER_c" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="SAP_BE_BM_LITTER_c" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="HEART_AB_BM_LITTER_c" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="HEART_BE_BM_LITTER_c" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="ROOT_BM_LITTER_c" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="FRUIT_BM_LITTER_c" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="RESERVE_BM_LITTER_c" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="TOTAL_M_c" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="TOTAL_AB_M_c" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="TOTAL_BE_M_c" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="TOTAL_AB_M_n" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="TOTAL_BE_M_n" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="TOTAL_OTHER_c" level="4"/>
+    <field field_ref="TOTAL_TURN_c" grid_ref="grid_nvm_out" level="4"/>
+    <field field_ref="LEAF_TURN_c" grid_ref="grid_nvm_out" level="4"/>
+    
+    <!-- level 5 -->
+    <field field_ref="LITTER_STR_AB_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LITTER_MET_AB_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LITTER_WOD_AB_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LITTER_SNG_AB_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LITTER_SNG_BE_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LITTER_STR_BE_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LITTER_MET_BE_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LITTER_WOD_BE_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SNAG_FALL_AB_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SNAG_FALL_AB_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SNAG_FALL_BE_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SNAG_FALL_BE_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="TOTAL_AB_M_INV_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="TOTAL_BE_M_INV_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="TOTAL_AB_M_INV_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="TOTAL_BE_M_INV_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="DEADLEAF_COVER" level="5"/>
+    <field field_ref="TOTAL_SOIL_c" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="TOTAL_SOIL_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="TOTAL_LITTER_SOIL_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="TOTAL_LITTER_SOIL_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LITTERHUM" level="5"/>
+    <field field_ref="BM_ALLOC_LEAF_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="BM_ALLOC_SAP_AB_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="BM_ALLOC_SAP_BE_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="BM_ALLOC_ROOT_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="BM_ALLOC_FRUIT_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="BM_ALLOC_RES_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="BM_ALLOC_LABILE_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="HERBIVORES" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="TURNOVER_TIME_LEAF" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="TURNOVER_TIME_ROOT" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="TURNOVER_TIME_SAP_AB" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="TURNOVER_TIME_FRUIT" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="cSoilturnover" level="5"/>
+    <field field_ref="cLitterturnover" level="5"/>
+    <field field_ref="cSoilLitterturnover" level="5"/>
+    <field field_ref="fDeforestToProduct" level="5"/>
+    <field field_ref="LITTERFUEL_c_1hr" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="LITTERFUEL_c_10hr" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="LITTERFUEL_c_100hr" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="LITTERFUEL_c_1000hr" grid_ref="grid_nvm_out" level="6"/>
+<!--    <field field_ref="fDeforestToProduct_post" level="5"/> -->
+
+    <field field_ref="TOTAL_M_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="TOTAL_OTHER_n" level="5"/>
+    <field field_ref="LEAF_M_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SAP_M_AB_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SAP_M_BE_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="HEART_M_AB_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="HEART_M_BE_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="ROOT_M_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="FRUIT_M_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LABILE_M_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LABILE_M_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="RESERVE_M_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="TOTAL_TURN_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LEAF_TURN_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SAP_AB_TURN_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="ROOT_TURN_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="FRUIT_TURN_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="TOTAL_BM_LITTER_n" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="LEAF_BM_LITTER_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SAP_AB_BM_LITTER_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SAP_BE_BM_LITTER_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="HEART_AB_BM_LITTER_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="HEART_BE_BM_LITTER_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="ROOT_BM_LITTER_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="FRUIT_BM_LITTER_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LABILE_BM_LITTER_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LABILE_BM_LITTER_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="RESERVE_BM_LITTER_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LITTER_STR_AB_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LITTER_MET_AB_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LITTER_WOD_AB_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LITTER_STR_BE_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LITTER_SNG_AB_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LITTER_SNG_BE_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LITTER_MET_BE_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="LITTER_WOD_BE_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SOIL_ACTIVE_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SOIL_ACTIVE_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SOIL_SLOW_c" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="SOIL_SLOW_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SOIL_PASSIVE_c" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="SOIL_PASSIVE_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SOIL_SURF_c" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SOIL_SURF_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="BM_ALLOC_LEAF_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="BM_ALLOC_SAP_AB_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="BM_ALLOC_SAP_BE_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="BM_ALLOC_ROOT_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="BM_ALLOC_FRUIT_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="BM_ALLOC_RES_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="BM_ALLOC_LABILE_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="RUE_LONGTERM" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="KF" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="REL_HEIGHT" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="C0_ALLOC" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="GTEMP_ALLOC" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="PIPE_TUNE2" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="ALPHA_SELF_THINNING" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="PRE_INDUST_REF_GPP" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="GPP_DECADE" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="N_RESERVE_BALANCE" grid_ref="grid_nvm_out" level="5"/> 
+    <field field_ref="BA" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="BA_INV" grid_ref="grid_nvm_out" level="5"/>
+
+    <field field_ref="WOOD_BEG" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="WOOD_PRE" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="WOOD_PHE" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="WOOD_GRO" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="WOOD_AGE" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="WOOD_LUC" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="WOOD_CLE" grid_ref="grid_nvm_out" level="9"/>    
+    <field field_ref="WOOD_DIS" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="WOOD_REC" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="WOOD_SPC" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="WOOD_HAR" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="WOOD_MOR" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="WOOD_TUR" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="WOOD_LPJ" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="WOOD_VOL" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="WOOD_VOL_INC" grid_ref="grid_nvm_out" level="5"/>
+
+    <field field_ref="K_LATOSA_ADAPT" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SUGAR_LOAD" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="NUE" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="f_NCPLANT" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="N_UPTAKE_NH4" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="N_UPTAKE_NO3" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="N_MINERALISATION" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SOIL_NH4" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SOIL_NO3" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SOIL_NOX" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SOIL_N2O" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SOIL_N2" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="SOIL_P_OX" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="BACT" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="NH3_EMISSION" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="NOX_EMISSION" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="N2O_EMISSION" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="N2_EMISSION" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="NH4_LEACHING" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="NO3_LEACHING" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="NITRIFICATION" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="DENITRIFICATION" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="NHX_DEPOSITION" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="NOX_DEPOSITION" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="BNF" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="N_FERTILISER_AMMO" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="N_FERTILISER_NITR" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="N_MANURE" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="ATM_TO_BM_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="ATM_TO_IMMOB_n" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="N_ESTAB_ATM" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="N_ESTAB_SOIL" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="NOX_FIRE_EMISSION" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="fluxCH4" grid_ref="grid_nvm_out" level="5" />
+    <field field_ref="febul" grid_ref="grid_nvm_out" level="5" />
+    <field field_ref="flupmt" grid_ref="grid_nvm_out" level="5" />
+    <field field_ref="alt" grid_ref="grid_nvm_out" level="5" />
+    <field field_ref="sfluxCH4_deep" level="5" />
+    <field field_ref="sfluxCO2_deep" level="5" />
+    <field field_ref="deepC_a_pftmean" grid_ref="grid_ngrnd_out" level="5" />
+    <field field_ref="deepC_s_pftmean" grid_ref="grid_ngrnd_out" level="5" />
+    <field field_ref="deepC_p_pftmean" grid_ref="grid_ngrnd_out" level="5" />
+    <field field_ref="deepN_a_pftmean" grid_ref="grid_ngrnd_out" level="5" />
+    <field field_ref="deepN_s_pftmean" grid_ref="grid_ngrnd_out" level="5" />
+    <field field_ref="deepN_p_pftmean" grid_ref="grid_ngrnd_out" level="5" />
+    <field field_ref="deep_rhC_a_pftmean" grid_ref="grid_ngrnd_out" level="5" />
+    <field field_ref="deep_rhC_s_pftmean" grid_ref="grid_ngrnd_out" level="5" />
+    <field field_ref="deep_rhC_p_pftmean" grid_ref="grid_ngrnd_out" level="5" />
+    <field field_ref="rhC_a_pftmean" level="5" />
+    <field field_ref="rhC_s_pftmean" level="5" />
+    <field field_ref="rhC_p_pftmean" level="5" />
+    <field field_ref="deepC_a_pftmean_stock" grid_ref="grid_ngrnd_out" level="5" />
+    <field field_ref="deepC_s_pftmean_stock" grid_ref="grid_ngrnd_out" level="5" />
+    <field field_ref="deepC_p_pftmean_stock" grid_ref="grid_ngrnd_out" level="5" />	    
+    <field field_ref="deepN_a_pftmean_stock" grid_ref="grid_ngrnd_out" level="5" />
+    <field field_ref="deepN_s_pftmean_stock" grid_ref="grid_ngrnd_out" level="5" />
+    <field field_ref="deepN_p_pftmean_stock" grid_ref="grid_ngrnd_out" level="5" />
+    <field field_ref="WOOD_VOL_PIX_CUT" grid_ref="grid_ncut_out" level="5"/>
+
+    <field field_ref="FLUX_PROD_S_LCC_c" level="0"/>
+    <field field_ref="FLUX_PROD_S_LCC_n" level="5"/>
+    <field field_ref="FLUX_PROD_M_LCC_c" level="0"/>
+    <field field_ref="FLUX_PROD_M_LCC_n" level="5"/>
+    <field field_ref="FLUX_PROD_L_LCC_c" level="0"/>
+    <field field_ref="FLUX_PROD_L_LCC_n" level="5"/>
+    <field field_ref="FLUX_PROD_TOTAL_LCC_c" level="5"/>
+    <field field_ref="FLUX_PROD_TOTAL_LCC_n" level="5"/>
+    <field field_ref="FLUX_S_LCC_c" grid_ref="grid_nshort_out" level="5"/>
+    <field field_ref="FLUX_S_LCC_n" grid_ref="grid_nshort_out" level="5"/>
+    <field field_ref="FLUX_M_LCC_c" grid_ref="grid_nmedium_out" level="5"/>
+    <field field_ref="FLUX_M_LCC_n" grid_ref="grid_nmedium_out" level="5"/>
+    <field field_ref="FLUX_L_LCC_c" grid_ref="grid_nlong_out" level="5"/>
+    <field field_ref="FLUX_L_LCC_n" grid_ref="grid_nlong_out" level="5"/>
+    <field field_ref="PROD_S_LCC_c" grid_ref="grid_nshort1_out" level="5"/>
+    <field field_ref="PROD_S_LCC_n" grid_ref="grid_nshort1_out" level="5"/>
+    <field field_ref="PROD_M_LCC_c" grid_ref="grid_nmedium1_out" level="5"/>
+    <field field_ref="PROD_M_LCC_n" grid_ref="grid_nmedium1_out" level="5"/>
+    <field field_ref="PROD_L_LCC_c" grid_ref="grid_nlong1_out" level="5"/>
+    <field field_ref="PROD_L_LCC_n" grid_ref="grid_nlong1_out" level="5"/>
+
+    <field field_ref="FLUX_PROD_S_HARVEST_LCT_c" grid_ref="grid_nlctypes_out" level="5"/>
+    <field field_ref="FLUX_PROD_M_HARVEST_LCT_c" grid_ref="grid_nlctypes_out" level="5"/>
+    <field field_ref="FLUX_PROD_L_HARVEST_LCT_c" grid_ref="grid_nlctypes_out" level="5"/>
+    <field field_ref="FLUX_PROD_S_HARVEST_LCT_n" grid_ref="grid_nlctypes_out" level="5"/>
+    <field field_ref="FLUX_PROD_M_HARVEST_LCT_n" grid_ref="grid_nlctypes_out" level="5"/>
+    <field field_ref="FLUX_PROD_L_HARVEST_LCT_n" grid_ref="grid_nlctypes_out" level="5"/>
+    <field field_ref="FLUX_PROD_S_LCC_LCT_c" grid_ref="grid_nlctypes_out" level="5"/>
+    <field field_ref="FLUX_PROD_M_LCC_LCT_c" grid_ref="grid_nlctypes_out" level="5"/>
+    <field field_ref="FLUX_PROD_L_LCC_LCT_c" grid_ref="grid_nlctypes_out" level="5"/>
+    <field field_ref="FLUX_PROD_S_LCC_LCT_n" grid_ref="grid_nlctypes_out" level="5"/>
+    <field field_ref="FLUX_PROD_M_LCC_LCT_n" grid_ref="grid_nlctypes_out" level="5"/>
+    <field field_ref="FLUX_PROD_L_LCC_LCT_n" grid_ref="grid_nlctypes_out" level="5"/>
+
+    <field field_ref="FLUX_PROD_S_HARVEST_c" level="0"/>
+    <field field_ref="FLUX_PROD_S_HARVEST_n" level="5"/>
+    <field field_ref="FLUX_PROD_M_HARVEST_c" level="0"/>
+    <field field_ref="FLUX_PROD_M_HARVEST_n" level="5"/>
+    <field field_ref="FLUX_PROD_L_HARVEST_c" level="0"/>
+    <field field_ref="FLUX_PROD_L_HARVEST_n" level="5"/>
+    <field field_ref="FLUX_PROD_TOTAL_HARVEST_c" level="5"/>
+    <field field_ref="FLUX_PROD_TOTAL_HARVEST_n" level="5"/>
+    <field field_ref="FLUX_S_HARVEST_c" grid_ref="grid_nshort_out" level="5"/>
+    <field field_ref="FLUX_S_HARVEST_n" grid_ref="grid_nshort_out" level="5"/>
+    <field field_ref="FLUX_M_HARVEST_c" grid_ref="grid_nmedium_out" level="5"/>
+    <field field_ref="FLUX_M_HARVEST_n" grid_ref="grid_nmedium_out" level="5"/>
+    <field field_ref="FLUX_L_HARVEST_c" grid_ref="grid_nlong_out" level="5"/>
+    <field field_ref="FLUX_L_HARVEST_n" grid_ref="grid_nlong_out" level="5"/>
+    <field field_ref="PROD_S_HARVEST_c" grid_ref="grid_nshort1_out" level="5"/>
+    <field field_ref="PROD_S_HARVEST_n" grid_ref="grid_nshort1_out" level="5"/>
+    <field field_ref="PROD_M_HARVEST_c" grid_ref="grid_nmedium1_out" level="5"/>
+    <field field_ref="PROD_M_HARVEST_n" grid_ref="grid_nmedium1_out" level="5"/>
+    <field field_ref="PROD_L_HARVEST_c" grid_ref="grid_nlong1_out" level="5"/>
+    <field field_ref="PROD_L_HARVEST_n" grid_ref="grid_nlong1_out" level="5"/>
+    <field field_ref="BURRIED_c" level="5"/>
+    <field field_ref="BURRIED_n" level="5"/>
+    <field field_ref="AGE" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="AGE_STAND" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="AGE_STAND_BM" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="HEIGHT" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="HEIGHT_DOM" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="HEIGHT_INV" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="DIAMETER" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="DIA_DOM" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="DIA_INV" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="DIAMETER_DOM" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="DIAMETER_UP_HALF" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="IND_INV" grid_ref="grid_nvm_out" level="5"/>
+
+    <!-- level 6 -->
+    <field field_ref="VCMAX" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="LEAF_AGE" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="LEAF_AGE_CRIT" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="tree_mortality" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="firedeath" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="IND_ESTAB" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="ESTABTREE" level="6"/>
+    <field field_ref="ESTABGRASS" level="6"/>
+    <field field_ref="light_death" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="HARVEST_TYPE" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="HARVEST_CUT" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="HARVEST_AREA" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="LCC_AREA" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="HARVEST_LCC_AREA_ACC" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="HARVEST_LCC_CROP_c" level="6"/>
+    <field field_ref="HARVEST_LCC_CROP_n" level="6"/>
+    <field field_ref="HARVEST_LCC_GRASS_c" level="6"/>
+    <field field_ref="HARVEST_LCC_GRASS_n" level="6"/>
+    <field field_ref="HARVEST_VEGET_c" grid_ref="grid_nvm_out" level="0"/>
+    <field field_ref="HARVEST_FOREST_c" level="6"/>
+    <field field_ref="HARVEST_FOREST_n" level="6"/>
+    <field field_ref="LCC_FOREST_c" level="6"/>
+    <field field_ref="LCC_FOREST_n" level="6"/>
+    <field field_ref="HARVEST_LCC_ACC_c" level="6"/>
+    <field field_ref="HARVEST_LCC_ACC_n" level="6"/>
+    <field field_ref="LEAF_M_MAX_c" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="LEAF_TURN_AGEING_c" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="RECRUITS_IND" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="RECRUITS_M_AB_c" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="RECRUITS_M_BE_c" grid_ref="grid_nvm_out" level="6"/> 
+
+    <field field_ref="AREA_UNDEFINED" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="AREA_UNMANAGED" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="AREA_ROTATIONAL" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="AREA_COPPICE" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="AREA_SRC" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="AREA_UNEVEN" grid_ref="grid_nvm_out" level="6"/>
+    <field field_ref="FOREST_AREA" grid_ref="grid_nvm_out" level="6"/>
+    
+    <!-- level 7 -->
+    <field field_ref="i_hosts_dead" grid_ref="grid_nvm_out" level="7"/>
+    <field field_ref="i_hosts_competition" grid_ref="grid_nvm_out" level="7"/>
+    <field field_ref="i_hosts_alive" grid_ref="grid_nvm_out" level="7"/>
+    <field field_ref="i_beetles_massattack" grid_ref="grid_nvm_out" level="7"/>
+    <field field_ref="i_hosts_defence" grid_ref="grid_nvm_out" level="7"/>
+    <field field_ref="i_beetles_generation" grid_ref="grid_nvm_out" level="7"/>
+    <field field_ref="i_beetles_pressure" grid_ref="grid_nvm_out" level="7"/>
+    <field field_ref="i_beetles_survival" grid_ref="grid_nvm_out" level="7"/>
+    <field field_ref="i_hosts_attractivity" grid_ref="grid_nvm_out" level="7"/>
+    <field field_ref="i_beetles_activity" grid_ref="grid_nvm_out" level="7"/>
+
+
+    <!-- level 8 -->
+
+    <!-- level 9 -->
+    <field field_ref="WHEN_GROWTHINIT" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="PFTPRESENT" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="GDD_MIDWINTER" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="GDD_M5_DORMANCE" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="NCD_DORMANCE" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="ALLOW_INITPHENO" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="BEGIN_LEAVES" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="TSEASON"  level="0"/>
+    <field field_ref="TMIN_SPRING_TIME" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="FPC_MAX" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="MAXFPC_LASTYEAR" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="clitterlut" grid_ref="grid_nlut_out" level="9"/>
+    <field field_ref="csoillut" grid_ref="grid_nlut_out" level="9"/>
+    <field field_ref="cveglut" grid_ref="grid_nlut_out" level="9"/>
+    <field field_ref="lailut" grid_ref="grid_nlut_out" level="9"/>
+    <field field_ref="ctotfirelut" grid_ref="grid_nlut_out" level="9"/>
+    <field field_ref="ralut" grid_ref="grid_nlut_out" level="9"/>
+    <field field_ref="rhlut" grid_ref="grid_nlut_out" level="9"/>
+    <field field_ref="npplut" grid_ref="grid_nlut_out" level="9"/>
+    <field field_ref="cproductlut" grid_ref="grid_nlut_out" level="9"/>
+    <field field_ref="flulccproductlut" grid_ref="grid_nlut_out" level="9"/>
+    <field field_ref="flulccresiduelut" grid_ref="grid_nlut_out" level="9"/>
+    <field field_ref="flulccresidue" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="flulccatmlut" grid_ref="grid_nlut_out" level="9"/>
+    <field field_ref="necbLut" grid_ref="grid_nlut_out" level="9"/>
+    <field field_ref="fProductDecomp" level="9"/>
+    <field field_ref="shum_ngrnd_perma" grid_ref="grid_ngrnd_out" level="9" />
+    <field field_ref="GROWING_SEASON" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="POT_GROWING_SEASON" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="VEGSTRESS_DAY" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="VEGSTRESS_WEEK" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="VEGSTRESS_MONTH" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="VEGSTRESS_SEASON" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="NSTRESS_SEASON" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="GPP_WEEK" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="MAINT_RESP_WEEK" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="B_beetles_kill" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="Beetle_damage_woodvol" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="DR_beetles" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="P_beetles_attacked" grid_ref="grid_nvm_out" level="5"/>
+    <field field_ref="GAP_AREA" grid_ref="grid_nvm_out" level="9" />
+    <field field_ref="DAILY_MAX_WIND" level="1" />
+    <field field_ref="DAILY_MAX_WIND_MOD" level="1" />
+    <field field_ref="WIND_SUM" level="5" />
+    <field field_ref="AREA_CLOSER_F" level="10" />
+    <field field_ref="AREA_FURTHER_F" level="10" />
+    <field field_ref="IS_KILL_STORM" level="1" />
+    <field field_ref="WIND_DAMAGE_BIOMASS" grid_ref="grid_nvm_out" level="1" />
+    <field field_ref="WIND_DAMAGE_WOODVOL" grid_ref="grid_nvm_out" level="1" />
+    <field field_ref="WIND_DAMAGE_RATE" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="AREA_DAMAGED_FIRE"  grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="AREA_DAMAGED_STORM" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="AREA_DAMAGED_PEST"  grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="GAMMA_FURTHER_BK" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="GAMMA_FURTHER_OV" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="GAMMA_CLOSER_BK" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="GAMMA_CLOSER_OV" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="CURRENT_SPACING" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="ZHD_WIND" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="Z0_WIND" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="MOMENT_CLOSER_BK" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="MOMENT_CLOSER_OV" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="MOMENT_FURTHER_BK" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="MOMENT_FURTHER_OV" grid_ref="grid_nvm_out" level="9"/>
+    <field field_ref="CWS_CLOSER_BK" grid_ref="grid_nvm_out" level="9" />
+    <field field_ref="CWS_CLOSER_OV" grid_ref="grid_nvm_out" level="9" />
+    <field field_ref="CWS_FURTHER_BK" grid_ref="grid_nvm_out" level="9" />
+    <field field_ref="CWS_FURTHER_OV" grid_ref="grid_nvm_out" level="9" />
+    <field field_ref="CWS_FURTHER" grid_ref="grid_nvm_out" level="9" />
+    <field field_ref="CWS_CLOSER" grid_ref="grid_nvm_out" level="9" />
+    <field field_ref="DLF_CLOSER_BK" grid_ref="grid_nvm_out" level="9" />
+    <field field_ref="DLF_CLOSER_OV" grid_ref="grid_nvm_out" level="9" />
+    <field field_ref="DLF_FURTHER_BK" grid_ref="grid_nvm_out" level="9" />
+    <field field_ref="DLF_FURTHER_OV" grid_ref="grid_nvm_out" level="9" />
+    <field field_ref="DAILY_MAX_WIND_PFT" grid_ref="grid_nvm_out" level="9" />
+    <field field_ref="LAST_CUT" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="MAI" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="PAI" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="ROTATION_N" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="CN_LONGTERM_ACTIVE" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="CN_LONGTERM_SLOW" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="CN_LONGTERM_PASSIVE" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="CN_LONGTERM_SURF" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="CN_LONGTERM_LITTER_STR_AB" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="CN_LONGTERM_LITTER_STR_BE" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="CN_LONGTERM_LITTER_MET_AB" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="CN_LONGTERM_LITTER_MET_BE" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="CN_LONGTERM_LITTER_WOD_AB" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="CN_LONGTERM_LITTER_WOD_BE" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="CN_LONGTERM_LITTER_SNG_AB" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="CN_LONGTERM_LITTER_SNG_BE" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="HET_RESP_SOIL" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="HET_RESP_LITTER" grid_ref="grid_nvm_out" level="10"/>
+    
+    <field field_ref="GROW_LENGTH" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="DOY_IPRESE" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="DOY_ISENE" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="DOY_START_GS" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="DOY_END_GS" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="MEAN_START_GS" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="QC_PHENO_EVENT" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="QC_FORCED_PHENO_EVENT" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="SPINUP_CLEARCUT" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="MBC_alloc10b_c" grid_ref="grid_nvm_out" level="10"/>
+    <field field_ref="WHYCHANGE" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="WHYCHANGE_MAX" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="PH_CUT_FRAC" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="TOTAL_TREES" grid_ref="grid_nvm_out" level="10"/>
+
+    <!-- DBEN level 11 -->
+    <field field_ref="cveg_dben" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="AGcwood_dben" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="cwood_dben" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="lai_mean_gs_dben" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="lai_mean_dben" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="CA_dben" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="BA_dben" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="height_dben" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="WBgrowth_dben" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="BAgrowth_dben" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="cmort_dben" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="gpp_dben" grid_ref="grid_nvm_out" level="11"/>
+    <field field_ref="npp_dben" grid_ref="grid_nvm_out" level="11"/>
+
+    <field field_ref="nbp_dben" level="11"/>
+    <field field_ref="z0m_dben" level="11"/>
+    <field field_ref="z0h_dben" level="11"/>
+    <field field_ref="albedo_vis_dben" level="11"/>
+    <field field_ref="albedo_nir_dben" level="11"/>
+    <field field_ref="albedo_glob_dben" level="11"/>
+
+   </field_group>  
+
+  </file>
+
+  <!-- Stomate file 2 -->
+  <!-- The stomate output files can not have output_freq less than 1d. Set output_freq="1d" for the highest frequency. -->
+  <file id="stomate2" name="stomate_ipcc_history" output_level="_AUTO_" output_freq="_AUTO_" enabled="_AUTO_">
+   <field_group id="groupremap_stomate2" group_ref="remap_1mo" grid_ref="grid_landpoints_out" >
+    <!-- level 1 -->
+    <field field_ref="RESOLUTION_X" level="1"/>
+    <field field_ref="RESOLUTION_Y" level="1"/>
+    <field field_ref="contfrac" name="CONTFRAC" level="0"/>
+    <field field_ref="areas" level="0"/>
+    <field field_ref="cVeg" level="0"/>
+    <field field_ref="nVeg" level="0"/>
+    <field field_ref="cVegGrass" level="1"/>
+    <field field_ref="cVegCrop" level="0"/>
+    <field field_ref="cVegTree" level="1"/>
+    <field field_ref="cLitter" level="1"/>
+    <field field_ref="nLitter" level="1"/>
+    <field field_ref="cLitterGrass" level="1"/>
+    <field field_ref="cLitterCrop" level="0"/>
+    <field field_ref="cLitterTree" level="1"/>
+    <field field_ref="cVegLitter" level="1"/>
+    <field field_ref="cOther" level="1"/>
+    <field field_ref="cSoil" level="0"/>
+    <field field_ref="cSoilturnover" level="1"/>
+    <field field_ref="cLitterturnover" level="1"/>
+    <field field_ref="cSoilLitterturnover" level="1"/>
+    <field field_ref="nSoil" level="0"/>
+    <field field_ref="cSoilGrass" level="1"/>
+    <field field_ref="cSoilCrop" level="0"/>
+    <field field_ref="cSoilTree" level="1"/>
+    <field field_ref="cLand" level="1"/>
+    <field field_ref="nLand" level="1"/>
+    <field field_ref="cProduct" level="0"/>
+    <field field_ref="cMassVariation" level="0"/>
+    <field field_ref="lai_ipcc" level="0"/>
+    <field field_ref="gpp_ipcc" level="0"/>
+    <field field_ref="ra" level="0"/>
+    <field field_ref="raGrass" level="1"/>
+    <field field_ref="raCrop" level="0"/>
+    <field field_ref="raTree" level="1"/>
+    <field field_ref="npp_ipcc" level="0"/>
+    <field field_ref="rh" level="0"/>
+    <field field_ref="rhSoil" level="1"/>
+    <field field_ref="rhLitter" level="1"/>
+    <field field_ref="tSoilPools" grid_ref="grid_ncarb_out" level="1"/>
+    <field field_ref="fFire" level="1"/>
+    <field field_ref="fHarvest" level="0"/>
+    <field field_ref="fNHarvest" level="0"/>
+    <field field_ref="fWoodharvest" level="0"/>
+    <field field_ref="fNWoodharvest" level="0"/>
+    <field field_ref="fLuc" level="0"/>
+    <field field_ref="fAnthDisturb" level="1"/>
+    <field field_ref="nbp_c" level="0"/>
+    <field field_ref="nbp_n" level="0"/>
+    <field field_ref="fBNF" level="0"/>    
+    <field field_ref="fVegLitter" level="0"/>
+    <field field_ref="fNVegLitter" level="0"/>
+    <field field_ref="fNdep" level="0"/>
+    <field field_ref="fNfert" level="0"/>
+    <field field_ref="fN2O" level="0"/>
+    <field field_ref="fNOx" level="0"/>
+    <field field_ref="fNgas" level="0"/>
+    <field field_ref="fNleach" level="0"/>
+    <field field_ref="fNnetmin" level="0"/>
+    <field field_ref="nMineral" level="0"/>
+    <field field_ref="nMineralNH4" level="0"/>
+    <field field_ref="nMineralNO3" level="0"/>
+    <field field_ref="fNup" level="0"/>
+    <field field_ref="fLitterSoil" level="0"/>
+    <field field_ref="fNLitterSoil" level="0"/>
+    <field field_ref="cLeaf" level="0"/>
+    <field field_ref="nLeaf" level="0"/>
+    <field field_ref="cWood" level="0"/>
+    <field field_ref="cStem" level="1"/>
+    <field field_ref="nStem" level="1"/>
+    <field field_ref="cRoot" level="0"/>
+    <field field_ref="nRoot" level="0"/>
+    <field field_ref="cMisc" level="0"/>
+    <field field_ref="cLitterAbove" level="0"/>
+    <field field_ref="nLitterAbove" level="0"/>
+    <field field_ref="cLitterBelow" level="0"/>
+    <field field_ref="nLitterBelow" level="0"/>
+    <field field_ref="cLitterCwd" level="0"/>
+    <field field_ref="nLitterCwd" level="0"/>
+    <field field_ref="cSoilFast" level="0"/>
+    <field field_ref="cSoilMedium" level="0"/>
+    <field field_ref="cSoilSlow" level="0"/>
+    <field field_ref="cSoilPools" grid_ref="grid_ncarb_out" level="1"/>
+    <field field_ref="landCoverFrac" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="treeFracPrimDec" level="0"/>
+    <field field_ref="treeFracPrimEver" level="0"/>
+    <field field_ref="c3PftFrac" level="0"/>
+    <field field_ref="c4PftFrac" level="0"/>
+    <field field_ref="rGrowth" level="0"/>
+    <field field_ref="rMaint" level="0"/>
+    <field field_ref="rGrowth_ipcc" level="1"/>
+    <field field_ref="rMaint_ipcc" level="1"/>
+    <field field_ref="nppLeaf" level="0"/>
+    <field field_ref="nppWood" level="0"/>
+    <field field_ref="nppStem" level="1"/>
+    <field field_ref="nppRoot" level="0"/>
+    <field field_ref="nppGrass" level="1"/>
+    <field field_ref="nppCrop" level="0"/>
+    <field field_ref="nppTree" level="1"/>
+    <field field_ref="nppOther" level="1"/>
+    <field field_ref="nep_c" level="0"/>
+    <field field_ref="nep_n" level="0"/>
+   </field_group>
+    
+  </file>
+
+  <!-- Stomate file 3 -->
+
+  <!-- This files contains all variables from stomate having more than one vertical axis -->
+  <!-- The stomate output files can not have output_freq less than 1d. Set output_freq="1d" for the highest frequency. -->
+  <file id="stomate3" name="stomate_history_4dim" output_level="_AUTO_" output_freq="_AUTO_" enabled="_AUTO_">
+   <field_group id="groupremap_stomate3" group_ref="remap_1mo" grid_ref="grid_landpoints_out" >
+    
+    <!-- level 1 -->
+    <field field_ref="RESOLUTION_X" level="1"/>
+    <field field_ref="RESOLUTION_Y" level="1"/>
+    <field field_ref="contfrac" name="CONTFRAC" level="1"/>
+    <field field_ref="areas" level="1"/>
+    <field field_ref="CCDIAMETER" grid_ref="grid_nvm_ncirc_out" level="1"/>
+    <field field_ref="CCHEIGHT" grid_ref="grid_nvm_ncirc_out" level="1"/>
+    <field field_ref="CCIND" grid_ref="grid_nvm_ncirc_out" level="1"/>
+    <field field_ref="CCBA" grid_ref="grid_nvm_ncirc_out" level="1"/>
+    <field field_ref="CCDELTABA" grid_ref="grid_nvm_ncirc_out" level="3"/>
+    <field field_ref="CCTRW" grid_ref="grid_nvm_ncirc_out" level="3"/>
+    <field field_ref="CCDIAHOR" grid_ref="grid_nvm_ncirc_out" level="1"/>
+    <field field_ref="CCDIAVER" grid_ref="grid_nvm_ncirc_out" level="1"/>
+    <field field_ref="CCCROWN" grid_ref="grid_nvm_ncirc_out" level="1"/>
+    <field field_ref="CCCROWNVOL" grid_ref="grid_nvm_ncirc_out" level="1"/>
+
+    <!-- level 2 -->
+    <!-- Monitoring recruitment -->
+    <field field_ref="CCMORTALITY" grid_ref="grid_nvm_ncirc_out" level="2"/>
+    <field field_ref="CCMORTALITY_M_AB_c" grid_ref="grid_nvm_ncirc_out" level="2"/>
+    <field field_ref="CCMORTALITY_M_BE_c" grid_ref="grid_nvm_ncirc_out" level="2"/>
+    <field field_ref="CCSAP_M_AB_c" grid_ref="grid_nvm_ncirc_out" level="2"/>
+    <field field_ref="CCSAP_M_BE_c" grid_ref="grid_nvm_ncirc_out" level="2"/>
+    <field field_ref="CCHEART_M_AB_c" grid_ref="grid_nvm_ncirc_out" level="2"/>
+    <field field_ref="CCTOTAL_M_c" grid_ref="grid_nvm_ncirc_out" level="2"/>
+    <field field_ref="CCFIRE_MOR_c" grid_ref="grid_nvm_ncirc_out" level="2"/>
+
+    <!-- level 3 -->
+    <field field_ref="CLEVEL_HEIGHT" grid_ref="grid_nvm_nlevelstot_out" level="3"/>
+    <field field_ref="LAI_PER_LEVEL" grid_ref="grid_nvm_nlevelstot_out" level="3"/>
+    <field field_ref="P_GAP_LEVEL" grid_ref="grid_nvm_nlevelstot_out" level="1"/>
+    <field field_ref="P_GAP_CUM" grid_ref="grid_nvm_nlevelstot_out" level="1"/>
+    <field field_ref="LIGHT_ABS_TO_LEVEL" grid_ref="grid_nvm_nlevelstot_out" level="3"/>
+    <field field_ref="LIGHT_TRAN_TO_LEVEL" grid_ref="grid_nvm_nlevelstot_out" level="3"/>
+
+    <!-- level 4 -->
+    <field field_ref="ROOT_PROF_STRUC" grid_ref="grid_nvm_nslm_out" level="4" />
+    <field field_ref="ROOT_PROF_FUNC" grid_ref="grid_nvm_nslm_out" level="4" />
+  
+    <!-- level 5 -->
+    <!-- Vessel mortality -->
+    <field field_ref="SAP_INIT_DROUGHT_c" grid_ref="grid_nvm_ncirc_out" level="5"/>
+    <field field_ref="VESSEL_LOSS" grid_ref="grid_nvm_ncirc_out" level="6"/>
+    <field field_ref="KILL_VESSELS" grid_ref="grid_nvm_ncirc_out" level="6"/>
+    <field field_ref="VESSEL_LOSS_PREVIOUS" grid_ref="grid_nvm_ncirc_out" level="6"/>
+    <field field_ref="VESSEL_LOSS_DAILY" grid_ref="grid_nvm_ncirc_out" level="6"/>
+    <field field_ref="VL_DIFF_DAILY" grid_ref="grid_nvm_ncirc_out" level="6"/>
+    <field field_ref="VESSEL_MORTALITY_DAILY" grid_ref="grid_nvm_ncirc_out" level="6"/>
+
+    <!-- level 9 -->
+    <!-- Soil discretization -->
+    <field field_ref="deepC_a" grid_ref="grid_ngrnd_nvm_out" level="9" />
+    <field field_ref="deepC_s" grid_ref="grid_ngrnd_nvm_out" level="9" />
+    <field field_ref="deepC_p" grid_ref="grid_ngrnd_nvm_out" level="9" />
+    <field field_ref="deepN_a" grid_ref="grid_ngrnd_nvm_out" level="9" />
+    <field field_ref="deepN_s" grid_ref="grid_ngrnd_nvm_out" level="9" />
+    <field field_ref="deepN_p" grid_ref="grid_ngrnd_nvm_out" level="9" />
+    <field field_ref="deepSOM_peat" grid_ref="grid_ngrnd_nvm_nelements" level="9"/>
+    <field field_ref="deepSOM_pt" grid_ref="grid_ngrnd_nvm_nelements" level="9"/>
+    <field field_ref="peat_OLT" grid_ref="grid_nvm_nelements" level="9"/>
+    <field field_ref="O2_soil" grid_ref="grid_ngrnd_nvm_out" level="9" />
+    <field field_ref="CH4_soil" grid_ref="grid_ngrnd_nvm_out" level="9" />
+    <field field_ref="deltaCH4g" grid_ref="grid_ngrnd_nvm_out" level="9" />
+    <field field_ref="deltaCH4" grid_ref="grid_ngrnd_nvm_out" level="9" />
+    <field field_ref="heat_Zimov" grid_ref="grid_ngrnd_nvm_out" level="9" />
+    <field field_ref="totporCH4_soil" grid_ref="grid_ngrnd_nvm_out" level="9" />
+    <field field_ref="diffCH4_soil" grid_ref="grid_ngrnd_nvm_out" level="9" />
+    <field field_ref="totporO2_soil" grid_ref="grid_ngrnd_nvm_out" level="9" />
+    <field field_ref="diffO2_soil" grid_ref="grid_ngrnd_nvm_out" level="9" />
+    <field field_ref="V_IND" grid_ref="grid_nvm_ncirc_out" level="9" />
+    <field field_ref="KILL_STORM_BK" grid_ref="grid_nvm_ncirc_out" level="9" />
+    <field field_ref="KILL_STORM_OV" grid_ref="grid_nvm_ncirc_out" level="9" />
+
+   </field_group>  
+  </file>
+
+  <!-- Stomate file 4 -->
+
+  <!-- This files contains all variables with fixed diameter classes -->
+  <!-- The stomate output files can not have output_freq less than 1d. Set output_freq="1d" for the highest frequency. -->
+  <file id="stomate4" name="stomate_fixed_dia" output_level="_AUTO_" output_freq="_AUTO_" enabled="_AUTO_">
+   <field_group id="groupremap_stomate4" group_ref="remap_1mo" grid_ref="grid_landpoints_out" >
+
+    <!-- dben -->
+    <field field_ref="cwood_size_dben" grid_ref="grid_nvm_noutdiaclass_out" level="0"/>
+    <field field_ref="nstem_size_dben" grid_ref="grid_nvm_noutdiaclass_out" level="0"/>
+    <field field_ref="cmort_size_dben" grid_ref="grid_nvm_noutdiaclass_out" level="0"/>
+    <field field_ref="stemmort_dben" grid_ref="grid_nvm_noutdiaclass_out" level="0"/>
+
+   </field_group>  
+  </file>
+
+  <!-- Small output file with mixed sechiba and stomate variables -->
+  <file id="sechibastomate1" name="sechiba_stomate_history" output_level="_AUTO_" output_freq="_AUTO_" enabled="_AUTO_">
+   <field_group id="groupremap_sechibastomate" group_ref="remap_1mo" grid_ref="grid_landpoints_out" >
+
+    <!-- level 1 -->
+    <field field_ref="areas" level="1"/>
+    <field field_ref="contfrac" level="1"/>
+    <field field_ref="maxvegetfrac" grid_ref="grid_nvm_out" level="1"/>
+
+    <field field_ref="soilflx" level="1"/> <!-- Qg -->
+    <field field_ref="mc_layh" grid_ref="grid_nslm_out" level="1"/>
+    <field field_ref="mcl_layh" grid_ref="grid_nslm_out" level="1"/>
+    <field field_ref="ptn_pftmean" grid_ref="grid_ngrnd_out" level="1"/>
+    <field field_ref="tsol_rad" level="1"/>
+    <field field_ref="albedo_vis" level="1"/>
+    <field field_ref="albedo_nir" level="1"/>
+    <field field_ref="fluxsens" level="1"/>
+    <field field_ref="fluxlat" level="1"/>
+    <field field_ref="netrad" level="1"/>
+    <field field_ref="snowheat" grid_ref="grid_nsnow_out"  level="1"/>
+    <field field_ref="snowmelt" level="1"/>
+    <field field_ref="snowflxtot" level="1"/>
+    <field field_ref="snow" level="1"/>
+    <field field_ref="snowdepth"  level="1"/>
+    <field field_ref="frac_snow_veg"  level="1"/>
+    <field field_ref="lai_ipcc" name="lai_ipcc" level="1"/>
+    <field field_ref="gpp_ipcc" name="gpp_ipcc" level="1"/>
+    <field field_ref="ra" level="1"/>
+    <field field_ref="rh" level="1"/>
+    <field field_ref="nbp_c" level="1"/>
+    <field field_ref="nbp_n" level="1"/>
+    <field field_ref="humtot" level="1"/> <!-- mrso -->
+    <field field_ref="humtot_top" level="1"/> <!-- mrsos -->
+    <field field_ref="vevapnu" name="evapnu" level="1" unit="mm/d" > @vevapnu*86400  </field>
+    <field field_ref="vevapp" name="evap_sec" level="1"/>
+    <field field_ref="transpir" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="inter" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="temp_sol_new" level="1"/>
+    <field field_ref="runoff" name="runoff" level="1" unit="mm/d" > @runoff*86400  </field>
+    <field field_ref="drainage" name="drainage" level="1" unit="mm/d" > @drainage*86400  </field>
+    <field field_ref="prveg" level="1"/>
+    <field field_ref="evspsblveg" level="1"/>
+    <field field_ref="evspsblsoi" level="1"/>
+    <field field_ref="tran" level="1"/>
+    <field field_ref="tws" level="1"/>
+
+   </field_group>
+
+  </file>
+
+  <!-- ORCHIDEE offline forcing file -->
+
+  <!-- This is a file that can be used as a forcing file for ORCHIDEE offline simualtions -->
+  <file id="forcing_by_ORCHIDEE" name="forcing_by_ORCHIDEE" output_level="1" output_freq="3h" enabled="_AUTO_">
+   <field_group id="groupremap_forcing" grid_ref="grid_landpoints" >
+
+    <!-- level 1 -->
+    <field field_ref="contfrac" level="1"/>
+    <field field_ref="nav_lon" level="1"/>
+    <field field_ref="nav_lat" level="1"/>
+    <field field_ref="areas" level="1"/>
+    <field field_ref="temp_air" name="Tair" operation="instant" level="1"/>
+    <field field_ref="pb" name="PSurf" operation="instant" level="1"/>
+    <field field_ref="qair" name="Qair" operation="instant" level="1"/>
+    <field field_ref="u" name="Wind_N" operation="instant" level="1"/>
+    <field field_ref="v" name="Wind_E" operation="instant" level="1"/>
+    <field field_ref="zlev" name="Levels" operation="instant" level="1"/>
+    <field field_ref="precip_rain" name="Rainf" level="1"/>
+    <field field_ref="precip_snow" name="Snowf" level="1"/>
+    <field field_ref="lwdown" name="LWdown" level="1"/>
+    <field field_ref="swdown" name="SWdown" level="1"/>
+   </field_group>  
+  </file>
+
+
+ </file_definition>

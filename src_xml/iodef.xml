@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+<!-- =========================================================================================================== -->
+<!-- iodef.xml                                                                                                   -->
+<!--   Main configuration file for reading and writing files using XIOS                                          -->
+<!--   This file includes 2 mandatory files for ORCHIDEE:                                                        -->
+<!--      - context_orchidee.xml containing all specifications for writing of diagnostic output files            -->
+<!--      - context_input_orchidee.xml containing specifications for reading and interpolating input files.      -->
+<!--                                                                                                             -->
+<!-- $HeadURL: svn://forge.ipsl.fr/orchidee/trunk/ORCHIDEE/src_xml/iodef.xml $                           -->
+<!-- $Date: 2026-02-10 18:39:41 +0100 (mar. 10 févr. 2026) $                                                     -->
+<!-- $Revision: 9375 $                                                                                           -->
+<!-- =========================================================================================================== -->
+
+<simulation>
+
+  <!-- =========================================================================================================== -->
+  <!-- XIOS context                                                                                                -->
+  <!-- =========================================================================================================== -->
+  <context id="xios">
+
+    <variable_definition>
+
+      <variable id="info_level"                type="int">1</variable>
+      <variable id="using_server"              type="bool">false</variable>
+      <variable id="using_oasis"               type="bool">false</variable>
+      <variable id="memory_report"             type="bool">false</variable>
+      <variable id="print_file"                type="bool">false</variable>
+      <variable id="recv_field_timeout"        type="double">600.0</variable>
+
+      <variable_group id="buffer">
+        <!-- transport_protocol is needed for XIOS3 and ignored in XIOS2 -->
+        <variable id="transport_protocol"         type="string">p2p</variable>
+      </variable_group>
+      
+    </variable_definition>
+
+  </context>
+
+  <!-- =========================================================================================================== -->
+  <!-- ORCHIDEE context                                                                                            -->
+  <!-- The files context_orchidee.xml and context_input_orchidee.xml are included here.                            -->
+  <!-- These files need to exist in the run directory during run time.                                             -->
+  <!-- =========================================================================================================== -->
+  <context id="orchidee" src="./context_orchidee.xml"/>
+  <context id="orchidee" src="./context_input_orchidee.xml"/>
+
+  <!--  Add following file for the case ROUTING_METHOD=interp_topo_v0 
+  <context id="orchidee" src="./context_routing_interp_topo_v0_orchidee.xml"/>
+  This is done automatically by sechiba.driver
+  -->
+
+  <!--  Add following files for the case ROUTING_METHOD=interp_topo 
+  <context id="orchidee" src="./context_init_routing_interp_topo_orchidee.xml"/>
+  <context id="orchidee" src="./context_routing_interp_topo_orchidee.xml"/>
+  This is done automatically by sechiba.driver
+  -->
+</simulation>
+

@@ -1,0 +1,9 @@
+%CONFIG_PATH   /scratch/gmarie/Eval_dist/modeles/ORCHIDEE/build
+%ARCH          gcc_MESOIPSL
+%FFLAGS        %BASE_FFLAGS %PROD_FFLAGS %MPI_FFLAGS
+%CPP_KEY       XIOS CPP_PARA %FPP_DEF
+%EXEC          liborchidee.a liborchidee_ol.a dim2_driver.exe orchideedriver.exe
+%LD_FFLAGS     %MPI_LD %BASE_LD %PROD_FFLAGS
+%INCDIR        -I/opt/spack/opt/spack/linux-cascadelake/netcdf-fortran-4.5.3-jwb5ezu7ayziiii6jjxexqjzkl4wszhy/include -I/opt/spack/opt/spack/linux-cascadelake/netcdf-c-4.7.4-nkhfkuhnwdo5tbqqitkelblun2fxzns3/include -I/scratch/gmarie/Eval_dist/modeles/ORCHIDEE/../../lib -I/scratch/gmarie/Eval_dist/modeles/ORCHIDEE/../IOIPSL/inc -I/scratch/gmarie/Eval_dist/modeles/ORCHIDEE/../XIOS/inc
+%LIBDIR        -L/opt/spack/opt/spack/linux-cascadelake/netcdf-fortran-4.5.3-jwb5ezu7ayziiii6jjxexqjzkl4wszhy/lib -lnetcdff -L/opt/spack/opt/spack/linux-cascadelake/netcdf-c-4.7.4-nkhfkuhnwdo5tbqqitkelblun2fxzns3/lib -lnetcdf  -L/scratch/gmarie/Eval_dist/modeles/ORCHIDEE/../../lib -L/scratch/gmarie/Eval_dist/modeles/ORCHIDEE/../IOIPSL/lib -lioipsl -L/scratch/gmarie/Eval_dist/modeles/ORCHIDEE/../XIOS/lib -lxios -lstdc++
+%EXT_SRC       

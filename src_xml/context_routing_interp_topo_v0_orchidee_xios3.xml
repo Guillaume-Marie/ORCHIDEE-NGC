@@ -1,0 +1,206 @@
+<!-- =========================================================================================================== -->
+<!-- ORCHIDEE context                                                                                            -->
+<!-- context_routing_interp_topo_v0_orchidee.xml (previously context_routing_orchidee.xml) :                     -->
+<!-- Configuration file for ORCHIDEE when activating option routing interp_topo_v0                               -->
+<!-- This file must be included in iodef.xml to be read by XIOS                                                  -->
+<!--                                                                                                             -->
+<!-- $HeadURL: svn://forge.ipsl.fr/orchidee/trunk/ORCHIDEE/src_xml/context_routing_interp_topo_v0_orchidee_xios3.xml $        -->
+<!-- $Date: 2025-03-04 15:46:49 +0100 (mar. 04 mars 2025) $                                                       -->
+<!-- $Revision: 8844 $                                                                                           -->
+<!-- =========================================================================================================== -->
+<context id="orchidee">
+
+  <!-- =========================================================================================================== -->
+  <!-- ******************************************** Routing ****************************************************** -->
+  <!-- =========================================================================================================== -->
+
+
+  <file_definition>
+
+    <file name="routing" type="one_file" mode="read" enabled=".TRUE." output_freq="1y">
+       <field  id="trip_r"  name="trip" domain_ref="routing_domain_read" read_access="true" default_value="1e20" detect_missing_value="true" operation="instant" freq_offset="1ts" />
+       <field  id="trip_extended_r"  name="trip_extended" domain_ref="routing_domain_read" read_access="true"   default_value="1e20" detect_missing_value="true" operation="instant" freq_offset="1ts" />
+       <field  id="topoind_r"  name="topoind" domain_ref="routing_domain_read" read_access="true" default_value="1e20" detect_missing_value="true" operation="instant" freq_offset="1ts"/>
+       <field  id="basins_extended_r"  name="basins_extended" domain_ref="routing_domain_read" read_access="true" default_value="1e20" detect_missing_value="true" operation="instant" freq_offset="1ts"/>
+    </file>
+
+   <file name="diag_routing" type="one_file" output_freq="1d" append="true" sync_freq="1d" enabled=".TRUE." >
+     <field_group default_value="9.96921e+36">
+      <field field_ref="flow_r" />
+       <field field_ref="routing_runoff_r" />
+       <field field_ref="routing_runoff" />
+       <field field_ref="routing_lakeinflow_r" />
+       <field field_ref="routing_coastalflow_r" />
+       <field field_ref="routing_riverflow_r" />
+       <field field_ref="routing_drainage_r" />
+       <field field_ref="routing_drainage" />
+       <field field_ref="routing_coastalflow" />
+       <field field_ref="routing_riverflow" />
+       <field field_ref="routing_lakeinflow" />
+
+       <field field_ref="routing_fast_reservoir_r" />
+       <field field_ref="routing_slow_reservoir_r" />
+       <field field_ref="routing_stream_reservoir_r" />
+       <field field_ref="routing_hydrographs_r" />
+
+       <field field_ref="routing_fast_reservoir" />
+       <field field_ref="routing_slow_reservoir" />
+       <field field_ref="routing_stream_reservoir" />
+
+       <field field_ref="frac_routing_r" operation="once" />
+       <field field_ref="frac_native" operation="once" />
+       <field id="routing_contfrac" domain_ref="domain_landpoints" operation="once" />
+       <field id="basins_riverflow" axis_ref="basins"  operation="instant"/>
+       <field field_ref="frac_routing_coast_r"  operation="once" />
+       <field id="routing_weight_coast_r" domain_ref="routing_domain" operation="once" />
+
+     </field_group>
+   </file>
+
+
+   <file id="routing_start" type="one_file" type="one_file" mode="read" enabled="false" output_freq="1y">
+     <field_group operation="instant" domain_ref="routing_domain_read" read_access="true" default_value="9.96921e+36" freq_offset="1ts" prec="8">
+       <field id="fast_reservoir_start" name="fast_reservoir" />
+       <field id="slow_reservoir_start" name="slow_reservoir" />
+       <field id="stream_reservoir_start" name="stream_reservoir" />
+     </field_group>
+   </file> 
+
+
+   <file id="routing_restart" type="one_file" output_freq="1ts" sync_freq="1ts" enabled=".TRUE." >
+     <field_group operation="once" domain_ref="routing_domain" default_value="9.96921e+36" prec="8">
+       <field id="fast_reservoir_restart" name="fast_reservoir" />
+       <field id="slow_reservoir_restart" name="slow_reservoir" />
+       <field id="stream_reservoir_restart" name="stream_reservoir" />
+     </field_group>
+   </file> 
+
+  </file_definition>
+  
+
+  <field_definition>
+
+      <field id="trip_update_r" domain_ref="routing_domain" operation="instant"/>
+      <field id="trip_rp1" field_ref="trip_update_r" domain_ref="routing_domain_expand" read_access="true"/>
+
+      <field id="flow_r" operation="instant"  domain_ref="routing_domain" />
+      <field id="flow_rp1" field_ref="flow_r" operation="instant"  domain_ref="routing_domain_expand" read_access="true"/>
+    
+      <field id="routing_runoff" domain_ref="domain_landpoints" operation="instant" />
+      <field id="routing_runoff_r" default_value="0" detect_missing_value="true" field_ref="routing_runoff" domain_ref="routing_domain_quant" operation="instant" read_access="true"/>
+
+      <field id="routing_drainage" domain_ref="domain_landpoints" operation="instant" />
+      <field id="routing_drainage_r" default_value="0" detect_missing_value="true" field_ref="routing_drainage" domain_ref="routing_domain_quant" operation="instant" read_access="true"/>
+
+      <field id="routing_lakeinflow_r" domain_ref="routing_domain" operation="instant" />
+      <field id="routing_lakeinflow"   field_ref="routing_lakeinflow_r" domain_ref="domain_landpoints_routing_interp" operation="instant" read_access="true"/>
+
+      <field id="routing_coastalflow_r" domain_ref="routing_domain" operation="instant" />
+      <field id="routing_coastalflow_temp"   field_ref="routing_coastalflow_r" domain_ref="domain_landpoints_routing_interp" operation="instant" read_access="true"/>
+      <field id="routing_coastalflow" domain_ref="domain_landpoints_routing" operation="instant" read_access="true"/>
+
+      <field id="routing_riverflow_r" domain_ref="routing_domain" operation="instant" />
+      <field id="routing_riverflow_temp"   field_ref="routing_riverflow_r" domain_ref="domain_landpoints_routing_interp" operation="instant" read_access="true"/>
+      <field id="routing_riverflow"    domain_ref="domain_landpoints_routing" operation="instant" read_access="true"/>
+
+      <field id="out_flow" domain_ref="domain_landpoints" operation="instant" read_access="true"/>
+      
+      <field id="mask_routing_r" domain_ref="routing_domain" operation="instant"/> 
+      <field id="frac_native"  field_ref="mask_routing_r" default_value="0" detect_missing_value="true" domain_ref="domain_landpoints" operation="instant" read_access="true"/> 
+      
+      <field id="mask_native"  domain_ref="domain_landpoints" operation="instant" detect_missing_value="true"/> 
+      <field id="frac_routing_r" field_ref="mask_native" default_value="0" detect_missing_value="true" domain_ref="routing_domain_flux" operation="instant" read_access="true"/> 
+
+      <field id="mask_native_lake"  domain_ref="domain_landpoints" operation="instant" detect_missing_value="true"/> 
+      <field id="frac_routing_lake_r" field_ref="mask_native_lake" default_value="0" detect_missing_value="true" domain_ref="routing_domain_flux" operation="instant" read_access="true"/> 
+
+      <field id="mask_native_coast"  domain_ref="domain_landpoints" operation="instant" detect_missing_value="true"/> 
+      <field id="frac_routing_coast_r" field_ref="mask_native_coast" default_value="0" detect_missing_value="true" domain_ref="routing_domain_flux" operation="instant" read_access="true"/> 
+      
+      <field id="fast_reservoir_r" domain_ref="routing_domain" operation="instant" />
+      <field id="slow_reservoir_r" domain_ref="routing_domain" operation="instant" />
+      <field id="stream_reservoir_r" domain_ref="routing_domain" operation="instant" />
+
+
+      <field id="sum_routing_runoff"   field_ref="routing_runoff" domain_ref="_reset_"   scalar_ref="domain_landpoints_sum" />
+      <field id="sum_routing_drainage" field_ref="routing_drainage" domain_ref="_reset_" scalar_ref="domain_landpoints_sum" />
+      <field id="sum_routing_runoff_r"   field_ref="routing_runoff_r" domain_ref="_reset_"   scalar_ref="routing_domain_sum" />
+      <field id="sum_routing_drainage_r" field_ref="routing_drainage_r" domain_ref="_reset_" scalar_ref="routing_domain_sum" />
+
+      <field id="sum_fast_reservoir_r"   field_ref="fast_reservoir_r"   domain_ref="_reset_"     scalar_ref="routing_domain_sum" />
+      <field id="sum_slow_reservoir_r"   field_ref="slow_reservoir_r"   domain_ref="_reset_"     scalar_ref="routing_domain_sum" />
+      <field id="sum_stream_reservoir_r" field_ref="stream_reservoir_r" domain_ref="_reset_"     scalar_ref="routing_domain_sum" />
+      
+      <field id="water_balance_before" detect_missing_value="true" scalar_ref="domain_landpoints_sum2" read_access="true" >  sum_routing_runoff + sum_routing_drainage + sum_fast_reservoir_r + sum_slow_reservoir_r + sum_stream_reservoir_r</field>
+ 
+      <field id="sum_routing_fast_reservoir_r"   field_ref="routing_fast_reservoir_r"   domain_ref="_reset_"     scalar_ref="routing_domain_sum" />
+      <field id="sum_routing_slow_reservoir_r"   field_ref="routing_slow_reservoir_r"   domain_ref="_reset_"     scalar_ref="routing_domain_sum" />
+      <field id="sum_routing_stream_reservoir_r" field_ref="routing_stream_reservoir_r" domain_ref="_reset_"     scalar_ref="routing_domain_sum" />
+
+      <field id="sum_out_flow"   field_ref="out_flow" domain_ref="_reset_"   scalar_ref="domain_landpoints_sum" />
+
+      <field id="water_balance_after" scalar_ref="routing_domain_sum2" read_access="true" >
+        sum_out_flow+sum_routing_fast_reservoir_r + sum_routing_slow_reservoir_r+sum_routing_stream_reservoir_r
+      </field>
+
+      <field id="routing_fast_reservoir_r"   domain_ref="routing_domain" operation="instant" />
+      <field id="routing_slow_reservoir_r"   domain_ref="routing_domain" operation="instant" />
+      <field id="routing_stream_reservoir_r" domain_ref="routing_domain" operation="instant" />
+
+      <field id="routing_fast_reservoir"     field_ref="routing_fast_reservoir_r"  domain_ref="domain_landpoints_routing_interp" operation="instant" read_access="true"/>
+      <field id="routing_slow_reservoir"     field_ref="routing_slow_reservoir_r"   domain_ref="domain_landpoints_routing_interp" operation="instant" read_access="true"/>
+      <field id="routing_stream_reservoir"   field_ref="routing_stream_reservoir_r" domain_ref="domain_landpoints_routing_interp" operation="instant" read_access="true"/>
+      <field id="routing_hydrographs_r" domain_ref="routing_domain" operation="instant" />
+
+    
+  </field_definition>
+  
+  <domain_definition>
+ 
+    <domain id="domain_landpoints_routing" domain_ref="domain_landpoints">
+    </domain>
+
+    <domain id="domain_landpoints_routing_interp" domain_ref="domain_landpoints">
+      <interpolate_domain renormalize="false" order="1" quantity="true"/>
+    </domain>
+   
+    <domain id="routing_domain_read" type="rectilinear" data_dim="2">
+       <generate_rectilinear_domain bounds_lat_start="90" bounds_lat_end="-90" bounds_lon_start="-180" bounds_lon_end="180"/>
+    </domain>
+
+    <domain id="routing_domain" domain_ref="trip_r::">
+       <!--generate_rectilinear_domain bounds_lat_start="90" bounds_lat_end="-90" bounds_lon_start="-180" bounds_lon_end="180"/-->
+    </domain>
+
+    <domain id="routing_domain_quant" domain_ref="routing_domain" >
+       <interpolate_domain renormalize="false" order="1" quantity="true" />
+    </domain>
+
+    <domain id="routing_domain_flux" domain_ref="routing_domain">
+       <interpolate_domain renormalize="false" order="1" />
+    </domain>
+ 
+    <domain id="routing_domain_expand" domain_ref="routing_domain" >
+       <expand_domain type="edge" i_periodic="true" j_periodic="true" />
+    </domain>
+    
+  </domain_definition>
+
+  <axis_definition>
+    <axis id="basins" n_glo="200"/>
+  </axis_definition>
+  
+  <scalar_definition>
+    <scalar id="routing_domain_sum">
+       <reduce_domain operation="sum"/>
+    </scalar>
+    <scalar id="routing_domain_sum2"/>
+    
+    <scalar id="domain_landpoints_sum">
+       <reduce_domain operation="sum"/>
+    </scalar>
+    <scalar id="domain_landpoints_sum2"/>
+
+  </scalar_definition>
+  
+</context>

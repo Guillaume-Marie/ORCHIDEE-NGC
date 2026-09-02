@@ -1,0 +1,12 @@
+NETCDF_INCDIR="-I/smplocal/pub/HDF5/1.8.9/par/include -I/smplocal/pub/NetCDF/4.1.3/mpi/include"
+NETCDF_LIBDIR="-L/smplocal/pub/NetCDF/4.1.3/mpi/lib -L/smplocal/pub/HDF5/1.8.9/par/lib"
+NETCDF_LIB="-lnetcdff -lnetcdf -lstdc++ -Bstatic -lhdf5_hl -lhdf5_fortran -lhdf5 -Bdynamic -lz"
+
+IOIPSL_INCDIR="-I${ORCHDIR}/../../lib -I${ORCHDIR}/../IOIPSL/inc"
+IOIPSL_LIBDIR="-L${ORCHDIR}/../../lib -L${ORCHDIR}/../IOIPSL/lib"
+IOIPSL_LIB="-lioipsl"
+
+XIOS_INCDIR="-I${ORCHDIR}/../XIOS/inc"
+XIOS_LIBDIR="-L${ORCHDIR}/../XIOS/lib"
+XIOS_LIB="-lxios"
+

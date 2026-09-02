@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<!-- =========================================================================================================== -->
+<!-- iodef.xml : Configuration file for production of output files using XIOS 2.0 or XIOS 3                      -->
+<!--             This file contains the context XIOS.                                                            -->
+<!--             The model components context will be add automatically by the comp.driver                       -->
+<!-- =========================================================================================================== -->
+
+<simulation>
+
+  <!-- =========================================================================================================== -->
+  <!-- XIOS context                                                                                                -->
+  <!-- =========================================================================================================== -->
+  <context id="xios">
+
+    <variable_definition>
+
+      <variable id="info_level"                type="int">1</variable>
+      <variable id="using_server"              type="bool">false</variable>
+      <variable id="using_oasis"               type="bool">false</variable>
+      <variable id="memory_report"             type="bool">false</variable>
+      <variable id="print_file"                type="bool">false</variable>
+      <variable id="recv_field_timeout"        type="double">600.0</variable>
+
+      <variable_group id="buffer">
+        <!-- transport_protocol is needed for XIOS3 and ignored in XIOS2 -->
+        <variable id="transport_protocol"         type="string">p2p</variable>
+      </variable_group>
+      
+    </variable_definition>
+
+  </context>
+
+  <!-- ================================================================================================================ -->
+  <!-- COMPONENT CONTEXT : the model components context will be add automatically by the comp.driver when using libIGCM -->
+  
+</simulation>

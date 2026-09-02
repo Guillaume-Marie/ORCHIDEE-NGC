@@ -1,0 +1,51 @@
+<!-- =========================================================================================================== -->
+<!-- ORCHIDEE context                                                                                            -->
+<!-- context_orchidee.xml : Configuration file for ORCHIDEE for production of output files using XIOS            -->
+<!-- =========================================================================================================== -->
+<context id="driver2oasis">
+  <!-- =========================================================================================================== -->
+  <!-- Definition of axis for the number of estuaries                                                              -->
+  <!-- =========================================================================================================== -->
+  <axis_definition>
+    <!-- Vertical axis and extra dimensions in sechiba -->
+    <axis id="nbhtu" name="nbhtu" standard_name="model_level_number" long_name="HTU dimension for routing" unit="1"/>
+    <axis id="nbasmon" name="nbasmon" standard_name="model_level_number" long_name="HTU monitoring dimension" unit="1"/>
+  </axis_definition>
+  <domain_definition>
+    <domain id="domain_landpoints"/>
+  </domain_definition>
+  <!-- =========================================================================================================== -->
+  <!-- Definition of all existing variables                                                                        -->
+  <!-- DO NOT CHANGE THIS FILE                                                                                     -->
+  <!-- =========================================================================================================== -->
+  <field_definition id="driver2oasis" prec="4" operation="average" freq_op="1ts" enabled=".TRUE." default_value="9.96921e+36">
+    <field_group id="2D" domain_ref="domain_landpoints">
+      <field id="swnet" name="SWnet" long_name="Net solar radiation" unit="W/m^2"/>
+      <field id="lwnet" name="LWnet" long_name="Net longwave radiation" unit="W/m^2"/>
+      <field id="tsolrad" name="TsolRad" long_name="Surface radiative temperature" unit="K"/>
+      <field id="albedo" name="Albedo" long_name="Surface albedo" unit="-"/>
+      <field id="z0m" name="z0m" long_name="Surface roughness for momentum" unit="1/m"/>
+      <field id="vevapp" name="Evap" long_name="Evaporation" unit="kg/m/s"/>
+      <field id="fluxsens" name="Qh" long_name="Sensible heat flux" unit="W/m^2"/>
+    </field_group>
+  </field_definition>
+  <!-- =========================================================================================================== -->
+  <!-- Definition of output files                                                                                  -->
+  <!-- Definition of variables or groups included in the different files                                           -->
+  <!-- CHANGE THIS FILE BY ADDING THE FILES AND/OR VARIABLES YOU WANT TO PRODUCE                                   -->
+  <!-- Only variables and groups existing in field_def_orchidee.xml can be used                                    -->
+  <!-- =========================================================================================================== -->
+  <file_definition type="one_file" par_access="collective" enabled=".TRUE." min_digits="4">
+    <!-- Definition of files with sechiba diagnostics -->
+    <file id="driver2oasis" name="driver2oasis_hist" output_level="1O" output_freq="1d" enabled=".FALSE.">
+      <field field_ref="swnet" level="1"/>
+      <field field_ref="lwnet" level="1"/>
+      <field field_ref="tsolrad" level="1"/>
+      <field field_ref="albedo" level="1"/>
+      <field field_ref="z0m"  level="1"/>
+      <field field_ref="vevapp"  level="1"/>
+      <field field_ref="fluxsens"  level="1"/>
+    </file>
+  </file_definition>
+  
+</context>

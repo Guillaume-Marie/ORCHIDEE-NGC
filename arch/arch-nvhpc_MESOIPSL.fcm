@@ -1,0 +1,15 @@
+%COMPILER            mpif90
+%LINK                mpif90
+%AR                  ar
+%MAKE                make
+%FPP_FLAGS           -P -traditional
+%FPP_DEF             CPP_IEEE_ARITHMETIC
+%BASE_FFLAGS         -i4 -r8 -fast -Kieee -Mipa=fast,inline -Minfo=all
+%PROD_FFLAGS
+%DEV_FFLAGS          -g -O2 -traceback -C
+%DEBUG_FFLAGS        -g -O2 -traceback -C
+%MPI_FFLAGS
+%OMP_FFLAGS          -qopenmp -qopenmp-threadprivate compat
+%BASE_LD             -i4 -r8
+%MPI_LD
+%OMP_LD              -qopenmp

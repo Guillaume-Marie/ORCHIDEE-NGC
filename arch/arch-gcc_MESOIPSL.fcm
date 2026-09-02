@@ -1,0 +1,22 @@
+# Compile options for Spirit and Spiritx at IPSL ESPRI Mesocenter 
+# Using gfortran compiler from the GNU Compiler Collection (GCC) 
+
+%COMPILER       mpif90
+%LINK           mpif90
+%AR             ar
+%MAKE           make
+%FPP_FLAGS      -P -traditional
+%FPP_DEF              
+
+%BASE_FFLAGS    -D__NONE__ -fdefault-real-8 -ffree-line-length-none -fallow-argument-mismatch -march=native
+%PROD_FFLAGS    -O3
+%DEV_FFLAGS     -g -O2
+%DEBUG_FFLAGS   -g
+
+%MPI_FFLAGS
+%OMP_FFLAGS     -fopenmp
+%BASE_LD        -lstdc++ -Wl,--no-as-needed
+%MPI_LD
+%OMP_LD         -fopenmp
+
+

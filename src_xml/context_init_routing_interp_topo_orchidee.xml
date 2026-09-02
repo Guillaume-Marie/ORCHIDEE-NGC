@@ -1,0 +1,45 @@
+<!-- =========================================================================================================== -->
+<!-- ORCHIDEE init routing context                                                                               -->
+<!-- context_init_routing_interp_topo_orchidee.xml (previously context_init_routing_native_orchidee.xml) :       -->
+<!-- Configuration file for ORCHIDEE when activating option routing interp_topo                                  -->
+<!-- This file must be included in iodef.xml to be read by XIOS                                                  -->
+<!--                                                                                                             -->
+<!-- $HeadURL: svn://forge.ipsl.fr/orchidee/trunk/ORCHIDEE/src_xml/context_init_routing_interp_topo_orchidee.xml $        -->
+<!-- $Date: 2026-04-08 15:25:35 +0200 (mer. 08 avril 2026) $                                                       -->
+<!-- $Revision: 9467 $                                                                                           -->
+<!-- =========================================================================================================== -->
+<context id="orchidee_init_routing">
+  <calendar type="d360" start_date="2000-01-01 00:00:00" time_origin="2000-01-01 00:00:00" timestep="1s"/>
+  
+  <domain_definition>
+    <domain id="routing_domain" type="rectilinear"/>
+    <domain id="routing_domain_expand" domain_ref="routing_domain">
+      <expand_domain type="edge" i_periodic="true" j_periodic="true" />
+    </domain>
+  </domain_definition>
+  
+  <field_definition>
+    <field id="trip_r_init" domain_ref="routing_domain" />
+    <field id="trip_r_final" domain_ref="routing_domain" />
+    <field id="topoind_r_init" domain_ref="routing_domain" />
+    <field id="topoind_r_final" domain_ref="routing_domain" />
+
+    <field id="trip_r" domain_ref="routing_domain" />
+    <field id="trip_rp1" field_ref="trip_r" domain_ref="routing_domain_expand" read_access="true"/>
+    
+    <field id="state_r" domain_ref="routing_domain" />
+    <field id="state_rp1" field_ref="state_r" domain_ref="routing_domain_expand" read_access="true"/>
+  </field_definition>
+  
+  <file_definition>
+    <file id="routing_correction" type="one_file" output_freq="1ts" sync_freq="1ts" enabled=".TRUE." >
+      <field field_ref="trip_r"  operation="instant"/>
+      <field field_ref="state_r" operation="instant"/>
+      <field field_ref="trip_r_init" operation="once"/>
+      <field field_ref="trip_r_final" operation="once"/>
+      <field field_ref="topoind_r_init" operation="once"/>
+      <field field_ref="topoind_r_final" operation="once"/>
+    </file>
+  </file_definition>
+
+</context>

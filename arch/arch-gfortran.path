@@ -1,0 +1,11 @@
+NETCDF_INCDIR="-I/usr/include"
+NETCDF_LIBDIR="-L/usr/lib"
+NETCDF_LIB="-lnetcdf -lnetcdff"
+
+IOIPSL_INCDIR="-I${ORCHDIR}/../../lib -I${ORCHDIR}/../IOIPSL/inc"
+IOIPSL_LIBDIR="-L${ORCHDIR}/../../lib -L${ORCHDIR}/../IOIPSL/lib"
+IOIPSL_LIB="-lioipsl"
+
+XIOS_INCDIR="-I${ORCHDIR}/../XIOS/inc"
+XIOS_LIBDIR="-L${ORCHDIR}/../XIOS/lib"
+XIOS_LIB="-lxios"

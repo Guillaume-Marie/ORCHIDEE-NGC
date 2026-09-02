@@ -1,0 +1,6483 @@
+
+! ================================================================================================================================
+!
+! MODULE       : stomate_lpj
+!
+! CONTACT      : orchidee-help _at_ listes.ipsl.fr
+!
+! LICENCE      : IPSL (2006)
+! This software is governed by the CeCILL licence see ORCHIDEE/ORCHIDEE_CeCILL.LIC
+!
+!>\BRIEF       Main entry point for daily processes in STOMATE and LPJ (phenology, 
+!! allocation, kill, turn, light, establish, crown, cover, lcchange)
+!!
+!!\n DESCRIPTION: None
+!!
+!! RECENT CHANGE(S): None
+!!
+!! REFERENCE(S) : None
+!!
+!! SVN          :
+!! $HeadURL: svn://forge.ipsl.fr/orchidee/trunk/ORCHIDEE/src_stomate/stomate_lpj.f90 $
+!! $Date: 2026-04-24 17:38:54 +0200 (ven. 24 avril 2026) $
+!! $Revision: 9501 $
+!! \n
+!_ ================================================================================================================================
+
+MODULE stomate_lpj
+
+  ! modules used:
+
+  USE ioipsl_para
+  USE mod_orchidee_para
+  USE xios_orchidee
+  USE grid
+  USE time, ONLY : ts_annual_proc, FirstDayYear
+  USE stomate_data
+  USE constantes
+  USE constantes_soil
+  USE pft_parameters
+  USE dynamic_parameters
+  USE structures
+  USE stomate_season, ONLY: season_post_disturbance
+  USE lpj_constraints
+  USE lpj_pftinout
+  USE lpj_kill
+  USE lpj_crown
+  USE lpj_gap
+  USE lpj_light
+  USE lpj_establish
+  USE lpj_cover
+  USE sapiens_agriculture
+  USE sapiens_lcchange
+  USE sapiens_kill,     ONLY : anthropogenic_mortality
+  USE sapiens_forestry
+  USE sapiens_product_use
+  USE stomate_prescribe
+  USE stomate_phenology
+  USE stomate_mark_kill
+  USE stomate_kill
+  USE stomate_growth_fun_all
+  USE stomate_stand_structure
+  USE stomate_turnover
+  USE stomate_litter
+  USE stomate_laieff,   ONLY : find_lai_per_level, calculate_z_level_photo,&
+                               combine_lai_levels, fitting_laieff
+  USE stomate_som_dynamics
+  USE stomate_vmax
+  USE stomate_windthrow, ONLY : wind_damage
+  USE stomate_pest, ONLY : bark_beetle_damage, pest_write
+  USE stomate_spitfire, ONLY: spitfire 
+  USE function_library, ONLY: wood_to_qmdia, wood_to_qmdia_up_half, cc_to_lai,nmax, &
+                              wood_to_qmheight, wood_to_ba, cc_kill_to_area, &
+                              check_vegetation_area, check_mass_balance, &
+                              wood_to_tot_volume, check_pixel_area, &
+                              check_variable_change, wood_to_height, &
+                              get_printlev, wood_to_dia, &
+                              calculate_rdi_boundaries, wood_to_stand_volume
+!  USE stomate_woodharvest
+  USE stomate_soil_carbon_discretization
+
+  IMPLICIT NONE
+
+  ! private & public routines
+
+  PRIVATE
+  PUBLIC stomate_lpj_vegetation, stomate_lpj_clear, calculate_nbp_pool
+
+  INTEGER(i_std), SAVE       :: printlev_loc                     !! Local level of text output for current module
+!$OMP THREADPRIVATE(printlev_loc)
+
+  LOGICAL, SAVE              :: firstcall_stomate_lpj = .TRUE.   !! First call flag
+!$OMP THREADPRIVATE(firstcall_stomate_lpj)
+  LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:,:) :: dia_desync_pending  !! Cold-start age-class desync (OK_DIA_STAGGER):
+                                                                    !! TRUE until the staggered initial qmd has been applied
+                                                                    !! once per (point,PFT) at first establishment.
+!$OMP THREADPRIVATE(dia_desync_pending)
+
+
+CONTAINS
+
+
+!! ================================================================================================================================
+!! SUBROUTINE   : stomate_lpj_clear
+!!
+!>\BRIEF        Re-initialisation of variable
+!!
+!! DESCRIPTION  : This subroutine reinitializes variables. To be used if we want to relaunch 
+!! ORCHIDEE but the routine is not used in current version.
+!!
+!! RECENT CHANGE(S) : None
+!!
+!! MAIN OUTPUT VARIABLE(S): None
+!!
+!! REFERENCE(S) : None
+!!
+!! FLOWCHART    : None
+!! \n
+!_ ================================================================================================================================
+
+  SUBROUTINE stomate_lpj_clear
+
+    CALL prescribe_clear
+    CALL phenology_clear
+    CALL turnover_clear
+    CALL som_dynamics_clear
+    CALL constraints_clear
+    CALL establish_clear
+    CALL gap_clear
+    CALL light_clear
+    CALL pftinout_clear
+    IF (ALLOCATED(dia_desync_pending)) DEALLOCATE(dia_desync_pending)
+
+  END SUBROUTINE stomate_lpj_clear
+
+
+!! ================================================================================================================================
+!! SUBROUTINE   : stomate_lpj_vegetation
+!!
+!>\BRIEF        Main entry point for daily processes in STOMATE and LPJ, structures the call sequence 
+!!              to the different processes such as dispersion, establishment, competition and mortality of PFT's.
+!! 
+!! DESCRIPTION  : This routine is the main entry point to all processes calculated on a 
+!! daily time step. Is mainly devoted to call the different STOMATE and LPJ routines 
+!! depending of the ok_dgvm (is dynamic veg used) and lpj_constant_mortality (is background mortality used).
+!! It also prepares the cumulative 
+!! fluxes or pools (e.g TOTAL_M TOTAL_BM_LITTER etc...)
+!!
+!! This routine makes frequent use of "weekly", "monthly" and "long term" variables. Quotion is used because
+!! by default "weekly" denotes 7 days, by default "monthly" denotes 20 days and by default "Long term" denotes
+!! 3 years. dtslow refers to 24 hours (1 day).
+!!
+!!
+!! RECENT CHANGE(S) : None
+!! 
+!! MAIN OUTPUT VARIABLE(S): All variables related to stomate and required for LPJ dynamic vegetation mode.
+!!
+!! REFERENCE(S) : 
+!! - Krinner, G., N. Viovy, N. de Noblet-Ducoudré, J. Ogeé, J. Polcher, P. Friedlingstein, P. Ciais, S. Sitch, 
+!! and I. C. Prentice. 2005. A dynamic global vegetation model for studies of the coupled atmosphere-biosphere 
+!! system. Global Biogeochemical Cycles 19:GB1015, doi:1010.1029/2003GB002199.
+!! - Sitch, S., B. Smith, I. C. Prentice, A. Arneth, A. Bondeau, W. Cramer, J. O. Kaplan, S. Levis, W. Lucht, 
+!! M. T. Sykes, K. Thonicke, and S. Venevsky. 2003. Evaluation of ecosystem dynamics, plant geography and 
+!! terrestrial carbon cycling in the LPJ dynamic global vegetation model. Global Change Biology 9:161-185.
+!!
+!! FLOWCHART    : Update with existing flowchart from N Viovy (Jan 19, 2012)
+!! \n
+!_ ================================================================================================================================
+ 
+  SUBROUTINE stomate_lpj_vegetation (npts, dt_days, neighbours, &
+       resolution, herbivores, tsurf_daily, tsoil_daily, t2m_daily,  &
+       t2m_min_daily, vpd_daily_mean, vpd_daily_max, vpd_mean_week, vpd_max_week,  litterhum_daily, vegstress, humrel, &
+       maxvegstress_lastyear, maxvegstress_thisyear, &
+       minvegstress_lastyear, minvegstress_thisyear, &
+       gdd0_lastyear, precip_lastyear, precip_thisyear, &
+       vegstress_month, vegstress_week, &
+       t2m_longterm, t2m_month, t2m_week, tau_longterm, tsoil_month,precip_month, &
+       gdd_m5_dormance, gdd_from_growthinit, gdd_midwinter, &
+       ncd_dormance, ngd_minus5, turnover_longterm, gpp_daily, gpp_week, &
+       gpp_year, gpp_decade, resp_maint_week, time_hum_min, hum_min_dormance, &
+       maxfpc_lastyear, maxfpc_thisyear, &
+       resp_maint_part, PFTpresent, age, fireindex, firelitter, leaf_age, &
+       leaf_frac, adapted, regenerate, plant_status, when_growthinit, &
+       litter, dead_leaves, som, som_surf, lignin_struc, lignin_wood, lignin_snag, &
+       veget_max, veget_max_new, veget, fraclut, npp_longterm, croot_longterm, &
+       lm_lastyearmax, lm_thisyearmax, veget_lastlight, everywhere, &
+       need_adjacent, RIP_time, &
+       npp_daily, turnover_daily, turnover_resid, turnover_time,&
+       control_moist, control_temp, som_input, &
+       atm_to_immob_daily, co2_fire, emissions_fire, &
+       resp_hetero, resp_hetero_litter, resp_hetero_soil, resp_maint, resp_growth, &
+       deadleaf_cover, assim_param, qsintveg, &
+       bm_to_litter, bm_to_litter_resid, tree_bm_to_litter, tree_bm_to_litter_resid, &
+       prod_s, prod_m, prod_l, flux_s, flux_m, flux_l, &
+       flux_prod_s, flux_prod_m, flux_prod_l, carb_mass_total, &
+       fpc_max, MatrixA, MatrixV, VectorB, VectorU, &
+       deepSOM_a, deepSOM_s, deepSOM_p, &
+       Tseason, Tmin_spring_time, KF, k_latosa_adapt, &
+       cn_leaf_min_season, nstress_season, vegstress_season, soil_n_min, &
+       rue_longterm, plant_n_uptake_daily, &
+       circ_class_n, circ_class_biomass, forest_managed, &
+       longevity_eff_leaf, longevity_eff_sap, longevity_eff_root, &
+       species_change_map, fm_change_map, lpft_replant, &
+       age_stand, age_stand_bm, rotation_n, last_cut, mai, pai, previous_wood_volume, &
+       mai_count, coppice_dens, &
+       harvest_pool_bound, harvest_pool_acc, &
+       harvest_type, harvest_cut, harvest_area_acc, &
+       lai_per_level, laieff_fit, Light_Abs_Tot, Light_Tran_Tot, &
+       laieff_isotrop, z_array_out, max_height_store, &
+       wstress_month, wstress_season, &
+       light_tran_to_floor_season, p_O2, bact, &
+       CN_som_litter_longterm, &
+       max_wind_speed_storm, max_wind_ratio_storm, count_storm, is_storm, & ! JJ 2026: threaded companions, removed wind_max_daily & wind_longterm
+       wind_ratio_max_save, wind_ratio_sum_save, wind_speed_max_save, soil_temp_daily, gap_area_save, &
+       woodharvestpft, & 
+       fDeforestToProduct, fLulccResidue,fHarvestToProduct, &
+       cn_leaf_min_2D, cn_leaf_max_2D, cn_leaf_init_2D,bm_sapl_2D, &
+       sugar_load, count_daylight, n_reserve_longterm, &
+       loss_gain, frac_nobio, frac_nobio_new, burried_litter, burried_fresh_ltr, &
+       burried_fresh_som, burried_bact, &
+       burried_min_nitro, burried_som, &
+       burried_deepSOM_a, burried_deepSOM_s, burried_deepSOM_p, &
+       i_beetles_generation, season_drought_legacy, wood_leftover_legacy, &
+       i_beetles_activity_legacy, P_beetles_attacked_legacy, B_beetles_kill_legacy, &
+       beetle_diapause, sumTeff, woody_litter_to_use, &
+       kill_vessels, vessel_mortality_daily, vessel_loss_previous, &
+       pop_dens, a_nd, road_length,  & 
+       daily_wspeed_fire, ni_acc, litterfuel, lightning, &
+       biomass_init_drought, leaf_age_crit, leaf_classes, &
+       grow_season_len, doy_start_gs, doy_end_gs, mean_start_gs, &
+       emission_daily, leaching_daily, n_input, &
+       n_input_daily, fco2_flux, &
+       nbp_accu_flux, nbp_pool_start, nbp_daily_flux, &
+       root_profile, total_ba_init, &
+       maxgppweek_lastyear, maxgppweek_thisyear, us, snag_to_wood_flux, mbc_stomate_lpj, &
+       tcarbon_acro,tcarbon_cato, carbon_acro, carbon_cato,height_acro, height_cato)
+       
+
+  !! 0. Variable and parameter declaration
+
+    !! 0.1 input
+
+    INTEGER(i_std), INTENT(in)                                 :: npts                 !! Domain size (unitless)
+    REAL(r_std), INTENT(in)                                    :: dt_days              !! Time step of stomate (days)
+    REAL(r_std), INTENT(in)                                    :: tau_longterm
+    INTEGER(i_std), DIMENSION(:,:), INTENT(in)                 :: neighbours           !! Indices of the 8 neighbours of each grid 
+                                                                                       !! point [1=North and then clockwise] 
+    REAL(r_std), DIMENSION(:,:), INTENT(in)                    :: resolution           !! Resolution at each grid point (m)  
+                                                                                       !! [1=E-W, 2=N-S] 
+    REAL(r_std), DIMENSION(:,:), INTENT(in)                    :: herbivores           !! Time constant of probability of a leaf to 
+                                                                                       !! be eaten by a herbivore (days) 
+    REAL(r_std), DIMENSION(:), INTENT(in)                      :: tsurf_daily          !! Daily surface temperatures (K)
+    REAL(r_std), DIMENSION(:,:), INTENT(in)                    :: tsoil_daily          !! Daily soil temperatures (K)
+    REAL(r_std), DIMENSION(:), INTENT(in)                      :: t2m_daily            !! Daily 2 meter temperatures (K)
+    REAL(r_std), DIMENSION(:), INTENT(in)                      :: vpd_daily_mean       !! Daily mean VPD (kPa)
+    REAL(r_std), DIMENSION(:), INTENT(in)                      :: vpd_daily_max        !! Daily max VPD (kPa)
+    REAL(r_std), DIMENSION(:), INTENT(in)                      :: vpd_mean_week
+    REAL(r_std), DIMENSION(:), INTENT(in)                      :: vpd_max_week
+    REAL(r_std), DIMENSION(:), INTENT(in)                      :: t2m_min_daily        !! Daily minimum 2 meter temperatures (K)
+    REAL(r_std), DIMENSION(:), INTENT(in)                      :: litterhum_daily      !! Daily litter humidity (0 to 1, unitless)
+    REAL(r_std), DIMENSION(:), INTENT(in)                      :: gdd0_lastyear        !! Last year's GDD0 (K)
+    REAL(r_std), DIMENSION(:), INTENT(in)                      :: precip_lastyear      !! Last year's precipitation 
+                                                                                       !! @tex $(mm year^{-1})$ @endtex
+                                                                                       !! to determine if establishment possible
+    REAL(r_std), DIMENSION(:), INTENT(in)                      :: precip_thisyear      !! This year's precipitation 
+                                                                                       !! @tex $(mm year^{-1})$ @endtex
+                                                                                       !! to determine if establishment possible
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: vegstress_month   !! "Monthly" moisture availability (0 to 1, 
+                                                                                       !! unitless) 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: vegstress_week    !! "Weekly" moisture availability 
+                                                                                       !! (0 to 1, unitless)
+    REAL(r_std), DIMENSION(:), INTENT(in)                      :: t2m_longterm         !! "Long term" 2 meter reference 
+                                                                                       !! temperatures (K) 
+    REAL(r_std), DIMENSION(:), INTENT(in)                      :: t2m_month            !! "Monthly" 2-meter temperatures (K)
+    REAL(r_std), DIMENSION(:), INTENT(in)                      :: t2m_week             !! "Weekly" 2-meter temperatures (K)
+    REAL(r_std), DIMENSION(:), INTENT(in)                      :: Tseason              !! "seasonal" 2-meter temperatures (K)
+    REAL(r_std), DIMENSION(:,:), INTENT(in)                    :: Tmin_spring_time     !! Number of days after begin_leaves (leaf onset) 
+    REAL(r_std), DIMENSION(:,:), INTENT(in)                    :: tsoil_month          !! "Monthly" soil temperatures (K)
+    REAL(r_std), DIMENSION(:), INTENT(in)                      :: precip_month         !! "Monthly" precipitation
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: gdd_m5_dormance      !! Growing degree days (K), threshold -5 deg 
+                                                                                       !! C (for phenology) 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: gdd_from_growthinit  !! growing degree days, since growthinit for crops
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: gdd_midwinter        !! Growing degree days (K), since midwinter 
+                                                                                       !! (for phenology) - this is written to the history files 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: ncd_dormance         !! Number of chilling days (days), since 
+                                                                                       !! leaves were lost (for phenology) 
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)             :: turnover_longterm    !! "Long term" turnover rate
+                                                                                       !! @tex $(gC m^{-2} year^{-1})$ @endtex
+    REAL(r_std), DIMENSION(:,:), INTENT(in)                    :: wind_ratio_sum_save  !! Sum of wind speed ratio to longterm wind speed when this ratio exceeded
+                                                                                       !! certain threshold, stored for wind days
+    REAL(r_std), DIMENSION(:,:), INTENT(in)                    :: wind_speed_max_save  !! Daily maximum wind speed, stored for wind_days (default 3) (m s-1)
+    REAL(r_std), DIMENSION(:,:), INTENT(in)                    :: wind_ratio_max_save  !! JJ 2026: Daily maximum wind ratio, stored for wind_days (default 3)
+    REAL(r_std), DIMENSION(:), INTENT(inout)                   :: max_wind_speed_storm !! Daily maximum wind speed at 2 meter (ms-1) during a storm event
+    REAL(r_std), DIMENSION(:), INTENT(inout)                   :: max_wind_ratio_storm !! JJ 2026: Daily maximum wind ratio during a storm event
+    INTEGER(i_std), DIMENSION(:), INTENT(inout)                :: count_storm          !! number of day after a storm 
+    LOGICAL, DIMENSION(:), INTENT(inout)                       :: is_storm             !! are we in a storm event ? 
+    REAL(r_std), DIMENSION(:), INTENT(inout)                   :: soil_temp_daily      !! Soil temperature at 80 cm below ground
+                                                                                       !! @tex $(gC m^{-2} year^{-1})$ @endtex 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: gpp_daily            !! Daily gross primary productivity  
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: gpp_year             !! "annual" GPP @tex ($gC m^{-2} day^{-1}$)@endtex
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: maxfpc_lastyear      !! Last year's maximum foliage projected
+                                                                                       !! coverage for each natural PFT,
+                                                                                       !! @tex $(m^2 m^{-2})$ @endtex
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: maxfpc_thisyear      !! This year's maximum foliage projected
+                                                                                       !! coverage for each natural PFT,
+                                                                                       !! @tex $(m^2 m^{-2})$ @endtex
+    REAL(r_std), DIMENSION(:,:,:), INTENT(in)                  :: resp_maint_part      !! Maintenance respiration of different 
+                                                                                       !! plant parts  
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex 
+    REAL(r_std), DIMENSION(:,:), INTENT(in)                    :: fpc_max              !! "Maximal" coverage fraction of a PFT (LAI 
+                                                                                       !! -> infinity) on ground  
+                                                                                       !! @tex $(m^2 m^{-2})$ @endtex 
+    REAL(r_std), DIMENSION(:,:), INTENT(in)                    :: longevity_eff_root   !! Effective root turnover time that accounts
+                                                                                       !! waterstress (days)
+    REAL(r_std), DIMENSION(:,:), INTENT(in)                    :: longevity_eff_sap    !! Effective sapwood turnover time that accounts
+                                                                                       !! waterstress (days)
+    REAL(r_std), DIMENSION(:,:), INTENT(in)                    :: longevity_eff_leaf   !! Effective leaf turnover time that accounts
+                                                                                       !! waterstress (days)
+    REAL(r_std), DIMENSION(0:), INTENT(in)                     :: harvest_pool_bound   !! The boundaries of the diameter classes
+                                                                                       !! in the wood harvest pools
+                                                                                       !! @tex $(m)$ @endtex
+    INTEGER(i_std), DIMENSION(:,:), INTENT(in)                 :: species_change_map   !! A map which gives the PFT number that each
+                                                                                       !! PFT will be replanted as in case of a clearcut.
+                                                                                       !! (1-nvm,unitless)
+    INTEGER(i_std), DIMENSION(:,:), INTENT(in)                 :: fm_change_map        !! A map which gives the desired FM strategy when
+                                                                                       !! the PFT will be replanted after a clearcut.
+                                                                                       !! (1-nvm,unitless)
+    REAL(r_std), DIMENSION(:),INTENT(in)                       :: daily_wspeed_fire    !! Daily wind speed at 2 meter (ms-1)
+    REAL(r_std), DIMENSION(:),INTENT(in)                       :: ni_acc               !! Nesterov index (square of degree Celcius)
+    REAL(r_std), DIMENSION(:),INTENT(in)                       :: lightning            !! 
+    REAL(r_std), DIMENSION(:),INTENT(in)                       :: pop_dens             !! 
+    REAL(r_std), DIMENSION(:),INTENT(in)                       :: a_nd                 !! 
+    REAL(r_std), DIMENSION(:),INTENT(in)                       :: road_length          !! Raod lenth from observations (m) (urban road should be excluded)
+    REAL(r_std), DIMENSION(:,:),INTENT(inout)                  :: veget_max_new        !! New "maximal" coverage fraction of a PFT 
+    REAL(r_std),DIMENSION(:,:),INTENT(in)                      :: fraclut              !! Fraction of landuse tile
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: cn_leaf_min_season   !! Seasonal min CN ratio of leaves 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: nstress_season       !! N-related seasonal stress (used for allocation)    
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: vegstress_season  !! mean growing season moisture availability 
+    REAL(r_std),DIMENSION(:,:), INTENT(in)                     :: cn_leaf_min_2D       !! minimal leaf C/N ratio 
+    REAL(r_std),DIMENSION(:,:), INTENT(in)                     :: cn_leaf_max_2D       !! maximal leaf C/N ratio 
+    REAL(r_std),DIMENSION(:,:), INTENT(in)                     :: cn_leaf_init_2D      !! initial leaf C/N ratio 
+    REAL(r_std),DIMENSION(:,:,:,:,:), INTENT(inout)            :: bm_sapl_2D
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: loss_gain            !! losses and gains due to LCC distributed over all
+                                                                                       !! age classes and thus taking the age-classes into 
+                                                                                       !! account (unitless, 0-1)
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: frac_nobio_new       !! New fraction of nobio per gridcell
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(in)                :: root_profile         !! Normalized root mass/length fraction in each soil layer 
+                                                                                       !! (0-1, unitless)
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(in)                :: snag_to_wood_flux    !! Snag fall into woody litter pool (gC m-2)
+
+  !! 0.2 Output variables    
+
+    REAL(r_std), DIMENSION(:,:), INTENT(out)                   :: npp_daily            !! Net primary productivity 
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex 
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)             :: turnover_daily       !! Turnover rates            
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(out)               :: turnover_resid       !! The turnover left from turnover_daily at any given time step. 
+                                                                                       !! Written here, used in stomate
+                                                                                       !! @tex $(gC m^{-2} dt_stomate^{-1})$ @endtex
+    REAL(r_std), DIMENSION(:,:), INTENT(out)                   :: co2_fire             !! Carbon emitted into the atmosphere by 
+                                                                                       !! fire (living and dead biomass)  
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: resp_hetero          !! Heterotrophic respiration
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: resp_hetero_litter   !! Heterotrophic respiration from litter
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: resp_hetero_soil     !! Heterotrophic respiration from soil
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex
+    REAL(r_std), DIMENSION(:,:), INTENT(out)                   :: resp_maint           !! Maintenance respiration  
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex 
+    REAL(r_std), DIMENSION(:,:), INTENT(out)                   :: resp_growth          !! Growth respiration  
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex 
+    REAL(r_std), DIMENSION(:), INTENT(inout)                   :: deadleaf_cover       !! Fraction of soil covered by dead leaves 
+                                                                                       !! (0 to 1, unitless)
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)             :: bm_to_litter         !! Conversion of biomass to litter 
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex 
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(out)               :: bm_to_litter_resid   !! Left over bm_to_litter. Written here, used in stomate.f90 
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)             :: tree_bm_to_litter    !! Conversion of biomass to litter 
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex 
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(out)               :: tree_bm_to_litter_resid !! Left over bm_to_litter_resid. Written here, used in stomate.f90 
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex
+    REAL(r_std), DIMENSION(:,:,:), INTENT(out)                 :: lai_per_level        !! This is the LAI per vertical level
+                                                                                       !! @tex $(m^{2} m^{-2})$
+    REAL(r_std),DIMENSION(:,:,:,:), INTENT(out)                :: z_array_out          !! Height above soil of the Pgap points.
+                                                                                       !! @tex $(m)$ @endtex
+    REAL(r_std), DIMENSION(:,:), INTENT(out)                   :: max_height_store     !! ???
+    TYPE(laieff_type),DIMENSION (:,:,:),INTENT(out)            :: laieff_fit           !! Fitted parameters for the effective LAI
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(out)               :: som_surf             !! vertically-integrated (diagnostic) soil carbon pool: active, slow, 
+                                                                                       !! or passive, (gC/(m**2 of ground))
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: n_reserve_longterm   !! "Long term" (default 3 years) actual to potential N
+                                                                                       !! reserve pool (0-1, unitless)
+    REAL(r_std),DIMENSION(:,:),INTENT(out)                     :: doy_start_gs         !! growing season starting day of year (DOY) for 
+                                                                                       !! deciduous PFTs.
+    REAL(r_std),DIMENSION(:,:),INTENT(out)                     :: doy_end_gs           !! growing season end day of year (DOY) for 
+                                                                                       !! deciduous PFTs.
+    REAL(r_std), DIMENSION(:,:),INTENT(out)                    :: fco2_flux            !! CO2 flux between atmosphere and biosphere
+                                                                                       !! @tex $(gC m^{-2} one_day^{-1})$ @endtex
+
+!! 0.3 Modified variables
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: time_hum_min         !! Time elapsed since strongest moisture 
+                                                                                       !! availability (days) 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: hum_min_dormance     !! minimum moisture during dormance 
+                                                                                       !! (0-1, unitless)
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: ngd_minus5           !! Number of growing days (days), threshold 
+                                                                                       !! -5 deg C (for phenology) 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: control_moist        !! Moisture control of heterotrophic 
+                                                                                       !! respiration (0 to 1, unitless) 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: control_temp         !! Temperature control of heterotrophic 
+                                                                                       !! respiration, above and below 
+                                                                                       !! (0 to 1, unitless) 
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)             :: som_input            !! Quantity of carbon going into carbon 
+                                                                                       !! pools from litter decomposition  
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex 
+    LOGICAL, DIMENSION(:,:), INTENT(inout)                     :: PFTpresent           !! Tab indicating which PFTs are present in 
+                                                                                       !! each pixel 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: age                  !! Age (years)    
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: fireindex            !! Probability of fire (0 to 1, unitless)
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: firelitter           !! Longer term litter above the ground that 
+                                                                                       !! can be burned, @tex $(gC m^{-2})$ @endtex 
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: leaf_age             !! Leaf age (days)
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: leaf_frac            !! Fraction of leaves in leaf age class, 
+                                                                                       !! (0 to 1, unitless)
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: adapted              !! Adaptation of PFT (killed if too cold) 
+                                                                                       !! (0 to 1, unitless) 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: regenerate           !! "Fitness": Winter sufficiently cold for 
+                                                                                       !! PFT regeneration ? (0 to 1, unitless) 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: plant_status         !! Growth and phenological status of the plant
+                                                                                       !! istatus = Phases defined in constantes
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: when_growthinit      !! How many days ago was the beginning of 
+                                                                                       !! the growing season (days) 
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(inout)           :: litter               !! Metabolic and structural litter, above 
+                                                                                       !! and below ground 
+                                                                                       !! @tex $(gC m^{-2})$ @endtex 
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: dead_leaves          !! Dead leaves on ground, per PFT, metabolic 
+                                                                                       !! and structural,  
+                                                                                       !! @tex $(gC m^{-2})$ @endtex 
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)             :: som                  !! Carbon pool: active, slow, or passive, 
+                                                                                       !! @tex $(gC m^{-2})$ @endtex  
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: lignin_struc         !! Ratio of Lignin/Carbon in structural 
+                                                                                       !! litter, above and below ground,  
+                                                                                       !! @tex $(gC m^{-2})$ @endtex 
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: lignin_wood          !! Ratio of Lignin/Carbon in woody
+                                                                                       !! litter, above and below ground, 	
+                                                                                       !! @tex $(gC m^{-2})$ @endtex 
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: lignin_snag          !! Ratio of Lignin/Carbon in snag
+                                                                                       !! litter, above and below ground, 	
+                                                                                       !! @tex $(gC m^{-2})$ @endtex 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: veget_max            !! "Maximal" coverage fraction of a PFT (LAI 
+                                                                                       !! -> infinity) on ground
+    REAL(r_std),DIMENSION(:,:), INTENT(in)                     :: veget                !! Fractional coverage: actually share of the pixel 
+                                                                                       !! covered by a PFT (fraction of ground area), 
+                                                                                       !! taking into account LAI ??(= grid scale fpc)?? 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: npp_longterm         !! "Long term" mean yearly primary 
+                                                                                       !! productivity 
+                                                                                       !! @tex $(gC m^{-2} year^{-1})$ @endtex 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: croot_longterm       !! "long term" root carbon mass  
+ 	                                                                               !! @tex ($gC m^{-2}) @endtex
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: lm_lastyearmax       !! Last year's maximum leaf mass, for each 
+                                                                                       !! PFT @tex $(gC m^{-2})$ @endtex 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: lm_thisyearmax       !! this year's maximum leaf mass, for each 
+                                                                                       !! PFT @tex ($gC m^{-2}$) @endtex
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: veget_lastlight      !! Vegetation fractions (on ground) after 
+                                                                                       !! last light competition  
+                                                                                       !! @tex $(m^2 m^{-2})$ @endtex 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: everywhere           !! Is the PFT everywhere in the grid box or 
+                                                                                       !! very localized (after its introduction) 
+                                                                                       !! (unitless) 
+    LOGICAL, DIMENSION(:,:), INTENT(inout)                     :: need_adjacent        !! In order for this PFT to be introduced, 
+                                                                                       !! does it have to be present in an 
+                                                                                       !! adjacent grid box? 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: RIP_time             !! How much time ago was the PFT eliminated 
+                                                                                       !! for the last time (y) 
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: turnover_time        !! Turnover_time of leaves for grasses 
+                                                                                       !! (days)
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)             :: flux_prod_s          !! C-released during first years (short term) 
+                                                                                       !! following land cover change 
+                                                                                       !! @tex ($gC year^{-1}$) @endtex 
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)             :: flux_prod_m          !! Total annual release from decomposition of 
+                                                                                       !! the medium-lived product pool 
+                                                                                       !! @tex ($gC year^{-1}$) @endtex
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)             :: flux_prod_l          !! Total annual release from decomposition of 
+                                                                                       !! the long-lived product pool 
+                                                                                       !! @tex ($gC year^{-1}$) @endtex
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(inout)           :: prod_s               !! Short-lived product pool after the annual 
+                                                                                       !! release of each compartment (short + 1 : 
+                                                                                       !! input from year of land cover change) 
+                                                                                       !! @tex ($gC$) @endtex    
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(inout)           :: prod_m               !! Medium-lived product pool after the annual
+                                                                                       !! release of each compartment (medium + 1 : 
+                                                                                       !! input from year of land cover change) 
+                                                                                       !! @tex ($gC$) @endtex 
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(inout)           :: prod_l               !! long-lived product pool after the annual 
+                                                                                       !! release of each compartment (long + 1 : 
+                                                                                       !! input from year of land cover change) 
+                                                                                       !! @tex ($gC$) @endtex
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(inout)           :: flux_s               !! Annual release from the short-lived product 
+                                                                                       !! pool @tex ($gC) @endtex
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(inout)           :: flux_m               !! Annual release from the medium-lived product  
+                                                                                       !! pool compartments @tex ($gC) @endtex
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(inout)           :: flux_l               !! Annual release from the long-lived product
+                                                                                       !! pool @tex ($gC) @endtex
+                                                                                       !! agriculture @tex $(gC m^{-2})$ @endtex 
+    REAL(r_std),DIMENSION(:,:), INTENT(inout)                  :: woodharvestpft       !! Harvested wood biomass (gC m-2 dt_stomate-1)
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: fDeforestToProduct   !! Deforested biomass into product pool due to anthropogenic 
+                                                                                       !! land use change
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: fLulccResidue        !! Carbon mass flux into soil and litter due to anthropogenic 
+                                                                                       !! land use or land cover change
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: fHarvestToProduct    !! Deforested biomass into product pool due to anthropogenic 
+                                                                                       !! land use 
+    REAL(r_std), DIMENSION(:), INTENT(inout)                   :: carb_mass_total      !! Carbon Mass total (soil, litter, veg) 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: KF                   !! Scaling factor to convert sapwood mass
+                                                                                       !! into leaf mass (m)
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: k_latosa_adapt       !! Leaf to sapwood area adapted for long 
+                                                                                       !! term water stress (m)
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: plant_n_uptake_daily !! Uptake of soil N by plants  
+                                                                                       !! (gN/m**2/day)  
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: soil_n_min           !! mineral nitrogen in the soil (gN/m**2)  
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: rue_longterm         !! Longterm radiation use efficiency
+                                                                                       !! (??units??) 
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(inout)           :: circ_class_biomass   !! Biomass of the componets of the model  
+                                                                                       !! tree within a circumference
+                                                                                       !! class @tex $(gC ind^{-1})$ @endtex  
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: circ_class_n         !! Number of individuals in each circ class
+                                                                                       !! @tex $(m^{-2})$ @endtex
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)             :: MatrixA              !! Matrix containing the fluxes  
+                                                                                       !! between the carbon pools
+                                                                                       !! per sechiba time step 
+                                                                                       !! @tex $(gC.m^2.day^{-1})$ @endtex
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: VectorB              !! Vector containing the litter increase per
+                                                                                       !! sechiba time step
+                                                                                       !! @tex $(gC m^{-2})$ @endtex
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)             :: MatrixV              !! Matrix containing the accumulated values of matrixA
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: VectorU              !! Matrix containing the accumulated values of VectorB
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)             :: deepSOM_a            !! Soil carbon discretized with depth active (g/m**3) 
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)             :: deepSOM_s            !! Soil carbon discretized with depth slow (g/m**3) 
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)             :: deepSOM_p            !! Soil carbon discretized with depth passive (g/m**3) 
+    INTEGER(i_std), DIMENSION (:,:), INTENT(inout)             :: forest_managed       !! forest management flag (is the forest 
+                                                                                       !! being managed?)
+    INTEGER(i_std), DIMENSION(:,:), INTENT(inout)              :: age_stand            !! Age of stand (years)
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: age_stand_bm         !! Biomass-weighted conserved mean stand age (years) - STAND_AGE
+    INTEGER(i_std), DIMENSION(:,:), INTENT(inout)              :: rotation_n           !! Rotation number (number of rotation since pft is managed)
+    INTEGER(i_std), DIMENSION(:,:), INTENT(inout)              :: last_cut             !! Years since last thinning (years)
+    LOGICAL, DIMENSION(:,:), INTENT(inout)                     :: lpft_replant         !! Set to true if a PFT has been clearcut
+    REAL(r_std), DIMENSION(:,:), INTENT(in)                    :: atm_to_immob_daily   !! N taken from atmosphere to support immobilisation
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(inout)           :: harvest_pool_acc     !! The wood and biomass that have been
+                                                                                       !! havested by humans @tex $(gC)$ @endtex
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: harvest_type         !! Type of management that resulted
+                                                                                       !! in the harvest (unitless)
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: harvest_cut          !! Type of cutting that was used for the harvest
+                                                                                       !! (unitless)
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: harvest_area_acc     !! Harvested area (m^{2})
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: gap_area_save        !! Stand gap created by more than 30% basal area loss per year.
+                                                                                       !! Values for 5 (legacy_years_wind) previous years were stored.(m^{2})
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: mai                  !! The mean annual increment
+                                                                                       !! @tex $(m**3 / m**2 / year)$ @endtex 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: pai                  !! The period annual increment
+                                                                                       !! @tex $(m**3 / m**2 / year)$ @endtex 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: previous_wood_volume !! The volume of the tree trunks
+                                                                                       !! in a stand for the previous year.
+                                                                                       !! @tex $(m**3 / m**2 )$ @endtex
+    INTEGER(i_std), DIMENSION(:,:),INTENT(inout)               :: mai_count            !! The number of times we've
+                                                                                       !! calculated the volume increment
+                                                                                       !! for a stand
+    REAL(r_std), DIMENSION(:,:),INTENT(inout)                  :: coppice_dens         !! The density of a coppice at the first
+                                                                                       !! cutting @tex $( 1 / m**2 )$ @endtex
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: wstress_month        !! Water stress factor, based on hum_rel_daily
+                                                                                       !! (unitless, 0-1)
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: wstress_season       !! Water stress factor, based on hum_rel_daily
+                                                                                       !! (unitless, 0-1)
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: p_O2                 !! partial pressure of oxigen in the soil (hPa)
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: bact                 !! denitrifier biomass (gC/m**2)
+    REAL(r_std), DIMENSION(:,:,:),INTENT(inout)                :: CN_som_litter_longterm !! Longterm CN ratio of litter and som pools (gC/gN)
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: assim_param          !! vmax, nue and leaf N for photosynthesis
+                                                                                       !! @tex $(\mu mol m^{-2}s^{-1})$ @endtex
+    REAL(r_std), DIMENSION (:,:), INTENT(inout)                :: qsintveg             !! Water on vegetation due to interception @tex $(kg m^{-2})$ @endtex
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: sugar_load           !! Relative sugar loading of the labile pool (unitless)
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: count_daylight       !! Number of time steps dt_radia during daylight
+    REAL(r_std),DIMENSION(:,:),INTENT(inout)                   :: frac_nobio           !! Fraction of grid cell covered by lakes, land 
+                                                                                       !! ice, cities, ... (unitless) 
+    REAL(r_std),DIMENSION(:,:,:,:),INTENT(inout)               :: burried_litter       !! Litter burried under non-biological land uses (gC or N m-2)
+    REAL(r_std),DIMENSION(:,:,:),INTENT(inout)                 :: burried_fresh_ltr    !! Fresh litter burried under non-biological land uses (gC or N m-2)
+    REAL(r_std),DIMENSION(:,:,:),INTENT(inout)                 :: burried_fresh_som    !! Fresh som burried under non-biological land uses (gC or N m-2)
+    REAL(r_std),DIMENSION(:),INTENT(inout)                     :: burried_bact         !! Bacteria burried under non-biological land uses (gC m-2)
+    REAL(r_std),DIMENSION(:,:),INTENT(inout)                   :: burried_min_nitro    !! Mineral nitrogen burried under non-biological land uses (gC or N m-2)
+    REAL(r_std),DIMENSION(:,:,:),INTENT(inout)                 :: burried_som          !! Som burried under non-biological land uses (gC or N m-2)
+    REAL(r_std),DIMENSION(:,:,:),INTENT(inout)                 :: burried_deepSOM_a    !! Som burried under non-biological land uses (gC or N m-2)
+    REAL(r_std),DIMENSION(:,:,:),INTENT(inout)                 :: burried_deepSOM_s    !! Som burried under non-biological land uses (gC or N m-2)
+    REAL(r_std),DIMENSION(:,:,:),INTENT(inout)                 :: burried_deepSOM_p    !! Som burried under non-biological land uses (gC or N m-2)
+    INTEGER(i_std),DIMENSION(:,:), INTENT(inout)               :: beetle_diapause      !! 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: sumTeff              !! 
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: season_drought_legacy!! mean growing season moisture availability 
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: wood_leftover_legacy
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: woody_litter_to_use  !! woody litter pool to use for wood_left_over in the pest module
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: i_beetles_generation !! number of generation that BB can achieved in one year
+    REAL(r_std), DIMENSION(:,:,:),INTENT(inout)                :: i_beetles_activity_legacy    !! Index (0-1) Biomass of tree from the same PFT that was 
+                                                                                       !! infected during the previous timestep
+    REAL(r_std), DIMENSION(:,:,:),INTENT(inout)                :: B_beetles_kill_legacy !! for historical output
+    REAL(r_std), DIMENSION(:,:),INTENT(inout)                  :: P_beetles_attacked_legacy
+    LOGICAL, DIMENSION(:,:,:), INTENT(inout)                   :: kill_vessels         !! Flag to kill vessels at the end of the day following embolism.
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: vessel_mortality_daily !! Proportion of daily vessel mortality due to cavitation in the xylem (unitless). 
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: vessel_loss_previous !! Proportion of conductivity lost due to cavitation, accumulated
+                                                                                       !!  on the previous day (no unit).
+    REAL(r_std), DIMENSION(:,:,:,:,:),INTENT(inout)            :: litterfuel           !! Dead litter fuel above ground. (gC m^{-2})
+    REAL(r_std), DIMENSION(:,:,:,:),INTENT(inout)              :: emissions_fire       !! Emissions from fire, including live crown scorching and combustions from
+                                                                                       !!dead ground litter and live grass biomass.
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(inout)           :: biomass_init_drought !! Biomass of heartwood or sapwood before onset of drought.
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: leaf_classes         !! width of each leaf age class (days) 
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: leaf_age_crit        !! critical leaf age (days)
+    REAL(r_std),DIMENSION(:,:),INTENT(inout)                   :: grow_season_len      !! growing season length in days for deciduous PFTs. 
+    REAL(r_std),DIMENSION(:,:),INTENT(inout)                   :: mean_start_gs        !! mean growing season starting day for 
+                                                                                       !! deciduous PFTs.
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: leaching_daily       !! mineral nitrogen leached from the soil 
+                                                                                       !! (gN/m**2/day)
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: emission_daily       !! volatile losses of nitrogen 
+                                                                                       !! (gN/m**2/day)
+    REAL(r_std),DIMENSION(:,:,:,:), INTENT(inout)              :: n_input              !! Nitrogen inputs into the soil (gN/m**2/timestep)
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: n_input_daily        !! nitrogen inputs into the soil (gN/m**2/day)
+                                                                                       !! NH4 and NOX from the atmosphere, NH4 from BNF,
+                                                                                       !! agricultural fertiliser as NH4/NO3
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: gpp_week             !! Weekly gross primary productivity
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: gpp_decade           !! Decadal gross primary productivity
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: resp_maint_week      !! Weekly maintenance respiration
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: nbp_accu_flux        !! Accumulated Net Biospheric Production over the year (gC.m^2 )
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: nbp_pool_start       !! Biomass pool as calculated from the 
+                                                                                       !! previous time step (gC/N m-2)
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: total_ba_init        !! Total basal area per pft saved at the start of the year (m^{2}/m^{-2})
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: light_tran_to_floor_season !! Mean seasonal fraction of light transmitted to the forest floor (unitless 0-1)
+    REAL(r_std),DIMENSION(:,:),INTENT(inout)                   :: vegstress            !! Relative soil moisture (0-1, unitless) 
+    REAL(r_std),DIMENSION(:,:),INTENT(inout)                   :: humrel               !! Relative humidity. Not used in stomate (needed in age_class_distr)
+    REAL(r_std),DIMENSION (:,:,:), INTENT (inout)              :: Light_Abs_Tot        !!Absorbed radiation per level for photosynthesis
+    REAL(r_std),DIMENSION (:,:,:), INTENT (inout)              :: Light_Tran_Tot       !!Transmitted radiation per level for photosynthesis
+    REAL(r_std),DIMENSION(:,:,:),INTENT(inout)                 :: laieff_isotrop       !! Effective LAI
+    REAL(r_std),DIMENSION(:,:),INTENT(inout)                   :: maxvegstress_lastyear!! last year's maximum moisture availability
+    REAL(r_std),DIMENSION(:,:),INTENT(inout)                   :: maxvegstress_thisyear!! This year's maximum moisture availability
+    REAL(r_std),DIMENSION(:,:),INTENT(inout)                   :: minvegstress_lastyear!! last year's minimum moisture availability
+    REAL(r_std),DIMENSION(:,:),INTENT(inout)                   :: minvegstress_thisyear!! This year's minimum moisture availability
+    REAL(r_std),DIMENSION(:,:),INTENT(inout)                   :: maxgppweek_lastyear  !! last year's maximum weekly GPP
+    REAL(r_std),DIMENSION(:,:),INTENT(inout)                   :: maxgppweek_thisyear  !! This year's maximum weekly GPP
+    REAL(r_std),DIMENSION(:,:,:,:),INTENT(inout)               :: us                   !! Water stress index for transpiration
+    REAL(r_std),DIMENSION(npts,nelements),INTENT(out)          :: mbc_stomate_lpj      !! Mass balance closure in stomate_lpj
+
+    
+  !! 0.4 Local variables
+    REAL(r_std), DIMENSION(npts,nvm)                          :: var_real       !! temporary variable used to convert an integer
+                                                                                !! when writing to a history file
+    REAL(r_std), DIMENSION(npts)                              :: damaged_area_harvest !! Forestry-harvest forest area for the AED
+                                                                                !! edge budget (basal-area route, m2)
+    REAL(r_std), DIMENSION(npts,nelements,nlanduse,nlctypes)  :: prod_s_total   !! Total products remaining in the short-lived
+                                                                                !! pool after the annual decomposition 
+                                                                                !! @tex $(gC)$ @endtex 
+    REAL(r_std), DIMENSION(npts,nelements,nlanduse,nlctypes)  :: prod_m_total   !! Total products remaining in the medium-lived
+                                                                                !! pool after the annual decomposition 
+                                                                                !! @tex $(gC)$ @endtex 
+    REAL(r_std), DIMENSION(npts,nelements,nlanduse,nlctypes)  :: prod_l_total   !! Total products remaining in the long-lived
+                                                                                !! pool after the annual release 
+                                                                                !! @tex $(gC)$ @endtex 
+    REAL(r_std), DIMENSION(npts,nelements,nlanduse,nlctypes)  :: flux_prod_total!! Total flux from decomposition of the short,
+                                                                                !! medium and long lived product pools 
+                                                                                !! @tex $(gC year^{-1})$ @endtex
+    REAL(r_std), DIMENSION(npts,nvm,nelements,nlctypes)       :: flux_s_pft     !! Total flux from decomposition the same year of the lcc and harvest
+                                                                                !! @tex $(gC m^{-1} dt^{-1})$ @endtex
+    REAL(r_std), DIMENSION(npts,nvm)                          :: lai            !! Leaf area index OF AN INDIVIDUAL PLANT,
+                                                                                !! where a PFT contains n indentical plants
+                                                                                !! i.e., using the mean individual approach 
+                                                                                !! @tex $(m^2 m^{-2})$ @endtex 
+    REAL(r_std), DIMENSION(npts,nvm,ncirc,nfm_types,ncut_times) &
+                                                     :: circ_class_kill         !! Number of trees within a circ class that needs
+                                                                                !! to be killed @tex $(ind m^{-2})$ @endtex
+                                                                                !! IMPORTANT: See the note in constantes.f90
+                                                                                !! regarding the indicies for this variable.
+    REAL(r_std), DIMENSION(npts,nvm,nelements)                  :: atm_to_bm           !! N and C taken from atmosphere to prescribe new vegetation
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex
+    REAL(r_std), DIMENSION(npts,nvm,nelements)                  :: tot_bm_to_litter    !! Total conversion of biomass to litter 
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex 
+    REAL(r_std), DIMENSION(npts,nvm,nelements)                  :: tot_live_biomass    !! Total living biomass  
+                                                                                       !! @tex $(gC m{-2})$ @endtex
+    REAL(r_std), DIMENSION(npts,nvm,nelements)                  :: tot_ab_biomass_inv  !! Total aboveground living biomass  
+                                                                                       !! @tex $(gC m{-2})$ @endtex
+    REAL(r_std), DIMENSION(npts,nvm,nelements)                  :: tot_be_biomass_inv  !! Total belowground living biomass  
+                                                                                       !! @tex $(gC m{-2})$ @endtex
+    REAL(r_std), DIMENSION(npts,nelements)                      :: Other               !! Biomass in Vegetation Components 
+                                                                                       !! other than Leaves, Stems and Roots
+                                                                                       !! @tex $(gC m{-2})$ @endtex
+
+    REAL(r_std), DIMENSION(npts,nvm,nparts,nelements)           :: bm_alloc            !! Biomass increase, i.e. NPP per plant part 
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex 
+    REAL(r_std), DIMENSION(npts,nvm,nelements)                  :: tot_turnover        !! Total turnover rate  
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex 
+    REAL(r_std), DIMENSION(npts,nvm,nelements)                  :: tot_litter_soil     !! Total soil and litter carbon and nitrogen 
+                                                                                       !! @tex $(gC m^{-2})$ @endtex 
+    REAL(r_std), DIMENSION(npts,nvm,nelements)                  :: tot_litter          !! Total litter carbon and nitrogen
+                                                                                       !! @tex $(gC m^{-2})$ @endtex 
+    REAL(r_std), DIMENSION(npts,nvm,nelements)                  :: tot_soil            !! Total soil carbon and nitrogen 
+                                                                                       !! @tex $(gC m^{-2})$ @endtex 
+    REAL(r_std), DIMENSION(npts)                                :: sum_cLitterGrass    !! Carbon mass in litter on grass tiles
+                                                                                       !! @tex $(kgC !m^{-2})$ @endtex 
+    REAL(r_std), DIMENSION(npts)                                :: sum_cLitterCrop     !! Carbon mass in litter on crop tiles
+                                                                                       !! @tex $(kgC m^{-2})$ @endtex
+    REAL(r_std), DIMENSION(npts)                                :: sum_cSoilGrass      !! Carbon mass in soil on grass tiles 
+                                                                                       !! @tex $(kgC !m^{-2})$ @endtex
+    REAL(r_std), DIMENSION(npts)                                :: sum_cSoilCrop       !! Carbon mass in soil on crop tiles
+                                                                                       !! @tex $(kgC m^{-2})$ @endtex
+    REAL(r_std), DIMENSION(npts)                                :: sum_cVegGrass       !! Carbon mass in vegetation on grass tiles 
+                                                                                       !! @tex $(kgC !m^{-2})$ @endtex
+    REAL(r_std), DIMENSION(npts)                                :: sum_cVegCrop        !! Carbon mass in vegetation on crop tiles
+                                                                                       !! @tex $(kgC m^{-2})$ @endtex
+    REAL(r_std), DIMENSION(npts)                                :: sum_cLitterTree     !! Carbon mass in litter on tree tiles
+                                                                                       !! @tex $(kgC !!m^{-2})$ @endtex 
+    REAL(r_std), DIMENSION(npts)                                :: sum_cSoilTree       !! Carbon mass in soil on tree tiles 
+                                                                                       !! @tex $(kgC !m^{-2})$ @endtex
+    REAL(r_std), DIMENSION(npts)                                :: sum_cVegTree        !! Carbon mass in vegetation on tree tiles 
+                                                                                       !! @tex $(kgC !m^{-2})$ @endtex
+    REAL(r_std), DIMENSION(npts)                                :: carb_mass_variation !! Carbon Mass variation  
+                                                                                       !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex 
+    REAL(r_std), DIMENSION(npts,nvm)                            :: cn_ind              !! Crown area of individuals 
+                                                                                       !! @tex $(m^{2})$ @endtex 
+    REAL(r_std), DIMENSION(npts,nvm)                            :: woodmass_ind        !! Woodmass of individuals (gC) 
+    REAL(r_std), DIMENSION(npts,nvm,nparts)                     :: f_alloc             !! Fraction that goes into plant part 
+                                                                                       !! (0 to 1, unitless) 
+    REAL(r_std), DIMENSION(npts)                                :: avail_tree          !! Space availability for trees 
+                                                                                       !! (0 to 1, unitless) 
+    REAL(r_std), DIMENSION(npts)                                :: avail_grass         !! Space availability for grasses 
+                                                                                       !! (0 to 1, unitless) 
+    INTEGER                                                     :: i,j,k,l,ipts,ivm,icut,ifm,ispec 
+    INTEGER                                                     :: iv,il,igrn,inspec,iupd
+    INTEGER                                                     :: ilev,ilitt,icarb,iele, ipar
+    INTEGER                                                     :: imbc, icir, iyear, iout, istart
+    INTEGER                                                     :: ilan
+    REAL(r_std),DIMENSION(npts)                                 :: flux_prod_harvest_total!! Total flux from conflux and the 10/100 
+                                                                                       !! year-turnover pool 
+                                                                                       !! @tex $(gC m^{-2} year^{-1})$ @endtex 
+!!$    REAL(r_std),DIMENSION(npts,nvm)                             :: veget_max_tmp   !! "Maximal" coverage fraction of a PFT  
+!!$                                                                                       !! (LAI-> infinity) on ground (unitless) 
+    REAL(r_std), DIMENSION(npts,nvm)                            :: mortality           !! Fraction of individual dying this time 
+                                                                                       !! step (0 to 1, unitless) 
+    REAL(r_std), DIMENSION(npts)                                :: vartmp              !! Temporary variable used to add history
+    REAL(r_std), DIMENSION(npts,nvm)                            :: histvar             !! History variables
+    CHARACTER(LEN=8), DIMENSION(nelements)                      :: element_str         !! string suffix indicating element 
+    REAL(r_std), DIMENSION(npts,nvm)                            :: vcmax_new   
+    REAL(r_std), DIMENSION(npts,nvm)                            :: gammas              !! Slope for individual tree growth (m)
+    REAL(r_std), DIMENSION(npts,nvm)                            :: sigma               !! Threshold for indivudal tree growth (m)
+    REAL(r_std), DIMENSION(npts,nvm)                            :: lrake_frac          !! Relative amount of litter that raked (-)
+    REAL(r_std), DIMENSION(npts,nvm)                            :: qm_height           !! Quadratic mean height of vegetation (m)
+    REAL(r_std), DIMENSION(npts,nvm)                            :: qm_dia              !! Quadratic mean diameter of vegetation (m)
+    REAL(r_std), DIMENSION(npts,nvm)                            :: dom_height          !! Dominant height of vegetation (m)
+    REAL(r_std), DIMENSION(npts,nvm)                            :: dom_dia             !! Dominant diameter of vegetation (m)
+    REAL(r_std), DIMENSION(npts,nvm)                            :: up_half_dia         !! Diameter of the upper halp of the population (m)
+    REAL(r_std), DIMENSION(npts,nvm)                            :: rdi                 !! relative density index (ntrees/Nmax)         
+    REAL(r_std), DIMENSION(npts,nvm)                            :: rdi_target_upper    !! relative density index (ntrees/Nmax)
+    REAL(r_std), DIMENSION(npts,nvm)                            :: rdi_target_lower    !! relative density index (ntrees/Nmax)
+
+    REAL(r_std), DIMENSION(npts,nvm,nlevels_tot)                :: z_level_photo       !! The height of the levels that we will
+                                                                                       !! use to calculate the effective LAI for
+                                                                                       !! the albedo routines and photosynthesis.
+                                                                                       !! @tex $(m)$ @endtex
+    CHARACTER(30)                                               :: var_name            !! Temporary variable name for histwrite
+    REAL(r_std), DIMENSION(npts,nvm,nmbcomp,nelements)          :: check_intern        !! Contains the components of the internal
+                                                                                       !! mass balance chech for this routine
+                                                                                       !! @tex $(gC pixel^{-1} dt^{-1})$ @endtex
+    REAL(r_std), DIMENSION(npts,nvm,nelements)                  :: closure_intern      !! Check closure of internal mass balance
+                                                                                       !! @tex $(gC pixel^{-1} dt^{-1})$ @endtex
+    REAL(r_std), DIMENSION(npts,nvm,nelements)                  :: pool_start          !! Start pool of this routine 
+                                                                                       !! @tex $(gC pixel^{-1} dt^{-1})$ @endtex
+    REAL(r_std), DIMENSION(npts,nvm,nelements)                  :: pool_end            !! End pool of this routine
+    REAL(r_std), DIMENSION(npts,nvm)                            :: temp                !! Temporary variable for writing to history files
+    REAL(r_std), DIMENSION(ncirc,nparts)                        :: temp3               !! Temporary variable for writing to history files
+    REAL(r_std), DIMENSION(ncirc)                               :: temp_n              !! Temporary N per circ class (dominant-class diag fix)
+    REAL(r_std), DIMENSION(npts,nlctypes,nelements,nlanduse)    :: temp4               !! Temporary variable for writing to history files
+    REAL(r_std), DIMENSION(npts,ndia_harvest+1,nelements,nlanduse):: temp5             !! Temporary variable to simplify compilation
+    REAL(r_std), DIMENSION(npts,nvm,noutdiaclass)               :: temp6, temp7        !! Temporary variable for writing to history files
+    REAL(r_std)                                                 :: dummy               !! dummy variable for prescribe
+    REAL(r_std)                                                 :: qmd_override        !! Cold-start desync: staggered initial qmd (m), val_exp = none
+    REAL(r_std)                                                 :: lo_bin, hi_bin !! Cold-start desync: age-class diameter bin bounds (m)
+    REAL(r_std)                                                 :: dfac_dv  !! Modulation des bornes par l'intensite de gestion (-)
+    REAL(r_std)                                                 :: phantom_qmd  !! PHANTOM PURGE: QMD of a floor-area slot (m)
+    INTEGER(i_std)                                              :: iage_loc, ng_loc    !! Cold-start desync: age-class index (1..ng) and nb of classes
+    INTEGER(i_std)                                              :: ac0_k               !! MATURITY_CONVEYOR: indice de vieillissement du convoyeur
+    ! Guillaume M. -- Class 0 conveyor locals, expressed as a land-cover change.
+    INTEGER(i_std)                                              :: c0_g                !! CLASSE 0: PFT herbace receveur de la maille (0 = aucun)
+    INTEGER(i_std)                                              :: c0_k                !! CLASSE 0: indice de balayage / de case
+    INTEGER(i_std)                                              :: c0_ivma             !! CLASSE 0: groupe forestier
+    INTEGER(i_std)                                              :: c0_p1               !! CLASSE 0: creneau de classe 1 du groupe
+    INTEGER(i_std)                                              :: c0_i                !! CLASSE 0: indice de maille
+    REAL(r_std)                                                 :: c0_best             !! CLASSE 0: veget_max de l'herbacee dominante
+    REAL(r_std)                                                 :: c0_due              !! CLASSE 0: aire sortant du convoyeur (-)
+    REAL(r_std)                                                 :: c0_new              !! CLASSE 0: aire coupee entrant dans le convoyeur (-)
+    REAL(r_std)                                                 :: c0_sum              !! CLASSE 0: total du registre (garde de coherence)
+    LOGICAL                                                     :: c0_work             !! CLASSE 0: un transfert a-t-il ete demande cette annee ?
+    INTEGER(i_std)                                              :: c0_nfeed            !! CLASSE 0: alimentations acceptees
+    INTEGER(i_std)                                              :: c0_nfeed_rej        !! CLASSE 0: alimentations REFUSEES (invariant min_vegfrac)
+    INTEGER(i_std)                                              :: c0_ndrain           !! CLASSE 0: restitutions acceptees
+    INTEGER(i_std)                                              :: c0_ndrain_rej       !! CLASSE 0: restitutions REFUSEES
+    REAL(r_std)                                                 :: c0_dbg_in           !! ALIM scaffolding: c0_new before the guard (-)
+    LOGICAL                                                     :: c0_dbg_fired        !! ALIM scaffolding: did the guard fire?
+    REAL(r_std)                                                 :: c0_net              !! CLASSE 0: net area change of the class-1 slot (-)
+    ! Guillaume M. -- scaffolding [C0FLUX]: yearly sums of what the register CLAIMS was
+    ! parked (c0_new), what it returns (c0_due), and what physically crosses (c0_net).
+    ! Only the net is applied, so a dominant restitution nets the feed leg out while the
+    ! register still books it. Exit criterion: the gap is explained and closed.
+    REAL(r_std)                                                 :: c0_s_new, c0_s_due, c0_s_net
+    REAL(r_std)                                                 :: c0_s_cap, c0_raw
+    LOGICAL                                                     :: c0_ok               !! CLASSE 0: is the net move admissible ?
+    LOGICAL                                                     :: c0_wipe             !! CLASSE 0: the whole slot is carried away, land both maps on exact zero
+    LOGICAL                                                     :: did_establish       !! Cold-start desync: TRUE if prescribe established a stand
+    REAL(r_std), DIMENSION(npts,nvm)                            :: n_reserve_balance   !! Actual to potential N reserve pool (unitless)
+    LOGICAL, DIMENSION(npts,nvm)                                :: valid_start_gs      !! Doy was calculated by ORCHIDEE. It is therefore valid 
+                                                                                       !! and should be used to update mean_start_gs
+    REAL(r_std), DIMENSION(npts,nvm,nparts,nelements)           :: temp_bio            !! Biomass @tex $(gC m^{-2})$ @endtex
+    CHARACTER(30)                                               :: losses              !! Loss distribution across age classes
+    REAL(r_std), DIMENSION(npts,nvm,nupdate1,nelements)         :: atm_to_bm_hist      !! History of atm_to_bm for C and N for the 
+                                                                                       !! different subroutines where it is used
+    REAL(r_std), DIMENSION(npts,nvm,nupdate1)                   :: gpp_daily_hist      !! History of gpp_daily for C for the different subroutines
+    REAL(r_std), DIMENSION(npts,nvm,nupdate1)                   :: resp_growth_hist    !! History of resp_growth for C for the different subroutines
+    REAL(r_std), DIMENSION(npts,nvm,nupdate1)                   :: resp_maint_hist     !! History of resp_maint for C for the different subroutines
+    REAL(r_std), DIMENSION(npts,nvm,nupdate1)                   :: resp_hetero_hist    !! History of resp_hetero for C for the different subroutines
+    REAL(r_std), DIMENSION(npts,nvm,nupdate1)                   :: co2_fire_hist       !! History of co2_fire_hist for C for the different subroutines
+    REAL(r_std), DIMENSION(npts,nvm,nupdate1)                   :: n_input_daily_hist  !! History of n_input_daily_hist for N for the different subroutines
+    REAL(r_std), DIMENSION(npts,nvm,nupdate1)                   :: emission_daily_hist !! History of emission_daily_hist for N for the different subroutines
+    REAL(r_std), DIMENSION(npts,nvm,nupdate1)                   :: leaching_daily_hist !! History of emission_daily_hist for N for the different subroutines
+    REAL(r_std), DIMENSION(npts,nvm,nupdate1)                   :: veget_max_hist      !! History of veget_max. Powerfull variable for debugging as it
+                                                                                       !! tells in which subroutines veget_max has been moved.
+    REAL(r_std), DIMENSION(npts,nvm,nupdate2)                   :: delta_wood_vol_tot_hist   !! History of changes in total wood (above and belowground) volume for the different subroutines
+    REAL(r_std), DIMENSION(npts,nvm,nupdate2)                   :: delta_wood_vol_stand_hist !! History of changes in standing wood volume (aboveground) for the different subroutines
+    INTEGER, dimension(3)                                       :: pft_t
+    REAL(r_std), DIMENSION(npts)                                :: change_nobio        !! Change in the non biological fraction in a pixel (0-1, unitless
+    ! Windthrow
+    REAL(r_std), DIMENSION(npts,nvm,nparts,nelements,nfm_types,ncut_times) &
+                                                                :: biomass_cut            !! Biomass change due to  ncut
+    REAL(r_std), DIMENSION(npts,ncut_times)                     :: wood_volume_pix_cut    !! Wood volume change due to ncut
+    REAL(r_std), DIMENSION(npts,nlut)                           :: clitterlut             !! Litter carbon on landusetype4 (nlut)
+    REAL(r_std), DIMENSION(npts,nlut)                           :: csoillut               !! Soil carbon on landusetype4 (nlut)
+    REAL(r_std), DIMENSION(npts,nlut)                           :: cveglut                !! Carbon in vegetation on landusetype4 (nlut)
+    REAL(r_std), DIMENSION(npts,nlut)                           :: lailut                 !! LAI on landusetype4 (nlut)
+    REAL(r_std), DIMENSION(npts,nlut)                           :: ralut                  !! Autotrophic respiration on landusetype4 (nlut) 
+    REAL(r_std), DIMENSION(npts,nlut)                           :: rhlut                  !! Heterotrophic respiration on landusetype4 (nlut) 
+    REAL(r_std), DIMENSION(npts,nlut)                           :: npplut                 !! Net Primary Productivity on landusetype4 (nlut)    
+    REAL(r_std), DIMENSION(npts,nlut)                           :: ctotfirelut            !! Fire CO2 emission on landusetype4 (nlut) 
+    REAL(r_std), DIMENSION(npts,nlut)                           :: cproductlut
+    REAL(r_std), DIMENSION(npts,nlut)                           :: flulccatmlut
+    REAL(r_std), DIMENSION(npts,nlut)                           :: flulccproductlut
+    REAL(r_std), DIMENSION(npts,nlut)                           :: flulccresiduelut
+    REAL(r_std), DIMENSION(npts,ncarb)                          :: csoilpools             !! Diagnostics for carbon in soil pools
+    LOGICAL, DIMENSION(npts,nvm)                                :: failed_vegfrac         !! Failed to find a PFT were some residual fraction could be added (true/false)
+    REAL(r_std), DIMENSION(0:ngrnd)                             :: zf_soil
+    REAL(r_std), DIMENSION(npts,ngrnd,ncarb,nelements)          :: deepSOM_pftmean        !! Deep soil organic matter profiles, mean over all PFTs
+    REAL(r_std), DIMENSION(npts,ngrnd,ncarb,nelements)          :: deepSOM_pftmean_stock  !! Deep soil organic matter profiles, mean over all PFTs in g/m2
+    REAL(r_std), PARAMETER                                      :: maxdepth=2.            !! depth to which we intergrate the carbon for som_surf calculation
+    REAL(r_std), DIMENSION(npts,nvm,legacy_years)               :: tmp_legacy             !! temporary variable to write output variables for disturbances
+    REAL(r_std), DIMENSION(npts,nvm)                            :: vcmax_diag             !! temporary variable for writing vcmax to history file
+    REAL(r_std), DIMENSION(npts,nvm)                            :: vcmax_new_diag         !! temporary variable for writing vcmax_new to history file
+    REAL(r_std), DIMENSION(npts,nvm)                            :: lai_diag               !! temporary variable for writing lai to history file                       
+    REAL(r_std), DIMENSION(npts,nvm)                            :: ind_diag               !! temporary variable for writing lai to history file
+    
+    REAL(r_std),DIMENSION(npts)                                 :: error_count            !! Count the number of errors in consistency checks.
+    REAL(r_std),DIMENSION(npts,nelements), INTENT(out)          :: nbp_daily_flux         !! Net Biospheric Production flux based approach (gC.m^-2)
+    REAL(r_std),DIMENSION(npts,nelements)                       :: nbp_daily_pool         !! Net Biospheric Production pool based approach (gC.m^-2)
+    REAL(r_std),DIMENSION(npts,nelements)                       :: nbp_pool_end           !! C and N stocks to calculate the pool based nbp (gC.m^-2)
+    REAL(r_std), DIMENSION(npts,nelements)                      :: burried                !! Temporary variables to simplify the calcualtions 
+                                                                                          !! with C and N burried under urbanized land (gC pixel-1)
+    REAL(r_std), DIMENSION(npts,nvm,ndia_harvest+1,nelements,nlanduse) :: harvest_pool    !! The pool which records the qauntity of
+                                                                                          !! wood harvested and thinned due to forest
+                                                                                          !! management and LCC.  
+                                                                                          !! @tex $(gC m^{-2})$ @endtex 
+    REAL(r_std), DIMENSION(npts,nvm,nlanduse)                    :: harvest_area          !! Harvested area (m^{2})
+    REAL(r_std), DIMENSION(npts,nvm)                             :: veget_max_disturb     !! New cover fraction of a PFT after stand replacing
+                                                                                          !! disturbances (unitless, 0-1)
+    REAL(r_std), DIMENSION(npts,nvm,ncirc)                       :: circ_height           !! Height of trees per diameter class
+    REAL(r_std), DIMENSION(npts,nvm)                             :: new_ind               !! Number of recruits grown (trees m-2 day-2)
+    REAL(r_std), DIMENSION(npts,nvm,ncut_times)                  :: woody_litter_by_cut   !! Saved woody litter by icut not by iparts
+                                                                                          !! @tex $(gC m^{-2})$ @endtex
+    REAL(r_std), DIMENSION(ncirc)                                :: circ_dia              !! temporary variable for vegetation diameter
+    REAL(r_std), DIMENSION(ncirc)                                :: circ_n                !! temporary circ_class_n for estimates to 
+                                                                                          !! compare against inventory data
+    REAL(r_std), DIMENSION(npts,nvm)                             :: init_tot_wood_volume  !! initial total wood volume at the start of the daily time 
+                                                                                          !! step (m3 m-2)
+    REAL(r_std), DIMENSION(npts,nvm)                             :: init_stand_wood_volume!! initial total wood volume at the start of the daily time 
+                                                                                          !! step (m3 m-2) 
+    REAL(r_std), DIMENSION(npts,nvm)                             :: wood_volume           !! wood volume at the end of the daily time 
+                                                                                          !! step (m3 m-2) 
+    REAL(r_std), DIMENSION(npts,nvm)                             :: wood_volume_inv       !! wood volume for trees with a diameter exceeding 
+                                                                                          !! the inventory threshold (7 cm) at the end of the daily 
+                                                                                          !! time step (m3 m-2)
+    REAL(r_std), DIMENSION(npts,nvm)                             :: wood_volume_cut       !! wood volume cut at the daily time step (m3 m-2) 
+    REAL(r_std), DIMENSION(npts,nvm)                             :: wood_volume_cut_inv   !! wood volume cut from trees with a diameter exceeding 
+                                                                                          !! the inventory threshold (7 cm) at the daily 
+                                                                                          !! time step (m3 m-2)
+    REAL(r_std), DIMENSION(npts,nvm)                             :: pft_died              !! Count the number of times a PFT died - in two different ways
+    LOGICAL                                                      :: write_debug           !! flag to write debug statements in the prescribe subroutine
+    REAL(r_std),DIMENSION(npts,nvm,nelements)                    :: tot_res_target        !! Target for reserve carbon pool (only for grassland)
+                                                                                          !! @tex $(gC m^{-2})$ @endtex 
+    REAL(r_std),DIMENSION(npts,nvm,nelements)                    :: tot_lab_target        !! Target for labile carbon pool (only for grassland)
+                                                                                          !! @tex $(gC m^{-2})$ @endtex
+    REAL(r_std),DIMENSION(npts,nvm)                              :: gtemp                 !! Turnover coefficient of labile C pool (0-1)
+    REAL(r_std),DIMENSION(npts,nvm)                              :: whychange             !! Reason why there is a change in FM
+    REAL(r_std),DIMENSION(npts,nvm)                              :: tot_trees             !! 
+
+    REAL(r_std), DIMENSION(nvm)                                  :: glob_mean_ref         !! global mean after bcast
+    REAL(r_std), DIMENSION(nvm)                                  :: glob_mean_decade      !! global mean after bcast
+    INTEGER(i_std)                                               :: count_g               !! number of pixels with a valid value
+    REAL(r_std),ALLOCATABLE,DIMENSION(:,:)                       :: ref_gpp_g             !! temporary variable on global grid
+    REAL(r_std),ALLOCATABLE,DIMENSION(:,:)                       :: gpp_decade_g          !! temporary variable on global grid
+    REAL(r_std),ALLOCATABLE,DIMENSION(:,:)                       :: veget_max_g           !! temporary variable on global grid
+
+    ! peatland when ok_peat_NoDiscretisation is activated. This part is to removed later, and comments not necessary.
+    REAL(r_std),DIMENSION(npts,nvm), INTENT(in)   :: carbon_acro
+    REAL(r_std),DIMENSION(npts,nvm), INTENT(in)   :: carbon_cato
+    REAL(r_std),DIMENSION(npts), INTENT(in)       :: height_acro
+    REAL(r_std),DIMENSION(npts), INTENT(in)       :: height_cato
+    REAL(r_std),DIMENSION(npts), INTENT(in)       :: tcarbon_acro
+    REAL(r_std),DIMENSION(npts), INTENT(in)       :: tcarbon_cato
+   
+!_ ================================================================================================================================
+    IF (firstcall_stomate_lpj) THEN
+       !! Initialize local printlev
+      ! Guillaume M. -- get_printlev calls getin_p, a COLLECTIVE bcast. Called here,
+      ! inside the compute loop under a local firstcall, it hangs the run as soon as the
+      ! ranks stop reaching it together. Use printlev, read once at startup by every rank.
+       printlev_loc=printlev
+       ! Guillaume M. -- Cold-start age-class desync: the staggered initial qmd is applied
+       ! once per (point,PFT) at the first tree establishment (= cold start). It is not in
+       ! the restart, so a genuine cold start begins all-pending (.TRUE.).
+       IF (ok_dia_stagger .AND. .NOT. ALLOCATED(dia_desync_pending)) THEN
+          ALLOCATE(dia_desync_pending(npts,nvm))
+          dia_desync_pending(:,:) = .TRUE.
+       ENDIF
+
+       firstcall_stomate_lpj=.FALSE.
+    
+       CALL ipslerr_p(2, &
+           'Fire module needs to be modified to take into account', &
+           'snag pool, ie additionnal index isnag (after iwood)','','')
+
+    END IF
+
+    IF (printlev_loc>=2) WRITE(numout,*) 'Entering stomate_lpj'
+    !! 1. Initializations
+
+    zf_soil(1:ngrnd) = zlt(:)
+    zf_soil(0) = 0.
+
+    !! 1.2 Initialize variables to zero
+    emissions_fire(:,:,:,:) = zero
+    co2_fire(:,:) = zero
+    npp_daily(:,:) = zero
+    resp_maint(:,:) = zero
+    resp_growth(:,:) = zero
+    bm_to_litter(:,:,:,:) = zero
+    cn_ind(:,:) = zero
+    woodmass_ind(:,:) = zero
+    turnover_daily(:,:,:,:) = zero
+    circ_class_kill(:,:,:,:,:) = zero
+    bm_alloc(:,:,:,:) = zero
+    lrake_frac(:,:) = zero
+    atm_to_bm(:,:,:) = zero
+    atm_to_bm_hist(:,:,:,:) = zero
+    veget_max_hist(:,:,:) = zero
+    gpp_daily_hist(:,:,:) = zero      
+    resp_growth_hist(:,:,:) = zero
+    resp_maint_hist(:,:,:) = zero
+    resp_hetero_hist(:,:,:) = zero
+    co2_fire_hist(:,:,:) = zero
+    n_input_daily_hist(:,:,:) = zero
+    emission_daily_hist(:,:,:) = zero
+    leaching_daily_hist(:,:,:) = zero
+    harvest_pool(:,:,:,:,:) = zero
+    harvest_area(:,:,:) = zero
+    biomass_cut(:,:,:,:,:,:) = zero
+    burried(:,:) = zero
+    circ_height(:,:,:) = zero
+    wood_volume_pix_cut(:,:) = zero
+    init_tot_wood_volume(:,:) = zero
+    init_stand_wood_volume(:,:) = zero
+    wood_volume(:,:) = zero
+    wood_volume_inv(:,:) = zero
+    wood_volume_cut(:,:) = zero
+    wood_volume_cut_inv(:,:) = zero
+    woody_litter_by_cut = zero
+    whychange = zero
+    tot_trees = zero
+
+    ! Calculate alpha_self_thinning
+    IF (test_dynamic_alpha_self_thin) THEN
+       
+       DO ivm = 2,nvm
+          
+          IF (is_tree(ivm)) THEN
+             
+             ! Pre_indust_ref_gpp and gpp_decade are gapfilled when being written
+             ! to the restart files. That way there is a reference value for the
+             ! pre-industrial gpp and an initial value for gpp_decade. This is not
+             ! perfect especially not for pre_indust_ref_gpp because after the spinup
+             ! this value is not changed anymore. A poor estimate of pre_indust_ref_gpp
+             ! will continue to affect the rest of the simulation.
+             DO ipts = 1,npts
+                error_count(ipts) = zero
+                ! Guillaume M. -- AED cold-start gapfill: an age-class transition or a
+                ! land-cover change can zero pre_indust_ref_gpp on a vegetated, productive
+                ! PFT. The invariant is pre_indust_ref_gpp = gpp_decade, so restore it here
+                ! instead of stopping in the consistency check below. Fires only on a fresh
+                ! slot (pre_indust <= 0 and veget > 0), so a clean run is bit-neutral.
+                IF (veget_max(ipts,ivm).GT.zero .AND. &
+                     gpp_decade(ipts,ivm).GT.zero .AND. &
+                     pre_indust_ref_gpp(ipts,ivm).LE.zero) THEN
+                   pre_indust_ref_gpp(ipts,ivm) = gpp_decade(ipts,ivm)
+                ENDIF
+                IF (veget_max(ipts,ivm).GT.zero .AND. &
+                     gpp_decade(ipts,ivm).LE.zero .AND. &
+                     pre_indust_ref_gpp(ipts,ivm).LE.zero) THEN
+                   ! Guillaume M. -- AED fresh-fraction guard: an age-class transition or
+                   ! regrowth can create a PFT fraction with no GPP history at all (both
+                   ! gpp_decade and pre_indust_ref_gpp zero). No self-thinning reference
+                   ! exists yet, so set alpha to zero as for an unvegetated PFT; the
+                   ! fraction acquires a real gpp_decade over the next time steps. Ungated.
+                   alpha_self_thinning(ipts,ivm) = zero
+                ELSEIF (pre_indust_ref_gpp(ipts,ivm).EQ.zero .AND. &
+                     veget_max(ipts,ivm).EQ.zero) THEN
+                   ! No need for alpha_self_thinning. Set it to zero for
+                   ! the history files.
+                   alpha_self_thinning(ipts,ivm) = zero
+                ELSEIF (pre_indust_ref_gpp(ipts,ivm).GT.zero .AND. &
+                     veget_max(ipts,ivm).GT.zero) THEN
+                   ! The equation addresses both the spatial and temporal variation
+                   ! in alpha_self_thinning. The first factor describes the
+                   ! spatial variation in alpha_self_thinning. The second factor
+                   ! (gpp_decade/pre_indus_ref_gpp) describes the temporal
+                   ! variation in alpha_self_thinning as function of the
+                   ! reference gpp.
+                   ! Use pre_indust_ref_gpp to adjust alpha_self_thinning. The
+                   ! prescribed alpha_self_thinning represents a high density stand
+                   ! for that PFT. Hence, when the gpp is lower the alpha self
+                   ! thinning is allowed to decrease. When gpp is higher the alpha
+                   ! self-thinning will increase for that location.
+                   ! If GPP goes up by 10% it assumed that the alpha_self_thinning
+                   ! goes up by 10%. The way we defined alpha self thinning, this
+                   ! means that the diameter goes up by ~10% so the height goes up
+                   ! by ~10% so the standing biomass goes up by 33%. Take the cube
+                   ! root to account for the geometric relationship between diameter
+                   ! (through the self thinning relationship) and biomass (the
+                   ! proxy for carrying capacity). Truncate the possible change
+                   ! between 1+spat_mod_self_thin and 1-spat_mod_self_thin.
+                   alpha_self_thinning(ipts,ivm) = ref_alpha_self_thin(ivm) * &
+                        MAX(MIN((pre_indust_ref_gpp(ipts,ivm) / &
+                        init_pre_indust_ref_gpp(ivm))**spat_exp_self_thin, &
+                        1+spat_mod_self_thin), 1-spat_mod_self_thin) * &
+                        gpp_decade(ipts,ivm)/pre_indust_ref_gpp(ipts,ivm)
+                ELSEIF (pre_indust_ref_gpp(ipts,ivm).LE.zero .AND. &
+                     veget_max(ipts,ivm).GT.zero) THEN
+                   ! Because of the gapfilling we expect to find a value
+                   ! for pre_indust_ref_gpp everywhere.
+                   error_count(ipts) = un
+                ELSEIF (gpp_decade(ipts,ivm).LE.zero .AND. &
+                     veget_max(ipts,ivm).GT.zero) THEN
+                   ! Because of the gapfilling we expect to find a value
+                   ! for gpp_decade everywhere.
+                   error_count(ipts) = deux   
+                ELSEIF (pre_indust_ref_gpp(ipts,ivm).GT.zero .AND. &
+                     gpp_decade(ipts,ivm).LE.zero .AND. &
+                     veget_max(ipts,ivm).GT.zero) THEN
+                   ! Because of gapfilling pre_indust_ref_gpp and
+                   ! gpp_decade should both have non-zero values.
+                   ! Guillaume M. -- veget_max guard: an EMPTY slot legitimately has
+                   ! gpp_decade = 0 while pre_indust_ref_gpp is filled everywhere, which
+                   ! stopped the model on a normal state. Branches 1, 2 and 5 already
+                   ! carried this guard, branches 3 and 4 did not.
+                   error_count(ipts) = trois
+                ELSEIF (pre_indust_ref_gpp(ipts,ivm).LE.zero .AND. &
+                     gpp_decade(ipts,ivm).GT.zero .AND. &
+                     veget_max(ipts,ivm).GT.zero) THEN
+                   ! Because of gapfilling pre_indust_ref_gpp and
+                   ! gpp_decade should both have non-zero values (same guard as in 3)
+                   error_count(ipts) = quatre
+                ELSEIF (pre_indust_ref_gpp(ipts,ivm).LT.zero .AND. &
+                     gpp_decade(ipts,ivm).LT.zero .AND. &
+                     veget_max(ipts,ivm) .GT. zero) THEN
+                   ! Because of gapfilling pre_indust_ref_gpp and
+                   ! gpp_decade should both have non-zero values
+                   error_count(ipts) = cinq
+                END IF
+                
+                ! Write error message
+                IF (error_count(ipts).GT.zero) THEN
+                   WRITE(numout,*) 'pixel,pft, ',ipts,ivm
+                   WRITE(numout,*) 'type of error (see code), ',error_count(ipts)
+                   WRITE(numout,*) 'gpp_decade, ',gpp_decade(ipts,ivm)
+                   WRITE(numout,*) 'pre_indust_ref_gpp, ',pre_indust_ref_gpp(ipts,ivm)
+                   WRITE(numout,*) 'veget_max, ',veget_max(ipts,ivm)
+                   CALL flush(numout)
+                   CALL ipslerr_p(3,'stomate_lpj_vegetation', 'inconsistency in one of the underlying calculations',&
+                        'gpp_decade, alpha_self_thinning and veget_max','should all be zero or positive')
+                END IF
+                
+             END DO
+  
+          END IF
+          
+       END DO
+       
+    END IF ! test_dynamic_alpha_self_thin
+    
+    ! More intialization
+    IF (do_now_stomate_lcchange) THEN
+
+       ! Change in non-biological fraction. Note that loss_gain contains
+       ! the changes in the vegetation fractions
+       change_nobio(:) = -SUM(loss_gain(:,:),2)
+
+    ELSE
+
+       ! Initialise change_nobio. This is an output variable of
+       ! sapiens_land_cover_change and needs a value when land_cover_change
+       ! is not called
+       change_nobio(:) = zero
+
+    END IF ! do_now_stomate_lcchange
+
+    ! Initialize wood volumes
+    ! Note that the variable previous_wood_volume is calculated once per 
+    ! year and used in sapiens_forestry to calculate the annual wood increment.
+    ! Restartability requires this variable to be saved in the restart files
+    ! init_wood_volume is calculated daily. No need to store it in the 
+    ! restart files.
+    init_tot_wood_volume = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    init_stand_wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+
+    !! 1.4 Initialize check for mass balance closure
+    !  This test is always performed. If err_act.EQ.1 then 
+    !  the value of the mass balance error -if any- is 
+    !  written to the history file.
+
+    ! Based on the dimensions of the variables it looks like 
+    ! we can distinguish different PFTs but that is not true.
+    ! We need to account for the wood products and those are 
+    ! only defined at the pixel level. The highest resolution
+    ! we can thus check for mass balance closure is the pixel.
+    check_intern(:,:,:,:) = zero
+    pool_start(:,:,:) = zero
+    
+    DO iele = 1,nelements
+
+       ! C and N pools at the start of this routine
+       DO ipar = 1,nparts
+          DO icir=1, ncirc
+             pool_start(:,:,iele) = pool_start(:,:,iele) + &
+                  (circ_class_biomass(:,:,icir,ipar,iele) * &
+                  circ_class_n(:,:,icir) * veget_max(:,:))
+          ENDDO
+       ENDDO
+       IF (ok_soil_carbon_discretization) THEN
+          ! Define the soil layers
+          zf_soil(:) = zero
+          zf_soil(1:ngrnd) = zlt(:)
+          zf_soil(0) = 0.
+          ! Soil carbon (gC m-3) * (m2 m-2)
+          DO igrn = 1,ngrnd
+             pool_start(:,:,iele) = pool_start(:,:,iele) + &
+                  (deepSOM_a(:,igrn,:,iele) + deepSOM_s(:,igrn,:,iele) + &
+                  deepSOM_p(:,igrn,:,iele)) * &
+                  (zf_soil(igrn)-zf_soil(igrn-1)) * veget_max(:,:)
+          END DO
+       ELSE
+          DO icarb = 1,ncarb
+             pool_start(:,:,iele) = pool_start(:,:,iele) + &
+                  som(:,icarb,:,iele) * veget_max(:,:)
+          ENDDO
+       ENDIF
+
+       ! The biomass harvest pool shouldn't be multiplied by veget_max
+       ! its units are already in gC or gN pixel-1. The total amount 
+       ! for the pixel was stored in harvest_pool_acc. Account for C and N 
+       ! stored in the woofd product pools. There are no longer PFTs 
+       pool_start(:,1,iele) = pool_start(:,1,iele) + &
+            (SUM(SUM(SUM(harvest_pool_acc(:,:,:,iele,:),4),3),2) + &
+            SUM(SUM(SUM(prod_l(:,:,iele,:,:),2),2),2) + &
+            SUM(SUM(SUM(prod_m(:,:,iele,:,:),2),2),2) + &
+            SUM(SUM(SUM(prod_s(:,:,iele,:,:),2),2),2) ) / &
+            (area(:) * contfrac(:))
+
+       ! burried_XX variables are cummulative. burried_fresh_ltr should
+       ! therefore be accounted for at the start and end of the mass balance
+       ! check. Change_nobio can differ from zero only the days that lcc is 
+       ! accounted for. burried_som, burried_deepSOM_x, burried_min_nitro, 
+       ! and burried litter should not be accounted for because the soil 
+       ! organic matter and litter are not touched in stomate_lpj.f90, it 
+       ! is only moved around. The mass balance check assumes nothing 
+       ! happens to som, deepSOM_a and litter but does not explicitly check 
+       ! for these pools. They are however checked in the nbp consistency 
+       ! cross-checking. bact and burried_bact are diagnostic variables and 
+       ! not accounted for in the mass balance check. 
+       pool_start(:,1,iele) = pool_start(:,1,iele) + &
+            SUM(burried_fresh_ltr(:,:,iele),2)
+    ENDDO
+
+    ! Account for the N-uptake calculated in stomate.f90
+    pool_start(:,:,initrogen) = pool_start(:,:,initrogen) + &
+         (plant_n_uptake_daily(:,:,iammonium) + &
+         plant_n_uptake_daily(:,:,initrate)) * veget_max(:,:) + &
+         ( soil_n_min(:,:,iammonium) + soil_n_min(:,:,initrate) ) * veget_max(:,:)
+    
+    ! Initialize
+    ! The key variables to close the mass balance are veget_max_hist and
+    ! atm_to_bm_hist. The other xxx_hist fluxes are not really necessary
+    ! but largely facilitate maintaining the nbp consistency check.
+    gpp_daily_hist(:,:,ibeg) = gpp_daily(:,:)
+    resp_maint_hist(:,:,ibeg) = resp_maint(:,:)
+    resp_growth_hist(:,:,ibeg) = resp_growth(:,:)
+    resp_hetero_hist(:,:,ibeg) = resp_hetero(:,:)
+    co2_fire_hist(:,:,ibeg) = co2_fire(:,:)
+    n_input_daily_hist(:,:,ibeg) = SUM(n_input_daily(:,:,:),3)
+    emission_daily_hist(:,:,ibeg) = SUM(emission_daily(:,:,:),3)
+    leaching_daily_hist(:,:,ibeg) = SUM(leaching_daily(:,:,:),3)
+    veget_max_hist(:,:,ibeg) = veget_max(:,:)
+    ! Because atm_to_bm_hist is used in the mass balance check of
+    ! stomate_lpj, atm_to_immob_daily should not be added yet. It should
+    ! be added after the mass balance check but before the nbp
+    ! consistency check. It should be added because the nbp deals
+    ! with both stomate and stomate_lpj.f90. atm_to_immob_daily is a
+    ! flux that comes from stomate.f90. Skip:
+    ! atm_to_bm_hist(:,:,ibeg,initrogen) = atm_to_immob_daily(:,:)
+    delta_wood_vol_tot_hist(:,:,ibeg) = init_tot_wood_volume(:,:)
+    delta_wood_vol_stand_hist(:,:,ibeg) = init_stand_wood_volume(:,:)
+
+    ! Save the initial basal area 
+    ! This will be used at the end of the year to estimate if there is 
+    ! basal area loss by any event.
+    IF (FirstDayYear) THEN
+       DO ivm = 2,nvm
+          IF ( is_tree(ivm) ) THEN
+             DO ipts = 1,npts
+                total_ba_init(ipts,ivm) = SUM( & 
+                     wood_to_ba(circ_class_biomass(ipts,ivm,:,:,icarbon),ivm, &
+                     pipe_tune2(ipts,ivm)) * circ_class_n(ipts,ivm,:))
+             ENDDO
+          ENDIF
+       ENDDO
+    ENDIF
+
+    !! 1.6 Update stand age
+    ! Here we increment the age of the stand, if it's the end of the 
+    ! year (if is_annual_proc is true, by default the end of the year).
+    ! Notice that we need to do this before the sapiens_forestry routines, 
+    ! since the forest has had a chance to grow since the last time
+    ! we called the routine.  Doing it this way may cause a small 
+    ! problem since sapiens_forestry_main is only done every year. For example, 
+    ! let us say that a forest die-off occurs due to natural reasons 
+    ! at the end of December. The age of that stand will be set to zero. 
+    ! However, when the end of year happens the age will be incremented 
+    ! by one here, even though the forest is only a couple weeks old. 
+    ! There doesn't seem to be a better way to do this, though, so a 
+    ! forest age of x should be taken to mean that the forest is 
+    ! between x-1 and x years old.  I see this only being an issue
+    ! in short rotation coppices, but those forests should never have
+    ! die off because they are harvested every couple years.
+    IF (ts_annual_proc) THEN
+       DO ipts=1,npts
+          DO ivm=1,nvm
+             IF(veget_max(ipts,ivm) .GT. min_stomate)THEN
+                age_stand(ipts,ivm) = age_stand(ipts,ivm) + 1
+
+                ! last_cut is similar to stand age, but it measures the
+                ! time since any human intervention, either thinning or
+                ! clearcutting.
+                last_cut(ipts,ivm) = last_cut(ipts,ivm) + 1
+
+                ! Guillaume M. -- STAND_AGE: conserved biomass-weighted mean stand age,
+                ! ageing +1/yr with the standing biomass. The age_stand_estab floor is
+                ! needed because `prescribe` does not install seeds but saplings of a
+                ! prescribed non-zero DIAMETER: the stand is born already aged. The floor
+                ! applies only to slots CARRYING biomass, an empty slot stays at zero.
+                age_stand_bm(ipts,ivm) = MAX(age_stand_bm(ipts,ivm) + un, age_stand_estab)
+
+             ELSE
+
+                age_stand(ipts,ivm) = 0
+                last_cut(ipts,ivm) = 0
+                age_stand_bm(ipts,ivm) = zero
+
+             ENDIF
+          ENDDO
+       ENDDO
+    ENDIF
+
+    ! Guillaume M. -- PHANTOM COHORT PURGE (design doc 4.5). A floor-area slot whose
+    ! per-tree growth ran away (1/n growth, QMD beyond phantom_dia_factor times the
+    ! clearcut diameter) is not a stand: its biomass goes to the litter of the SAME
+    ! slot (per-m2 pools, unchanged area => exact conservation) and the slot is
+    ! reset; prescribe re-seeds a normal-density sapling stand. Always-on guard:
+    ! it only fires in the pathological state.
+    ! /!\ Cadence: FirstDayYear AND end of year, NOT the annual block alone. The
+    ! RDI machinery that dies on a phantom (calculate_rdi_boundaries) is ALSO called
+    ! on the DAILY path (:4024): a purge only at year end runs eleven months too
+    ! late for a phantom crossing the 2 m unit guard mid-year -- measured on pxneuT
+    ! period 54, which died again with the annual-only version of this guard.
+    IF (ts_annual_proc .OR. FirstDayYear) THEN
+       DO ipts = 1,npts
+          DO ivm = 1,nvm
+             IF (.NOT. is_tree(ivm)) CYCLE
+             IF (veget_max(ipts,ivm) .LE. zero .OR. &
+                  veget_max(ipts,ivm) .GT. phantom_area_factor * min_vegfrac) CYCLE
+             IF (SUM(SUM(circ_class_biomass(ipts,ivm,:,:,icarbon),1),1) .LE. min_stomate) CYCLE
+             phantom_qmd = wood_to_qmdia(circ_class_biomass(ipts,ivm,:,:,icarbon), &
+                  circ_class_n(ipts,ivm,:), ivm, pipe_tune2(ipts,ivm))
+             IF (phantom_qmd .LE. phantom_dia_factor * largest_tree_dia(ivm)) CYCLE
+             ! Every purge is NAMED in the log (rule: no silent slot handling)
+             WRITE(numout,*) 'PHANTOM PURGE: slot reset, ipts local/pft/qmd(m)/veget_max ', &
+                  ipts, ivm, phantom_qmd, veget_max(ipts,ivm)
+             bm_to_litter(ipts,ivm,:,:) = bm_to_litter(ipts,ivm,:,:) + &
+                  SUM(circ_class_biomass(ipts,ivm,:,:,:) * &
+                  SPREAD(SPREAD(circ_class_n(ipts,ivm,:),2,nparts),3,nelements), DIM=1)
+             ! The day's pending soil-N uptake has no plant left to receive it: route it
+             ! to the same slot's litter (soil -> plant -> litter -> soil, nothing leaks)
+             ! or the phenology guard 'n_uptake but no plants' stops the run.
+             bm_to_litter(ipts,ivm,ilabile,initrogen) = bm_to_litter(ipts,ivm,ilabile,initrogen) + &
+                  plant_n_uptake_daily(ipts,ivm,iammonium) + plant_n_uptake_daily(ipts,ivm,initrate)
+             plant_n_uptake_daily(ipts,ivm,:) = zero
+             circ_class_biomass(ipts,ivm,:,:,:) = zero
+             circ_class_n(ipts,ivm,:) = zero
+             age_stand(ipts,ivm) = 0
+             last_cut(ipts,ivm) = 0
+             age_stand_bm(ipts,ivm) = zero
+          ENDDO
+       ENDDO
+    ENDIF
+
+
+!!$    !! 1.2  Initialize variables to veget_max
+!!$    veget_max_tmp(:,:) = veget_max(:,:)
+!!$
+!!$
+!!$    !! 1.7 Calculate some vegetation characteristics    
+!!$    ! +++CHECK++++
+!!$    ! Seems useless except for the veget_max issue which I don't
+!!$    ! understand.  Crown and height are now prognostic and can
+!!$    ! be calculated from biomass whenever needed. No need to
+!!$    ! call crown here.
+!!$    !! 1.7.1 Calculate some vegetation characteristics 
+!!$    !        Calculate cn_ind (individual crown mass) and individual height from
+!!$    !        state variables if running DGVM or dynamic mortality in static cover mode
+!!$    !??        Explain (maybe in the header once) why you mulitply with veget_max in the DGVM
+!!$    !??        and why you don't multiply with veget_max in stomate.
+!!$    IF ( ok_dgvm .OR. .NOT.lpj_gap_const_mort) THEN
+!!$       IF(ok_dgvm) THEN
+!!$          WHERE (ind(:,:).GT.min_stomate)
+!!$             woodmass_ind(:,:) = &
+!!$                  ((biomass(:,:,isapabove,icarbon)+biomass(:,:,isapbelow,icarbon) &
+!!$                  +biomass(:,:,iheartabove,icarbon)+biomass(:,:,iheartbelow,icarbon)) & 
+!!$                  *veget_max(:,:))/ind(:,:)
+!!$          ENDWHERE
+!!$       ELSE
+!!$          WHERE (ind(:,:).GT.min_stomate)
+!!$             woodmass_ind(:,:) = &
+!!$                  (biomass(:,:,isapabove,icarbon)+biomass(:,:,isapbelow,icarbon) &
+!!$                  +biomass(:,:,iheartabove,icarbon)+biomass(:,:,iheartbelow,icarbon))/ind(:,:)
+!!$          ENDWHERE
+!!$       ENDIF
+!!$
+!!$       CALL crown (npts,  PFTpresent, &
+!!$            ind, biomass, woodmass_ind, &
+!!$            veget_max, cn_ind, height)
+!!$    ENDIF
+
+
+    !! 2. Prescribe vegetation characteristics if the vegetation is not dynamic
+    !   At the first call this routine takes atmospheric CO2 and converts it
+    !   into carbon pools to basically avoid modelling seed germination.
+    !   When lpft_replant is used we ware not sure whether we want to replant
+    !   with the same or another species. Replanting with another species is
+    !   a lcchange and therefore when lpf_replant is used it will be dealt with
+    !   at the end of the year in sapiens_lcchange. In this case replanting
+    !   will only take place at the end of the year. If a PFT dies during the 
+    !   year it will be left fallow until the last day of the year.
+    ! +++CHECK+++
+    ! Old issue, check whether the code can deal with it - I [SL] think this 
+    ! should not be an issue. The model now always has density and individuals.
+    !  IF the DGVM is not activated, the density of individuals and their crown
+    !  areas don't matter, but they should be defined for the case we switch on
+    !  the DGVM afterwards. At the first call, if the DGVM is not activated, 
+    !  impose a minimum biomass for prescribed PFTs and declare them present.
+    ! +++++++++++
+
+    ! Debug
+    IF (printlev_loc>=4) CALL debug_write(npts, 'before prescribe', &
+         circ_class_biomass, circ_class_n, circ_class_kill, &
+         plant_status, veget_max_hist, soil_n_min, forest_managed)
+    !-
+
+    !! Count the number of times a pft died
+    ! Part 1. Initial count. The final count is made after precribe
+    ! has been called. If the plant_status is iprescribe, the
+    ! pft must have died before. This is true except for the first
+    ! day where plant_status is initialized as iprescribe.
+    pft_died(:,:) = zero
+    WHERE (plant_status(:,:).EQ.iprescribe .AND. &
+        veget_max(:,:) .GT. zero)
+       pft_died(:,:) = un
+    ENDWHERE
+    
+    ! Initialize
+    dummy = un
+    do_now_recruit = .FALSE.
+    init_tot_wood_volume(:,:) = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    init_stand_wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+    ! No need to cycle over PFT 1. No biomass to prescribe on bare soil.
+    DO ivm = 2, nvm
+
+       DO ipts = 1,npts
+
+          ! 2.1 Wait for the end of the year to replant
+          !  If we are regrowing different species after managed forests
+          !  are killed/die, we sometimes need to prevent them regrowing.
+          !  This is only true if they die in the middle of the year due 
+          !  to natural causes, in which case they will be replanted at 
+          !  the end of the year. This loop checks to see if we regrow 
+          !  this PFT now or later. We can regrow a PFT after lpft_replant 
+          !  is set back to false so before that we need to process all the 
+          !  information such that the correct species will be regrown. 
+          IF(ok_change_species)THEN
+             IF(lpft_replant(ipts,ivm))THEN
+                CYCLE
+             ENDIF
+          ENDIF
+
+          ! Set flag for writing debug statements in prescribe
+          write_debug = .FALSE.
+          IF (ipts==test_grid.AND.ivm==test_pft) write_debug=.TRUE.
+          
+          ! Prescribe is used in several subroutines and is most often
+          ! use to calculate the new biomass for a single pixel x pft.
+          ! The subroutines works on a single pixel x pft and is therefore
+          ! placed in DO-loops
+          IF (printlev_loc.GE.3) THEN
+             WRITE(numout,*) 'Calling prescribe from stomate_lpj 1, ', ipts, ivm
+          END IF
+
+          ! Guillaume M. -- Cold-start age-class desync: when OK_DIA_STAGGER and this
+          ! (point,PFT) is not yet initialised, compute the staggered initial qmd for the
+          ! age class this forest PFT represents, anchored on its age_class_bound diameter
+          ! bin, so age_class_distr does not merge classes.
+          qmd_override  = val_exp
+          did_establish = .FALSE.
+          IF (ok_dia_stagger .AND. is_tree(ivm) .AND. ALLOCATED(dia_desync_pending)) THEN
+             IF (dia_desync_pending(ipts,ivm)) THEN
+                ng_loc = nagec_pft(agec_group(ivm))
+                IF (ng_loc > 1) THEN
+                   iage_loc = ivm - start_index(agec_group(ivm)) + 1      ! 1..ng_loc
+                   ! Guillaume M. -- Bounds are scaled per cell by the management-intensity
+                   ! factor.
+                   dfac_dv = un
+                   IF (ALLOCATED(dia_factor)) dfac_dv = dia_factor(ipts)
+                   ! Guillaume M. -- Class 1 gets no stagger: it is the youngest class, so
+                   ! qmd_override stays unset and prescribe uses its own qmd_init. Classes
+                   ! 2..n-1 start in the middle of their diameter bin. The last class has no
+                   ! upper bound, so it starts ON its lower bound, i.e. the cut threshold.
+                   IF (iage_loc > 1) THEN
+                      lo_bin = age_class_bound(iage_loc-1,ivm)*dfac_dv
+                      IF (iage_loc == ng_loc) THEN
+                         hi_bin = lo_bin
+                      ELSE
+                         hi_bin = age_class_bound(iage_loc,ivm)*dfac_dv
+                      ENDIF
+                      qmd_override = MAX(0.5_r_std*(lo_bin+hi_bin), qmd_init(ivm))
+                   ENDIF
+                ENDIF
+             ENDIF
+          ENDIF
+
+          CALL prescribe (ivm, veget_max(ipts,ivm), dt_days, PFTpresent(ipts,ivm), &
+               everywhere(ipts,ivm), when_growthinit(ipts,ivm), leaf_frac(ipts,ivm,:), &
+               circ_class_n(ipts,ivm,:), &
+               circ_class_biomass(ipts,ivm,:,:,:), atm_to_bm(ipts,ivm,:), &
+               forest_managed(ipts,ivm), KF(ipts,ivm), plant_status(ipts,ivm), &
+               age(ipts,ivm), npp_longterm(ipts,ivm), lm_lastyearmax(ipts,ivm), &
+               longevity_eff_leaf(ipts,ivm), longevity_eff_sap(ipts,ivm), &
+               longevity_eff_root(ipts,ivm), k_latosa_adapt(ipts,ivm), dummy, &
+               species_change_map(ipts,ivm), &
+               cn_leaf_init_2D(ipts,ivm), bm_sapl_2D(ipts,ivm,:,:,:), new_ind(ipts,ivm),&
+               pipe_tune2(ipts,ivm), alpha_self_thinning(ipts,ivm), write_debug,&
+               tot_res_target(ipts,ivm,:),tot_lab_target(ipts,ivm,:), &
+               gpp_week(ipts,ivm), t2m_week(ipts), &
+               qmd_init_override=qmd_override, established_out=did_establish)
+
+          ! Guillaume M. -- Cold-start age-class desync: mark this (point,PFT) done after
+          ! its first establishment, so later replants regrow young (no stagger).
+          IF (ok_dia_stagger .AND. ALLOCATED(dia_desync_pending)) THEN
+             IF (did_establish) dia_desync_pending(ipts,ivm) = .FALSE.
+          ENDIF
+
+       END DO
+    END DO
+
+
+    ! Store intermediate veget_max and atm_to_bm in order to calculate
+    ! the mass balance closure at the end odf the subroutine. atm_to_bm
+    ! is set to zero after each subroutine. These variables should be updated
+    ! after each subroutine where veget_max or atm_to_bm can get new values.
+    ! The key variables to close the mass balance are veget_max_hist and
+    ! atm_to_bm_hist. The other xxx_hist fluxes are not really necessary
+    ! but largely facilitate maintaining the nbp consistency check.
+    gpp_daily_hist(:,:,ipre) = gpp_daily(:,:)
+    resp_maint_hist(:,:,ipre) = resp_maint(:,:)
+    resp_growth_hist(:,:,ipre) = resp_growth(:,:)
+    resp_hetero_hist(:,:,ipre) = resp_hetero(:,:)
+    co2_fire_hist(:,:,ipre) = co2_fire(:,:)
+    n_input_daily_hist(:,:,ipre) = SUM(n_input_daily(:,:,:),3)
+    emission_daily_hist(:,:,ipre) = SUM(emission_daily(:,:,:),3)
+    leaching_daily_hist(:,:,ipre) = SUM(leaching_daily(:,:,:),3)
+    atm_to_bm_hist(:,:,ipre,:) = atm_to_bm(:,:,:)
+    veget_max_hist(:,:,ipre) =  veget_max(:,:)
+    atm_to_bm(:,:,:) = zero
+
+    ! Change in wood volume
+    wood_volume = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    delta_wood_vol_tot_hist(:,:,ipre) = wood_volume(:,:)-init_tot_wood_volume(:,:)
+    wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+    delta_wood_vol_stand_hist(:,:,ipre) = wood_volume(:,:)-init_stand_wood_volume(:,:)
+
+    !! Count the number of times a pft died
+    ! Part 2. Final count. The initial count is made before the
+    ! call to prescribe. Plant_status stay at iprescribe for
+    ! several days in a row. If pft_died = un, the plant_status
+    ! was iprescribe before the call to prescribe. If it is still
+    ! iprescribe after the call, it was not yet replanted and we
+    ! will account for replanting on a later day.
+    WHERE (pft_died(:,:).EQ.un .AND. &
+         plant_status(:,:).EQ.iprescribe .AND. &
+         veget_max(:,:) .GT. zero)
+       pft_died(:,:) = zero
+    ENDWHERE
+
+    CALL xios_orchidee_send_field("QC_COUNT_REPLANT",pft_died)
+    !! 2. Climatic constraints for PFT presence and regenerativeness
+
+!!$    !   Call this even when DGVM is not activated so that "adapted" and "regenerate"
+!!$    !   are kept up to date for the moment when the DGVM is activated.
+!!$    CALL constraints (npts, dt_days, &
+!!$         t2m_month, t2m_min_daily,when_growthinit, Tseason, &
+!!$         adapted, regenerate)
+!!$
+!!$    
+!!$  !! 3. Determine introduction and elimination of PTS based on climate criteria
+!!$ 
+!!$    IF ( ok_dgvm ) THEN
+!!$      
+!!$       !! 3.1 Calculate introduction and elimination
+!!$       CALL pftinout (npts, dt_days, adapted, regenerate, bm_sapl_2D, &
+!!$            neighbours, veget_max, &
+!!$            biomass, ind, cn_ind, age, leaf_frac, npp_longterm, lm_lastyearmax, senescence, &
+!!$            PFTpresent, everywhere, when_growthinit, need_adjacent, RIP_time, &
+!!$            co2_to_bm, n_to_bm, &
+!!$            avail_tree, avail_grass)
+!!$
+!!$       !! 3.2 Reset attributes for eliminated PFTs.
+!!$       !     This also kills PFTs that had 0 leafmass during the last year. The message
+!!$       !     "... after pftinout" is misleading in this case.
+!!$       CALL kill (npts, 'pftinout  ', lm_lastyearmax, &
+!!$            ind, PFTpresent, cn_ind, biomass, senescence, RIP_time, &
+!!$            lai, age, leaf_age, leaf_frac, npp_longterm, &
+!!$            when_growthinit, everywhere, veget_max, bm_to_litter, sugar_load)
+!!$
+!!$       
+!!$       !! 3.3 Calculate woodmass of individual tree
+!!$       IF(ok_dgvm) THEN
+!!$          WHERE ((ind(:,:).GT.min_stomate))
+!!$             woodmass_ind(:,:) = &
+!!$                  ((biomass(:,:,isapabove,icarbon) + biomass(:,:,isapbelow,icarbon) &
+!!$                  + biomass(:,:,iheartabove,icarbon) + biomass(:,:,iheartbelow,icarbon))*veget_max(:,:))/ind(:,:)
+!!$          ENDWHERE
+!!$       ELSE
+!!$          WHERE ((ind(:,:).GT.min_stomate))
+!!$             woodmass_ind(:,:) =(biomass(:,:,isapabove,icarbon) + biomass(:,:,isapbelow,icarbon) &
+!!$                  + biomass(:,:,iheartabove,icarbon) + biomass(:,:,iheartbelow,icarbon))/ind(:,:)
+!!$          ENDWHERE
+!!$       ENDIF
+!!$       
+!!$       ! Calculate crown area and diameter for all PFTs (including the newly established)
+!!$       CALL crown (npts, PFTpresent, &
+!!$            ind, biomass, woodmass_ind, &
+!!$            veget_max, cn_ind, height)
+!!$
+!!$    ENDIF
+
+    !! 4. Phenology
+
+    ! Forests and grasses or the so called natural vegetation in ORCHIDEE
+    ! undergo a real phenology based on climatology. This means that the
+    ! plants are planted the first day of the year and that they live from
+    ! their reserves until the day of bud burst. Crops are planted 
+    ! (and harvested) every year. We plant them the day of bud burst. The 
+    ! biggest difference is that crops do not need reserves to live
+    ! between January 1st and the day of bud burst.
+
+    ! Debug
+    IF (printlev_loc>=4) CALL debug_write(npts, 'before phenology', &
+         circ_class_biomass, circ_class_n, circ_class_kill, &
+         plant_status, veget_max_hist, soil_n_min, forest_managed)
+    !-
+
+    ! Initialize
+    init_tot_wood_volume(:,:) = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    init_stand_wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+
+    CALL phenology (npts, dt_days, PFTpresent, &
+         veget_max, gpp_week, resp_maint_week, &
+         t2m_longterm, t2m_month, t2m_week, &
+         maxvegstress_lastyear, minvegstress_lastyear, &
+         vegstress_month, vegstress_week, &
+         gdd_m5_dormance, gdd_midwinter, ncd_dormance, ngd_minus5, &
+         plant_status, time_hum_min, &
+         leaf_frac, leaf_age, &
+         when_growthinit, atm_to_bm, circ_class_n, &
+         circ_class_biomass, KF, &
+         longevity_eff_leaf, longevity_eff_sap, longevity_eff_root, age, &
+         everywhere, npp_longterm, lm_lastyearmax, k_latosa_adapt, &
+         cn_leaf_min_season, plant_n_uptake_daily, cn_leaf_min_2D, &
+         cn_leaf_max_2D, lpft_replant, grow_season_len, doy_start_gs, &
+         valid_start_gs, mean_start_gs, soil_n_min, som, &
+         deepSOM_a, deepSOM_s, deepSOM_p, zf_soil, &
+         gdd_from_growthinit )
+
+
+
+
+    ! Store intermediate veget_max and atm_to_bm in order to calculate
+    ! the mass balance closure at the end odf the subroutine. atm_to_bm
+    ! is set to zero after each subroutine. These variables should be updated
+    ! after each subroutine where veget_max or atm_to_bm can get new values.
+    ! The key variables to close the mass balance are veget_max_hist and
+    ! atm_to_bm_hist. The other xxx_hist fluxes are not really necessary
+    ! but largely facilitate maintaining the nbp consistency check.
+    gpp_daily_hist(:,:,iphe) = gpp_daily(:,:)
+    resp_maint_hist(:,:,iphe) = resp_maint(:,:)
+    resp_growth_hist(:,:,iphe) = resp_growth(:,:)
+    resp_hetero_hist(:,:,iphe) = resp_hetero(:,:)
+    co2_fire_hist(:,:,iphe) = co2_fire(:,:)
+    n_input_daily_hist(:,:,iphe) = SUM(n_input_daily(:,:,:),3)
+    emission_daily_hist(:,:,iphe) = SUM(emission_daily(:,:,:),3)
+    leaching_daily_hist(:,:,iphe) = SUM(leaching_daily(:,:,:),3)
+    atm_to_bm_hist(:,:,iphe,:) = atm_to_bm(:,:,:)
+    veget_max_hist(:,:,iphe) =  veget_max(:,:)
+    atm_to_bm(:,:,:) = zero
+
+    ! Change in wood volume
+    wood_volume = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    delta_wood_vol_tot_hist(:,:,iphe) = wood_volume(:,:)-init_tot_wood_volume(:,:)
+    wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+    delta_wood_vol_stand_hist(:,:,iphe) = wood_volume(:,:)-init_stand_wood_volume(:,:)
+
+    !! 5. Allocate C to different plant parts
+
+    ! Allometry based allocation and intra-stand competition (based on 
+    ! Sitch et al 2003, Zaehle et al 2010 and Deleuze 2004)
+
+    ! Debug
+    IF (printlev_loc>=4) CALL debug_write(npts, 'before allocation', &
+         circ_class_biomass, circ_class_n, circ_class_kill, &
+         plant_status, veget_max_hist, soil_n_min, forest_managed)
+    !-
+
+    ! Initialize
+    init_tot_wood_volume(:,:) = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    init_stand_wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+
+    CALL growth_fun_all (npts, dt_days, veget_max, veget, PFTpresent, &
+         plant_status, when_growthinit, t2m_week, &
+         nstress_season, vegstress_season, &
+         gpp_daily, gpp_week, resp_maint_part, resp_maint, &
+         resp_growth, npp_daily, bm_alloc, age, &
+         leaf_age, leaf_frac, &
+         rue_longterm, circ_class_n, &
+         circ_class_biomass, KF, sigma, &
+         gammas, longevity_eff_leaf, longevity_eff_sap, longevity_eff_root, &
+         k_latosa_adapt, forest_managed, &
+         cn_leaf_min_season, atm_to_bm, &
+         cn_leaf_min_2D, cn_leaf_max_2D, sugar_load, n_reserve_balance, &
+         n_reserve_longterm)
+
+
+
+    ! Mass balance calculations
+    check_intern(:,:,iatm2land,icarbon) = &
+         gpp_daily(:,:) * veget_max(:,:) * dt_days
+    check_intern(:,:,iland2atm,icarbon) = &
+         -un*(resp_maint(:,:) + resp_growth(:,:)) * &
+         veget_max(:,:) * dt_days
+
+    ! Store intermediate veget_max and atm_to_bm in order to calculate
+    ! the mass balance closure at the end odf the subroutine. atm_to_bm
+    ! is set to zero after each subroutine. These variables should be updated
+    ! after each subroutine where veget_max or atm_to_bm can get new values.
+    ! The key variables to close the mass balance are veget_max_hist and
+    ! atm_to_bm_hist. The other xxx_hist fluxes are not really necessary
+    ! but largely facilitate maintaining the nbp consistency check.
+    gpp_daily_hist(:,:,igro) = gpp_daily(:,:)
+    resp_maint_hist(:,:,igro) = resp_maint(:,:)
+    resp_growth_hist(:,:,igro) = resp_growth(:,:)
+    resp_hetero_hist(:,:,igro) = resp_hetero(:,:)
+    co2_fire_hist(:,:,igro) = co2_fire(:,:)
+    n_input_daily_hist(:,:,igro) = SUM(n_input_daily(:,:,:),3)
+    emission_daily_hist(:,:,igro) = SUM(emission_daily(:,:,:),3)
+    leaching_daily_hist(:,:,igro) = SUM(leaching_daily(:,:,:),3)
+    veget_max_hist(:,:,igro) =  veget_max(:,:)
+    atm_to_bm_hist(:,:,igro,:) = atm_to_bm(:,:,:)
+    atm_to_bm(:,:,:)=zero
+
+    ! Change in wood volume
+    wood_volume = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    delta_wood_vol_tot_hist(:,:,igro) = wood_volume(:,:)-init_tot_wood_volume(:,:)
+    wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+    delta_wood_vol_stand_hist(:,:,igro) = wood_volume(:,:)-init_stand_wood_volume(:,:)
+
+    !! 6. Land cover change and land management
+
+    ! We only want to do management at the end of the year (when ts_annual_proc=true). 
+    ! Whether LCC takes place before land management appears to be a matter
+    ! of taste but given that LCC results in the (partial) destruction 
+    ! of the PFT it appears somehow logic to deal with LCC before FM. 
+    ! After all, it seems unlikely that a land owner will first 
+    ! carefully thin a forest and then cut it to turn it into a 
+    ! grassland or cropland.
+
+    ! Initialize
+    init_tot_wood_volume(:,:) = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    init_stand_wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+
+    IF (ts_annual_proc) THEN
+
+       ! Debug
+       IF (printlev_loc>=4) CALL debug_write(npts,'before age class distr', &
+            circ_class_biomass, circ_class_n, circ_class_kill, &
+            plant_status, veget_max_hist, soil_n_min, forest_managed)
+       !- 
+
+       ! Following allocation, the trees have grown and it needs to be
+       ! checked whether they are still in the correct age class. If not,
+       ! redistribute the age classes in line with a prescribe diameter
+       ! threshold for each age class. This function could be applied on 
+       ! daily time step but once per year is probably enough. This 
+       ! routines distributes biomass within a species group so it can 
+       ! be used in combination with species changes.
+       ! the subroutine age_class_distr moves age classes within a PFTs 
+       ! around but it doesn't change the total veget_max of all age classes
+       ! within a PFT. As such age_class_distr does NOT result in orphan 
+       ! fluxes as could be the case for land cover change. In LCC it is
+       ! possible that the PFT accumulated 48 time steps of gpp (and other
+       ! fluxes) after which the entire PFT is converted in another PFT.
+       ! We need clear rules on how to deal with those orphan fluxes. If
+       ! not it is impossible to close the mass balance and obtain
+       ! consistency between pool-based and flux-based NBP. Because the
+       ! subroutine age_class_distr does not create orphan fluxes, we could
+       ! move both fluxes and pools to the new age class. This avoids 
+       ! creating fluxes without matching veget_max (i.e. when gpp happened
+       ! in age class c but the pools are moved to c+1). Because it is not 
+       ! possible to move the fluxes in sapiens_lcchange (because of the
+       ! orphan fluxes), it could be considered more consistent to also
+       ! limit age_class_distr to the pools (and thus not move gpp_daily,
+       ! resp_maint, resp_growth, resp_hetero, co2_fire and npp_daily 
+       ! because those fluxes are used to calculate the nbp and should 
+       ! therefore be associated to a veget_max, if not the flux-based 
+       ! nbp will be incorrect).
+       ! Guillaume M. -- MATURITY_CONVEYOR: the ageing of the regeneration conveyor lives
+       ! in `age_class_distr` (block 1.4), together with the restitution and the reset of
+       ! the entry slot. The three must run in a STRICT order (empty the exit -> shift ->
+       ! free the entry) and the restitution transfer needs the reservoirs, which only
+       ! `age_class_distr` holds.
+
+       CALL bmnan_probe(bm_to_litter, 'entree_jour')
+       CALL age_class_distr(npts, circ_class_n, circ_class_biomass, &
+            veget_max, veget_max_new, wstress_season, &
+            lm_lastyearmax, lm_thisyearmax, age, leaf_frac, atm_to_bm, &
+            everywhere, litter, som, lignin_struc, &
+            lignin_wood, lignin_snag, bm_to_litter, tree_bm_to_litter, &
+            turnover_daily, PFTpresent, when_growthinit,&
+            forest_managed, KF, plant_status, &
+            npp_longterm, croot_longterm, gpp_daily, gpp_year, gpp_decade, leaf_age, &
+            gdd_from_growthinit, gdd_midwinter, time_hum_min, &
+            hum_min_dormance, gdd_m5_dormance, ncd_dormance, &
+            vegstress, humrel, season_drought_legacy, & 
+            vegstress_month, vegstress_week, ngd_minus5, &
+            resp_maint, resp_growth, npp_daily, &
+            rue_longterm, mai, pai, &
+            mai_count, previous_wood_volume, vegstress_season,&
+            matrixA, matrixV, VectorB, VectorU, age_stand, age_stand_bm, last_cut, &
+            k_latosa_adapt, fm_change_map, lpft_replant, cn_leaf_min_season,&
+            cn_leaf_init_2D, nstress_season, soil_n_min, p_O2, bact, &
+            CN_som_litter_longterm, sugar_load, &
+            deepSOM_a, deepSOM_s, deepSOM_p, kill_vessels, vessel_loss_previous, &
+            biomass_init_drought, mean_start_gs, resp_hetero, &
+            emission_daily, leaching_daily, n_input_daily, &
+            gpp_week, resp_maint_week, light_tran_to_floor_season, &
+            qsintveg, n_input, Light_Abs_Tot, Light_Tran_Tot, &
+            laieff_isotrop, &
+            maxvegstress_lastyear, maxvegstress_thisyear, &
+            minvegstress_lastyear, minvegstress_thisyear, &
+            maxgppweek_lastyear, maxgppweek_thisyear,&
+            wstress_month, n_reserve_longterm, n_reserve_balance, &
+            maxfpc_lastyear, maxfpc_thisyear, &
+            turnover_longterm, dead_leaves, &
+            grow_season_len, us, leaf_age_crit, leaf_classes, &
+            co2_fire, litterfuel, count_daylight, zf_soil, &
+            gap_area_save, total_ba_init)
+       CALL bmnan_probe(bm_to_litter, 'age_class_distr')
+
+       ! Guillaume M. -- MATURITY_CONVEYOR diagnostics, sent HERE and not from stomate_main:
+       ! age_class_distr fills them on the last time step of 31 December, which is also when
+       ! it allocates them. A send placed earlier in the time step only ever ships zeros from
+       ! unallocated arrays. This instant coincides with the monthly output instant.
+       ! Keep the ALLOCATED guard: allocation sits under .NOT. lpft_replant and may never run.
+       IF (ALLOCATED(ac12_r_diag)) CALL xios_orchidee_send_field("AC12_R", ac12_r_diag)
+       IF (ALLOCATED(ac12_freal_diag)) CALL xios_orchidee_send_field("AC12_F_REAL", ac12_freal_diag)
+
+    ENDIF ! ts_annual_proc
+
+    ! Store intermediate veget_max and atm_to_bm in order to calculate
+    ! the mass balance closure at the end odf the subroutine. atm_to_bm
+    ! is set to zero after each subroutine. These variables should be updated
+    ! after each subroutine where veget_max or atm_to_bm can get new values.
+    ! The key variables to close the mass balance are veget_max_hist and
+    ! atm_to_bm_hist. The other xxx_hist fluxes are not really necessary
+    ! but largely facilitate maintaining the nbp consistency check.
+    gpp_daily_hist(:,:,iage) = gpp_daily(:,:)
+    resp_maint_hist(:,:,iage) = resp_maint(:,:)
+    resp_growth_hist(:,:,iage) = resp_growth(:,:)
+    resp_hetero_hist(:,:,iage) = resp_hetero(:,:)
+    co2_fire_hist(:,:,iage) = co2_fire(:,:)
+    n_input_daily_hist(:,:,iage) = SUM(n_input_daily(:,:,:),3)
+    emission_daily_hist(:,:,iage) = SUM(emission_daily(:,:,:),3)
+    leaching_daily_hist(:,:,iage) = SUM(leaching_daily(:,:,:),3)
+    veget_max_hist(:,:,iage) =  veget_max(:,:)
+    atm_to_bm_hist(:,:,iage,:) = atm_to_bm(:,:,:)
+    atm_to_bm(:,:,:)=zero
+
+    ! Change in wood volume
+    wood_volume = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    delta_wood_vol_tot_hist(:,:,iage) = wood_volume(:,:)-init_tot_wood_volume(:,:)
+    wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+    delta_wood_vol_stand_hist(:,:,iage) = wood_volume(:,:)-init_stand_wood_volume(:,:)
+    !! 5.2 Land cover change
+
+    ! Initialize
+    init_tot_wood_volume(:,:) = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    init_stand_wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+
+    ! ================================================================================
+    ! Guillaume M. -- CLASS 0: regeneration conveyor, expressed as a LAND-COVER CHANGE.
+    ! Placed between age_class_distr and land_cover_change_main. age_class_distr cannot
+    ! carry it: it requires the area total of each forest group to be conserved, while the
+    ! conveyor takes area OUT of the group. No area is moved here; only `veget_max_new`,
+    ! the TARGET map, is adjusted and land_cover_change_main below realises the move.
+    !
+    ! Guillaume M. -- Order: NET move (feeding and restitution decided together) -> ageing.
+    ! Ageing before restituting would overwrite the exit slot and the area would vanish
+    ! from the register while still physically sitting in the herbaceous PFT.
+    !
+    ! Guillaume M. -- /!\ ANNUAL cadence. This block sits after the ts_annual_proc ENDIF,
+    ! so without this guard it ran on every stomate_lpj call: ageing shifted one slot per
+    ! DAY, making N_CLASS0=4 mean 4 days, not 4 years. The flux was right (fed by the
+    ! already-annual age_class_distr), which hid the defect. Same flag as age_class_distr:
+    ! slot 1 is credited and consumed in one call.
+    IF (ts_annual_proc .AND. n_class0 > 0 .AND. ALLOCATED(class0_veg)) THEN
+       c0_work = .FALSE.
+       c0_nfeed = 0 ; c0_nfeed_rej = 0 ; c0_ndrain = 0 ; c0_ndrain_rej = 0
+       c0_s_new = zero ; c0_s_due = zero ; c0_s_net = zero ; c0_s_cap = zero
+       ! Guillaume M. -- class0_recovered holds the restituted area as a FRACTION of the
+       ! grid cell, like the class0_veg it comes from. /!\ The ALLOCATED guard is required:
+       ! class0_recovered is allocated only under ok_edge_from_age_class while this block is
+       ! gated on n_class0 > 0, and the two are DELIBERATELY decoupled. Without the guard, a
+       ! config with N_CLASS0 > 0 and the edge flag off would write out of bounds.
+       IF (ALLOCATED(class0_recovered)) class0_recovered(:) = zero
+       ! Guillaume M. -- Reset every year: this is a pass-through to land_cover_change_main,
+       ! called further down in the same pass. A value left over from the previous year
+       ! would replant the same area twice.
+       IF (ALLOCATED(class0_restitute)) class0_restitute(:,:) = zero
+
+       ! Guillaume M. -- /!\ loss_gain persists in the restart file and is reset ONLY when
+       ! the vegetation map is updated, which never happens with VEGET_UPDATE = 0Y. Without
+       ! this reset it accumulates year on year, land_cover_change_main removes more area
+       ! than exists and the model stops on "veget_max_hist is negative". Reset only when no
+       ! real land-cover change is running, otherwise slowproc's fresh loss_gain is lost.
+       IF (.NOT. do_now_stomate_lcchange) THEN
+          loss_gain(:,:) = zero
+          ! Guillaume M. -- Re-phase the two maps before writing the conveyor delta into
+          ! them. age_class_distr updates veget_max and veget_max_new with deltas computed
+          ! on DIFFERENT bases, so they drift, and it does not maintain loss_gain. Once the
+          ! land-cover-change path is active, that drift would be applied a SECOND time.
+          ! With a frozen map veget_max_new follows veget_max, so realigning loses nothing.
+          veget_max_new(:,:) = veget_max(:,:)
+       ENDIF
+       DO c0_i = 1,npts
+          ! Guillaume M. -- Dominant NATURAL herbaceous PFT: crops are excluded by `natural`
+          ! (a clearcut does not become a field), bare soil by the c0_k >= 2 bound.
+          c0_g = 0
+          c0_best = zero
+          DO c0_k = 2, nvm
+             IF (is_tree(c0_k) .OR. .NOT. natural(c0_k)) CYCLE
+             IF (veget_max_new(c0_i,c0_k) > c0_best) THEN
+                c0_best = veget_max_new(c0_i,c0_k)
+                c0_g = c0_k
+             ENDIF
+          ENDDO
+          IF (c0_g <= 0) CYCLE      ! mesure 2026-08-03 : 0 maille sur 1146 dans ce cas
+
+          DO c0_ivma = 1,nvmap
+             IF (.NOT. is_tree(start_index(c0_ivma))) CYCLE
+             c0_p1 = start_index(c0_ivma)
+
+             ! Guillaume M. -- feeding and restitution hit the SAME class-1 slot in one
+             ! pass, so they are decided TOGETHER and only the NET change is applied.
+             ! Applied in sequence, the second move reads a map the first already shifted
+             ! and strands area under min_vegfrac, whichever order is used.
+             c0_wipe = .FALSE.
+             c0_new = class0_veg(c0_i,c0_ivma,1)          ! class 1 -> herbaceous
+             c0_due = class0_veg(c0_i,c0_ivma,n_class0)   ! herbaceous -> class 1
+             IF (c0_new .LE. min_stomate) c0_new = zero
+             IF (c0_due .LE. min_stomate) c0_due = zero
+             ! Guillaume M. -- Feeding can never move more than the slot physically carries
+             ! on EITHER map: taking more would drive veget_max negative. The cap used to
+             ! delete the excess from the register in silence, the outgoing slot still
+             ! returning the full booked amount. It is now counted and reported.
+             c0_raw = c0_new
+             IF (c0_new .GT. zero) c0_new = MIN(c0_new, &
+                  MIN(veget_max(c0_i,c0_p1), veget_max_new(c0_i,c0_p1)))
+             c0_s_cap = c0_s_cap + (c0_raw - c0_new)
+             IF (c0_new .LE. min_stomate) c0_new = zero
+
+             ! Guillaume M. -- When the cap brings c0_new down to zero, the block below is not
+             ! entered and the register keeps the full booked amount. The ageing then shifts it
+             ! to the exit slot, which returns area that was never taken: forest created out of
+             ! nothing, at the expense of the herbaceous. Reconcile the register here.
+             IF (c0_new .LE. zero .AND. class0_veg(c0_i,c0_ivma,1) .GT. zero) THEN
+                class0_veg(c0_i,c0_ivma,1) = zero
+                c0_nfeed_rej = c0_nfeed_rej + 1
+             ENDIF
+
+             IF (c0_new .GT. zero .OR. c0_due .GT. zero) THEN
+
+                ! Attempt 1: the full net move.
+                c0_net = c0_due - c0_new
+                c0_sum = veget_max_new(c0_i,c0_p1) + c0_net
+                c0_ok = (veget_max_new(c0_i,c0_g) - c0_net .GE. min_vegfrac) .AND. &
+                     (veget_max(c0_i,c0_p1) + c0_net .GE. zero) .AND. &
+                     (c0_sum .LE. min_stomate .OR. c0_sum .GE. min_vegfrac)
+
+                ! Attempt 2: postpone the restitution. The exit slot accumulates, so
+                ! waiting costs nothing, and it is the restitution that inflates the slot
+                ! beyond what the feeding can legally take.
+                IF (.NOT. c0_ok .AND. c0_due .GT. zero) THEN
+                   c0_due = zero
+                   c0_net = -c0_new
+                   c0_sum = veget_max_new(c0_i,c0_p1) + c0_net
+                   c0_ok = (veget_max_new(c0_i,c0_g) - c0_net .GE. min_vegfrac) .AND. &
+                        (veget_max(c0_i,c0_p1) + c0_net .GE. zero) .AND. &
+                        (c0_sum .LE. min_stomate .OR. c0_sum .GE. min_vegfrac)
+                ENDIF
+
+                ! Attempt 3: carry the WHOLE slot away. Its reservoirs then follow at a
+                ! prorata of one, so no orphan litter is left behind.
+                IF (.NOT. c0_ok .AND. c0_new .GT. zero) THEN
+                   ! Guillaume M. -- Take the area from the map loss_gain is applied to, not
+                   ! from the smaller of the two. MIN() leaves the difference between the maps
+                   ! behind: a slot with no ground still carrying trees, which stops the model
+                   ! the following year. Both maps are landed on exact zero below.
+                   c0_new = veget_max(c0_i,c0_p1)
+                   c0_net = -c0_new
+                   c0_wipe = .TRUE.
+                   c0_ok = (veget_max_new(c0_i,c0_g) - c0_net .GE. min_vegfrac) .AND. &
+                        (c0_new .GT. min_stomate)
+                ENDIF
+                ! Guillaume M. -- The admissibility tests above accept leaving the slot at or
+                ! below min_stomate, treating that as "empty". Nothing empties it afterwards:
+                ! it keeps its trees on an area of 1e-9, and stomate_prescribe stops on it the
+                ! following year. When the move would take the slot under the threshold, take
+                ! ALL of it instead, so it lands on exact zero and its content follows.
+                IF (c0_ok .AND. .NOT. c0_wipe .AND. c0_net .LT. zero .AND. &
+                     MIN(veget_max(c0_i,c0_p1), veget_max_new(c0_i,c0_p1)) + c0_net &
+                     .LT. min_stomate) THEN
+                   c0_new = veget_max(c0_i,c0_p1)
+                   c0_due = zero                    ! restitution postponed, the exit slot accumulates
+                   c0_net = -c0_new
+                   c0_wipe = .TRUE.
+                   c0_ok = (veget_max_new(c0_i,c0_g) - c0_net .GE. min_vegfrac) .AND. &
+                        (c0_new .GT. min_stomate)
+                ENDIF
+                IF (.NOT. c0_ok) c0_wipe = .FALSE.
+
+                IF (c0_ok) THEN
+                   c0_s_new = c0_s_new + c0_new
+                   c0_s_due = c0_s_due + c0_due
+                   c0_s_net = c0_s_net + c0_net
+                   ! Guillaume M. -- c0_due AFTER arbitration: attempt 2 may have zeroed it,
+                   ! so this is "what was restituted", not "what was due".
+                   IF (ALLOCATED(class0_recovered)) &
+                        class0_recovered(c0_i) = class0_recovered(c0_i) + c0_due
+                   ! Guillaume M. -- Published PER class-1 SLOT: the consumer must know which
+                   ! slot to replant, not only how much. c0_due is already the value after
+                   ! arbitration, hence what was actually restituted.
+                   IF (ALLOCATED(class0_restitute) .AND. c0_due .GT. zero) &
+                        class0_restitute(c0_i,c0_p1) = class0_restitute(c0_i,c0_p1) + c0_due
+                ENDIF
+                IF (c0_ok .AND. c0_net .NE. zero) THEN
+                   IF (c0_wipe) THEN
+                      ! Guillaume M. -- The slot is emptied: each map hands the herbaceous
+                      ! exactly what IT held, so neither keeps a residue. A single delta
+                      ! taken from one map would leave the other one a sliver.
+                      veget_max_new(c0_i,c0_g)  = veget_max_new(c0_i,c0_g) &
+                           + veget_max_new(c0_i,c0_p1)
+                      veget_max_new(c0_i,c0_p1) = zero
+                   ELSE
+                      veget_max_new(c0_i,c0_p1) = veget_max_new(c0_i,c0_p1) + c0_net
+                      veget_max_new(c0_i,c0_g)  = veget_max_new(c0_i,c0_g)  - c0_net
+                   ENDIF
+                   loss_gain(c0_i,c0_p1) = loss_gain(c0_i,c0_p1) + c0_net
+                   loss_gain(c0_i,c0_g)  = loss_gain(c0_i,c0_g)  - c0_net
+                   c0_work = .TRUE.
+                ENDIF
+
+                ! Guillaume M. -- The registers must state EXACTLY what moved, never more.
+                IF (c0_new .GT. zero) THEN
+                   IF (c0_ok) THEN
+                      class0_veg(c0_i,c0_ivma,1) = c0_new
+                      c0_nfeed = c0_nfeed + 1
+                   ELSE
+                      class0_veg(c0_i,c0_ivma,1) = zero
+                      c0_nfeed_rej = c0_nfeed_rej + 1
+                   ENDIF
+                ENDIF
+                IF (c0_ok .AND. c0_due .GT. zero) THEN
+                   class0_veg(c0_i,c0_ivma,n_class0) = zero
+                   c0_ndrain = c0_ndrain + 1
+                ELSEIF (class0_veg(c0_i,c0_ivma,n_class0) .GT. min_stomate) THEN
+                   c0_ndrain_rej = c0_ndrain_rej + 1
+                ENDIF
+             ENDIF
+
+          ENDDO
+       ENDDO
+
+       ! Guillaume M. -- (3) Ageing. The EXIT slot ACCUMULATES: a refused restitution leaves
+       ! area there, which a shift by plain assignment would overwrite -- a silent leak.
+       IF (n_class0 >= 2) THEN
+          class0_veg(:,:,n_class0) = class0_veg(:,:,n_class0) + class0_veg(:,:,n_class0-1)
+          DO c0_k = n_class0-1, 2, -1
+             class0_veg(:,:,c0_k) = class0_veg(:,:,c0_k-1)
+          ENDDO
+       ENDIF
+       class0_veg(:,:,1) = zero
+
+       ! Guillaume M. -- (4) Register/physics consistency guard. The register is bookkeeping:
+       ! nothing guarantees the booked area is still in the herbaceous PFT. Without this
+       ! guard the drift would be SILENT and the restitution would hand back, N_CLASS0 years
+       ! later, an area that no longer exists.
+       DO c0_i = 1,npts
+          c0_sum = SUM(class0_veg(c0_i,:,:))
+          IF (c0_sum <= min_stomate) CYCLE
+          c0_best = zero
+          DO c0_k = 2, nvm
+             IF (is_tree(c0_k) .OR. .NOT. natural(c0_k)) CYCLE
+             c0_best = c0_best + veget_max_new(c0_i,c0_k)
+          ENDDO
+          IF (c0_sum > c0_best + min_vegfrac) THEN
+             WRITE(numout,*) 'CLASSE 0 : registre > aire herbacee, ipts', c0_i, &
+                  ' registre', c0_sum, ' herbacee', c0_best
+             ! Guillaume M. -- flush before ipslerr_p(3): without it the WRITE above is
+             ! lost with the MPI_ABORT and the guard fires with no diagnostic at all.
+             CALL flush(numout)
+             CALL ipslerr_p(3,'stomate_lpj', &
+                  'classe 0 : le registre annonce plus d''aire que l''herbacee n''en porte', &
+                  'derive registre/physique', &
+                  'la restitution creerait de l''aire ex nihilo')
+          ENDIF
+       ENDDO
+
+       ! Guillaume M. -- The land-cover-change path must be activated (below). With a frozen
+       ! map (VEGET_UPDATE = 0Y) land_cover_change_main is NEVER called, so the veget_max_new
+       ! adjustment above would be realised by nobody and the register would inflate without
+       ! any area moving. Downstream, done_stomate_lcchange replays slowproc_veget AND
+       ! check_veget on the updated veget_max, realigning the sechiba side.
+       !
+       ! Guillaume M. -- Scaffolding: `fin_mass_balance` weights the reservoirs by
+       ! (veget_max + loss_gain) while the transfer is driven by veget_max_new. The two
+       ! coincide only if veget_max_new == veget_max on entry, so the residual gap and the
+       ! litter on both sides of the transfer are printed here. Exit criterion: gap is zero.
+       IF (c0_work) THEN
+          DO c0_i = 1,npts
+             DO c0_k = 1,nvm
+                c0_sum = veget_max_new(c0_i,c0_k) - (veget_max(c0_i,c0_k) + loss_gain(c0_i,c0_k))
+                IF (ABS(c0_sum) .GT. min_stomate) THEN
+                   WRITE(numout,*) '[CLASSE0-CARTES] ipts', c0_i, ' pft', c0_k, &
+                        ' vmax', veget_max(c0_i,c0_k), ' vmax_new', veget_max_new(c0_i,c0_k), &
+                        ' loss_gain', loss_gain(c0_i,c0_k), ' ECART', c0_sum, &
+                        ' litiere', SUM(SUM(litter(c0_i,:,c0_k,:,icarbon),1))
+                ENDIF
+             ENDDO
+          ENDDO
+          CALL flush(numout)
+       ENDIF
+
+       ! Guillaume M. -- Refusal counters. Without them, a conveyor massively refused by the
+       ! min_vegfrac invariant would read as ACTIVE: that is the trap the 1->2 conveyor fell
+       ! into, correct yet acting on a tiny share of the transfers only.
+       IF (c0_nfeed + c0_nfeed_rej + c0_ndrain + c0_ndrain_rej .GT. 0) THEN
+          WRITE(numout,*) '[C0CAP] aire rabotee par le plafond :', c0_s_cap
+          IF (c0_s_cap .GT. min_vegfrac) THEN
+             CALL ipslerr_p(2,'stomate_lpj', &
+                  'class 0: the feeding cap dropped booked area', &
+                  'the outgoing slot will return more than was ever taken in', &
+                  'check the 1->2 transfer and the progressive harvest on class 1')
+          ENDIF
+          WRITE(numout,*) '[C0FLUX] somme c0_new', c0_s_new, ' c0_due', c0_s_due, &
+               ' c0_net', c0_s_net, ' (net>0 = herbacee -> foret)'
+          WRITE(numout,*) '[CLASSE0] alimentation acceptee/refusee :', c0_nfeed, c0_nfeed_rej, &
+               ' | restitution acceptee/refusee :', c0_ndrain, c0_ndrain_rej
+          CALL flush(numout)
+       ENDIF
+
+       ! Guillaume M. -- scaffolding [CARTES2]: the conveyor guards veget_max_new BEFORE
+       ! the LCC while check_veget judges veget_max AFTER it. Print both maps on every
+       ! class-1 slot that sits strictly between zero and min_vegfrac, here and again
+       ! past land_cover_change_main, to see which map slips and at which step.
+       DO c0_i = 1,npts
+          DO c0_ivma = 1,nvmap
+             IF (.NOT. is_tree(start_index(c0_ivma))) CYCLE
+             c0_p1 = start_index(c0_ivma)
+             IF ((veget_max_new(c0_i,c0_p1) .GT. zero .AND. &
+                  veget_max_new(c0_i,c0_p1) .LT. min_vegfrac) .OR. &
+                  (veget_max(c0_i,c0_p1) .GT. zero .AND. &
+                  veget_max(c0_i,c0_p1) .LT. min_vegfrac)) THEN
+                WRITE(numout,*) '[CARTES2-AVANT] ipts', c0_i, ' pft', c0_p1, &
+                     ' vmax', veget_max(c0_i,c0_p1), &
+                     ' vmax_new', veget_max_new(c0_i,c0_p1), &
+                     ' sortie', class0_veg(c0_i,c0_ivma,n_class0)
+             ENDIF
+          ENDDO
+       ENDDO
+       CALL flush(numout)
+
+       IF (c0_work) do_now_stomate_lcchange = .TRUE.
+
+    ENDIF
+    ! ================================================================================
+
+    IF (do_now_stomate_lcchange) THEN
+
+       ! Debug
+       IF (printlev_loc>=4) CALL debug_write(npts,'before land_cover_change_main', &
+            circ_class_biomass, circ_class_n, circ_class_kill, &
+            plant_status, veget_max_hist, soil_n_min, forest_managed)
+       !-
+
+       ! Note on checking the mass balance and cross-checking model
+       ! consistency for nbp. In the land cover change module  
+       ! veget_max of PFTs changes and with these changes the C and N 
+       ! pools are moved from one PFT to another. At the end of the
+       ! module the pools are veget_max are still coupled to each
+       ! other. Pools are thus treated in a intuitive way in this
+       ! module. Fluxes are not (and should not) be moved around
+       ! in the land cover change module because they occurred in the
+       ! PFTs (and their veget_max) prior to land cover change. This
+       ! implies that in this module the fluxes (associated to the
+       ! veget_max before calling this module) and the pools
+       ! (associated to veget_max after calling this module) are now
+       ! decoupled. This has consequences for consistency cross
+       ! checking where a different veget_max will have to be used
+       ! for the fluxes and the pools. An interesting and challenges
+       ! exception to this rule is atm_to_bm which has values
+       ! prior to land cover change (and thus associated to veget_max
+       ! before calling) and gets values during land cover cahnge 
+       ! when establishing new PFTs (these are associated with the
+       ! new veget_max). atm_to_bm will thus have to account for
+       ! this transition. Finaly, in land cover change C and N pools
+       ! can move from vegetated pixel to non-vegetated land covers
+       ! (urbanization). When this happens carbon is being burried.
+       ! Only the pools are burried. Burried pools are not coupled
+       ! to veget_max but to change_nobio. 
+
+       ! When there is a loss in veget_max (i.e., oaks are changed 
+       ! to grasslands the) standard code will distribute this loss 
+       ! proportionaly (i.e., all age classes with oak will be partly
+       ! converted) to the populated age classes of the species group. 
+       ! In case of a species change we only want to change the surface 
+       ! area of the youngest age class (because we will only plant 
+       ! trees in the youngest age class). set losses = proportional
+       losses = 'proportional'
+
+       CALL land_cover_change_main(&
+            npts,                 dt_days,              veget_max,                  veget, &
+            harvest_pool,         harvest_type,         harvest_cut,                harvest_area, &
+            litter,               som,                  lignin_struc,               lignin_wood, &
+            PFTpresent,           everywhere,           when_growthinit,            leaf_frac, &
+            circ_class_n,         circ_class_biomass,   atm_to_bm,                  forest_managed, &
+            KF,                   wstress_season,       wstress_month,              plant_status, &
+            npp_longterm,         croot_longterm,       age,                        lm_lastyearmax, &
+            harvest_pool_bound,   bm_to_litter,         turnover_daily,             leaf_age, &
+            longevity_eff_leaf,   longevity_eff_sap,          longevity_eff_root, &
+            veget_max_new,        loss_gain,            age_stand,                  last_cut, &
+            k_latosa_adapt,       losses,               light_tran_to_floor_season, lpft_replant, &
+            soil_n_min,           bact,                 species_change_map,         cn_leaf_init_2D, &
+            bm_sapl_2D,           tree_bm_to_litter,    fLulccResidue,              fDeforestToProduct, &
+            deepSOM_a,            deepSOM_s,            deepSOM_p,                  sugar_load, &
+            frac_nobio,           frac_nobio_new,       zf_soil,                    burried_litter, &
+            burried_fresh_ltr,    burried_fresh_som,    burried_bact,               burried_min_nitro, &
+            burried_som,          burried_deepSOM_a,    burried_deepSOM_s,          burried_deepSOM_p, &
+            burried,              kill_vessels,         vessel_loss_previous,       biomass_init_drought, &
+            mean_start_gs,        woody_litter_by_cut,  lignin_snag)
+       CALL bmnan_probe(bm_to_litter, 'lcc_1')
+ 
+       ! Guillaume M. -- scaffolding [CARTES2], twin of the one in the conveyor block.
+       ! Same slots read after the LCC realised the move: a slot clean before and
+       ! sub-threshold here means the realisation created it, not the conveyor.
+       IF (n_class0 > 0 .AND. ALLOCATED(class0_veg)) THEN
+          DO ipts = 1,npts
+             DO ivm = 1,nvm
+                IF (veget_max(ipts,ivm) .GT. zero .AND. &
+                     veget_max(ipts,ivm) .LT. min_vegfrac) THEN
+                   WRITE(numout,*) '[CARTES2-APRES] ipts', ipts, ' pft', ivm, &
+                        ' vmax', veget_max(ipts,ivm), &
+                        ' vmax_new', veget_max_new(ipts,ivm), &
+                        ' loss_gain', loss_gain(ipts,ivm)
+                ENDIF
+             ENDDO
+          ENDDO
+          CALL flush(numout)
+       ENDIF
+
+       ! Set the flag done_stomate_lcchange to be used in the end of sechiba_main
+       ! to update the fractions.
+       do_now_stomate_lcchange=.FALSE.
+       done_stomate_lcchange=.TRUE.
+
+    END IF ! do_now_stomate_lcchange
+
+    ! peatland : 
+    ! in mict-peat, there is  IF (agri_peat) THEN
+    !          CALL lcchange_main_agripeat
+    ! To check how to include this in the trunk, because in mict there are several different 
+    ! subroutines lcchange_main_xxxx for different purposes
+    ! If need, we need add them in this module
+
+    ! Store intermediate veget_max and atm_to_bm in order to calculate
+    ! the mass balance closure at the end odf the subroutine. atm_to_bm
+    ! is set to zero after each subroutine. These variables should be updated
+    ! after each subroutine where veget_max or atm_to_bm can get new values.
+    ! The key variables to close the mass balance are veget_max_hist and
+    ! atm_to_bm_hist. The other xxx_hist fluxes are not really necessary
+    ! but largely facilitate maintaining the nbp consistency check.
+    gpp_daily_hist(:,:,iluc) = gpp_daily(:,:)
+    resp_maint_hist(:,:,iluc) = resp_maint(:,:)
+    resp_growth_hist(:,:,iluc) = resp_growth(:,:)
+    resp_hetero_hist(:,:,iluc) = resp_hetero(:,:)
+    co2_fire_hist(:,:,iluc) = co2_fire(:,:)
+    n_input_daily_hist(:,:,iluc) = SUM(n_input_daily(:,:,:),3)
+    emission_daily_hist(:,:,iluc) = SUM(emission_daily(:,:,:),3)
+    leaching_daily_hist(:,:,iluc) = SUM(leaching_daily(:,:,:),3)
+    atm_to_bm_hist(:,:,iluc,:) = atm_to_bm(:,:,:)
+    veget_max_hist(:,:,iluc) =  veget_max(:,:)
+    atm_to_bm(:,:,:) = zero
+
+    ! veget_max has updated at the end of lcchange. loss_gain set to zero to
+    ! aovid interfere with another call for lcchange for disturbance. It is
+    ! possible because species change is proceeded another day (LastTsDay).
+    loss_gain(:,:) = zero
+
+    ! Change in wood volume
+    wood_volume = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    delta_wood_vol_tot_hist(:,:,iluc) = wood_volume(:,:)-init_tot_wood_volume(:,:)
+    wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+    delta_wood_vol_stand_hist(:,:,iluc) = wood_volume(:,:)-init_stand_wood_volume(:,:)
+
+    !! 5.3 Forest management
+    !  Thin and harvest species. Flag opportunities for species
+    !  changes.
+    IF ( ts_annual_proc ) THEN
+
+       ! Debug
+       IF (printlev_loc>=4) CALL debug_write(npts,'before sapiens_forestry_main', &
+            circ_class_biomass, circ_class_n, circ_class_kill, &
+            plant_status, veget_max_hist, soil_n_min, forest_managed)
+       !-
+
+       CALL sapiens_forestry_main (npts, age_stand, age_stand_bm, last_cut, &
+            circ_class_n, circ_class_kill, forest_managed, &
+            circ_class_biomass, mai, pai, previous_wood_volume, &
+            mai_count, coppice_dens, veget_max, fm_change_map, &
+            species_change_map, whychange, tot_trees)   
+       CALL bmnan_probe(bm_to_litter, 'forestry_main')
+
+
+
+       !! 5.4 Crop harvest
+       !  According to the logic of this module crop harvest should 
+       !  take place here but it depends on :: turnover_daily and that
+       !  variable is not calculated until the call to turnover. Also
+       !  the implemented approach harvests biomass daily rather once
+       !  per year (as it should be).
+
+       !! 5.5 Grazing
+       !  This is an excellent place to account for grazing.
+
+       !! 5.6 Litter raking
+       !  If you are NOT doing historical runs, litter raking almost 
+       !  certainly does not apply to you.
+       !
+       !  In order to feed animals through the winter, as well as absorb
+       !  their manure to spread on the fields during the spring, farmers
+       !  in historical Europe would collect litter from forests and place
+       !  it in the stables during winter.  We will simulate this by
+       !  looking at the litter pools at the end of every year and moving
+       !  around a certain amount of litter from the forest to the crop PFTs.
+       !  We do this after the forest management under the assumption that
+       !  branches left on site after thinning operations would, historically,
+       !  have been collected for this purpose. Of course, litter raking fell
+       !  out of fashion in the mid-19th century, around the same time that
+       !  scientific sylviculture became popular, so perhaps it doesn't 
+       !  matter.
+       IF (ok_litter_raking) THEN
+
+          ! Calculate fluxes from litter raking
+          CALL sapiens_forestry_litter_raking(npts, veget_max, resolution, &
+               litter, lrake_frac)
+
+       ENDIF
+
+    END IF ! ts_annual_proc
+
+    CALL xios_orchidee_send_field("WHYCHANGE",whychange)
+    ! Guillaume M. -- PROGRESSIVE_HARVEST: fraction of the slot area actually clearcut this
+    ! year. Sent here, after sapiens_forestry_main has written it, and guarded by ALLOCATED
+    ! because the array only exists under the gate. This is the diagnostic the acceptance
+    ! tests need (realised harvest rate vs 1/R, and the age-class-4 bimodality); the field
+    ! is fully masked when the gate is off.
+    IF (ok_progressive_harvest .AND. ALLOCATED(ph_cut_frac)) &
+         CALL xios_orchidee_send_field("PH_CUT_FRAC",ph_cut_frac)
+    CALL xios_orchidee_send_field("TOTAL_TREES",tot_trees)
+
+    !! 5.4 Guillaume M. -- AED_FEEDBACK: edge-generating harvest area, basal-area route.
+    !  cc_kill_to_area weights the harvested stand fraction by basal area, exactly as for
+    !  fire, storm and pest, giving one comparable area metric across all agents. Placed
+    !  right after sapiens_forestry_main: circ_class_kill holds the freshly marked cuts and
+    !  circ_class_n is still PRE-cut. SUM(.,DIM=3) collapses the forest-management slots.
+    !
+    !  Guillaume M. -- EDGE BUDGET: only STAND-REPLACING cuts open a forest/non-forest
+    !  boundary, so only clearcut and coppice feed dA_harvest. icut_thin is DELIBERATELY
+    !  excluded: a continuous-cover thinning keeps the canopy closed. /!\ This holds under
+    !  CONCEPT_SCALE=europe only; under CONCEPT_SCALE=global the harvest is carried by
+    !  icut_thin (sub-grid clearcuts) and excluding it would drop the harvest edge entirely.
+    IF (ok_aed_feedback .AND. ALLOCATED(dA_harvest)) THEN
+       DO ivm = 1, nvm
+          IF (is_tree(ivm)) THEN
+             CALL cc_kill_to_area(npts, ivm, SUM(circ_class_kill(:,ivm,:,:,icut_clear), DIM=3), &
+                  circ_class_biomass(:,ivm,:,:,:), circ_class_n(:,ivm,:),                &
+                  veget_max(:,ivm), area(:)*contfrac(:), pipe_tune2(:,ivm), damaged_area_harvest)
+             dA_harvest(:) = dA_harvest(:) + damaged_area_harvest(:)
+             CALL cc_kill_to_area(npts, ivm,                                            &
+                  SUM(circ_class_kill(:,ivm,:,:,icut_cop1) + circ_class_kill(:,ivm,:,:,icut_cop2) &
+                    + circ_class_kill(:,ivm,:,:,icut_cop3), DIM=3),                     &
+                  circ_class_biomass(:,ivm,:,:,:), circ_class_n(:,ivm,:),                &
+                  veget_max(:,ivm), area(:)*contfrac(:), pipe_tune2(:,ivm), damaged_area_harvest)
+             dA_harvest(:) = dA_harvest(:) + damaged_area_harvest(:)
+          ENDIF
+       ENDDO
+    ENDIF
+
+    !! 6. Drought, Fire, Wind and Pests
+
+    !! 6.1 Mortality from hydraulic failure
+    IF (ok_vessel_mortality) THEN
+
+       ! Calculate the effect of hydraulic failure on the sap and 
+       ! heartwood. 
+       CALL drought_mortality (npts, kill_vessels, vessel_mortality_daily, &
+            veget_max, biomass_init_drought, bm_to_litter, circ_class_biomass, &
+            circ_class_n)   
+       CALL bmnan_probe(bm_to_litter, 'drought_mortality')
+    ENDIF
+
+    !! 6.2 Call the fire module
+    IF (ok_spitfire) THEN
+       CALL spitfire(npts, dt_days, lalo, veget, veget_max, resolution, contfrac,   &
+                  daily_wspeed_fire, litterhum_daily, ni_acc, forest_managed, &
+                  vpd_daily_mean,vpd_daily_max,vpd_mean_week,vpd_max_week, precip_month, &
+                  pop_dens, a_nd, road_length, lightning, circ_class_biomass, circ_class_n, &
+                  circ_class_kill, bm_to_litter, litter, litterfuel,        &
+                  emissions_fire)
+       CALL bmnan_probe(bm_to_litter, 'spitfire')
+    ENDIF
+    
+    !! 6.2 Calculate wind throw
+    IF (ok_windthrow) THEN
+
+       ! Debug
+       IF (printlev_loc>=4) CALL debug_write(npts, 'before wind damage', &
+            circ_class_biomass, circ_class_n, circ_class_kill, &
+            plant_status, veget_max_hist, soil_n_min, forest_managed)
+       !-
+
+       !  Calculate the critical wind speed for uprooting and breakage
+       !  critical windspeeds are calculated every half-hour in stomate. A
+       !  cummulated critical windspeed is then passed to stomate_lpj
+       !  to calculate the actual stand damage and mortality
+       CALL wind_damage(npts, nlevels_tot, circ_class_biomass, & ! JJ 2026: new signature, removed wind_max_daily & wind_longterm
+            veget_max, circ_class_n, plant_status, &
+            circ_class_kill, gap_area_save, forest_managed, &
+            soil_temp_daily, root_profile, max_wind_speed_storm, max_wind_ratio_storm, &
+            count_storm, is_storm, wind_ratio_max_save, wind_ratio_sum_save, &
+            wind_speed_max_save)
+       CALL bmnan_probe(bm_to_litter, 'wind_damage')
+
+    ENDIF
+
+
+    !! 6.3 Call the Pest module 
+    IF ( ts_annual_proc ) THEN
+
+      ! Debug
+      IF (printlev_loc>=4) CALL debug_write(npts, 'before beetle damage', &
+               circ_class_biomass, circ_class_n, circ_class_kill, &
+               plant_status, veget_max_hist, soil_n_min, forest_managed)
+      !-
+      ! Calculate bark beetle damage making use of the harvest and 
+      ! damage from wind throw. All vulnerabilities are calculated at all
+      ! times. Mortality from pests is only applied and thus accounted
+      ! for when ok_pest = .TRUE. 
+      CALL bark_beetle_damage (npts, circ_class_biomass, i_beetles_generation, &
+               veget_max, circ_class_n, age_stand, season_drought_legacy, &
+               resolution, circ_class_kill, forest_managed, wood_leftover_legacy, &
+               i_beetles_activity_legacy, P_beetles_attacked_legacy, &
+               B_beetles_kill_legacy)
+      CALL bmnan_probe(bm_to_litter, 'bark_beetle')
+
+    ELSE
+      ! Write to XIOS with default values for all other days
+      CALL pest_write (npts, B_beetles_kill_legacy)
+
+    ENDIF
+
+
+    !! 6.4 Calculate vegetation move by disturbances
+
+    ! When the natural disturbances damaged more than 30 percent (can be adjuted) of the
+    ! biomass (in pft), and when the number of age class is more than one, then not just
+    ! removing biomass but young trees will be planted. This means number of individual
+    ! stays, and veget_max will be decreased and thus, total biomass for the pixel will be
+    ! decreased. This functionality currently works well with windthrow because
+    ! pest damages the stand little by little every year (even though the total
+    ! damage is high). This needs a further discussion.
+    ! Debug
+
+    IF (printlev_loc>=4) CALL debug_write(npts, 'before disturbance kill', &
+         circ_class_biomass, circ_class_n, circ_class_kill, &
+         plant_status, veget_max_hist, soil_n_min, forest_managed)
+    !-
+
+    ! Initialize
+    init_tot_wood_volume(:,:) = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    init_stand_wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+
+    CALL disturbance_kill(npts, circ_class_biomass, circ_class_n, veget_max, loss_gain, &
+         veget_max_disturb, circ_class_kill)
+    CALL bmnan_probe(bm_to_litter, 'disturbance_kill')
+
+
+
+    ! Note that veget_max_disturb is used instead of veget_max_new
+    losses = 'disturbance'
+    frac_nobio_new(:,:) = frac_nobio(:,:)
+
+    CALL land_cover_change_main(&
+            npts,                 dt_days,            veget_max,         veget, &
+            harvest_pool,         harvest_type,       harvest_cut,       harvest_area, &
+            litter,               som,                lignin_struc,      lignin_wood, &
+            PFTpresent,           everywhere,         when_growthinit,   leaf_frac, &
+            circ_class_n,         circ_class_biomass, atm_to_bm,         forest_managed, &
+            KF,                   wstress_season,     wstress_month,     plant_status, &
+            npp_longterm,         croot_longterm,     age,               lm_lastyearmax, &
+            harvest_pool_bound,   bm_to_litter,       turnover_daily,    leaf_age, &
+            longevity_eff_leaf, longevity_eff_sap, longevity_eff_root, &
+            veget_max_disturb,    loss_gain,          age_stand,         last_cut, &
+            k_latosa_adapt,       losses, light_tran_to_floor_season,    lpft_replant, &
+            soil_n_min,           bact,               species_change_map, &
+            cn_leaf_init_2D,      bm_sapl_2D,         tree_bm_to_litter, fLulccResidue, &
+            fDeforestToProduct,   deepSOM_a,          deepSOM_s,         deepSOM_p, &
+            sugar_load,           frac_nobio,         frac_nobio_new,    zf_soil, &
+            burried_litter,       burried_fresh_ltr,  burried_fresh_som, burried_bact, &
+            burried_min_nitro,    burried_som,        burried_deepSOM_a, burried_deepSOM_s, &
+            burried_deepSOM_p,    burried,            kill_vessels,      vessel_loss_previous, & 
+            biomass_init_drought, mean_start_gs,      woody_litter_by_cut, &
+            lignin_snag)
+    CALL bmnan_probe(bm_to_litter, 'lcc_2')
+
+    ! Store intermediate veget_max and atm_to_bm in order to calculate
+    ! the mass balance closure at the end odf the subroutine. atm_to_bm
+    ! is set to zero after each subroutine. These variables should be updated
+    ! after each subroutine where veget_max or atm_to_bm can get new values.
+    ! The key variables to close the mass balance are veget_max_hist and
+    ! atm_to_bm_hist. The other xxx_hist fluxes are not really necessary
+    ! but largely facilitate maintaining the nbp consistency check.
+    gpp_daily_hist(:,:,idis) = gpp_daily(:,:)
+    resp_maint_hist(:,:,idis) = resp_maint(:,:)
+    resp_growth_hist(:,:,idis) = resp_growth(:,:)
+    resp_hetero_hist(:,:,idis) = resp_hetero(:,:)
+    co2_fire_hist(:,:,idis) = co2_fire(:,:)
+    n_input_daily_hist(:,:,idis) = SUM(n_input_daily(:,:,:),3)
+    emission_daily_hist(:,:,idis) = SUM(emission_daily(:,:,:),3)
+    leaching_daily_hist(:,:,idis) = SUM(leaching_daily(:,:,:),3)
+    atm_to_bm_hist(:,:,idis,:) = atm_to_bm(:,:,:)
+    veget_max_hist(:,:,idis) =  veget_max(:,:)
+    atm_to_bm(:,:,:) = zero
+
+    ! Change in wood volume
+    wood_volume = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    delta_wood_vol_tot_hist(:,:,idis) = wood_volume(:,:)-init_tot_wood_volume(:,:)
+    wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+    delta_wood_vol_stand_hist(:,:,idis) = wood_volume(:,:)-init_stand_wood_volume(:,:)
+
+    !! 6.2 Call the fire module
+    !  PLACEHOLDER
+    !  Snag litter pool should be acocunted for in the fire module
+    
+    !! 7. Kill PFT's
+
+    ! Kill slow growing PFTs in DGVM or STOMATE with dynamic or
+    ! constant mortality. Mark trees that died from self-thinning
+    ! or environmental mortality. The biomass pools are not touched.
+    ! Vegetation is only marked for killing
+    
+    ! Debug
+    IF (printlev_loc>=4) CALL debug_write(npts, 'before mark_to_kill', &
+         circ_class_biomass, circ_class_n, circ_class_kill, &
+         plant_status, veget_max_hist, soil_n_min, forest_managed)
+    !-
+
+    CALL mark_to_kill (npts, 'growth    ', lm_lastyearmax, &
+         PFTpresent, npp_longterm, circ_class_biomass, &
+         circ_class_n, circ_class_kill, rue_longterm, turnover_longterm, &
+         dt_days, veget_max, forest_managed, tot_res_target, &
+         tot_lab_target, plant_status)
+
+
+!!$   !! 6.2 Kill slow growing PFTs in DGVM or STOMATE with constant mortality
+!!$    IF ( ok_dgvm .OR. .NOT.lpj_gap_const_mort) THEN
+!!$       CALL kill (npts, 'npp       ', lm_lastyearmax,  &
+!!$            ind, PFTpresent, cn_ind, biomass, senescence, RIP_time, &
+!!$            lai, age, leaf_age, leaf_frac, npp_longterm, &
+!!$            when_growthinit, everywhere, veget_max, bm_to_litter, sugar_load)
+!!$
+!!$       !! 6.2.1 Update wood biomass      
+!!$       !        For the DGVM
+!!$       IF(ok_dgvm) THEN
+!!$          WHERE (ind(:,:).GT.min_stomate)
+!!$             woodmass_ind(:,:) = &
+!!$                  ((biomass(:,:,isapabove,icarbon) + biomass(:,:,isapbelow,icarbon) &
+!!$                  + biomass(:,:,iheartabove,icarbon) + biomass(:,:,iheartbelow,icarbon)) & 
+!!$                  *veget_max(:,:))/ind(:,:)
+!!$          ENDWHERE
+!!$
+!!$       ! For all pixels with individuals
+!!$       ELSE
+!!$          WHERE (ind(:,:).GT.min_stomate)
+!!$             woodmass_ind(:,:) = &
+!!$                  (biomass(:,:,isapabove,icarbon) + biomass(:,:,isapbelow,icarbon) &
+!!$                  + biomass(:,:,iheartabove,icarbon) + biomass(:,:,iheartbelow,icarbon))/ind(:,:)
+!!$          ENDWHERE
+!!$       ENDIF ! ok_dgvm
+!!$
+!!$       !! 6.2.2 New crown area and maximum vegetation cover after growth
+!!$       CALL crown (npts, PFTpresent, &
+!!$            ind, biomass, woodmass_ind,&
+!!$            veget_max, cn_ind, height)
+!!$
+!!$    ENDIF ! ok_dgvm
+!!$    
+!!$  !! 7. fire
+!!$
+!!$    !! 7.1. Burn PFTs
+!!$    CALL fire (npts, dt_days, &
+!!$         litterhum_daily, t2m_daily, lignin_struc, lignin_wood, veget_max, &
+!!$         fireindex, firelitter, biomass, ind, &
+!!$         litter, dead_leaves, bm_to_litter, &
+!!$         co2_fire, MatrixA)
+!!$    CALL ipslerr_p(3,'NBP consistency check','needs to be adjusted',&
+!!$         'now that co2_fire has a none zero value','')    
+!!$
+!!$    !! 7.2 Kill PFTs in DGVM
+!!$    IF ( ok_dgvm ) THEN
+!!$
+!!$       ! reset attributes for eliminated PFTs
+!!$       CALL kill (npts, 'fire      ', lm_lastyearmax, &
+!!$            ind, PFTpresent, cn_ind, biomass, senescence, RIP_time, &
+!!$            lai, age, leaf_age, leaf_frac, npp_longterm, &
+!!$            when_growthinit, everywhere, veget_max, bm_to_litter, sugar_load)
+!!$
+!!$    ENDIF ! ok_dgvm
+!!$ 
+
+  !! 8. Tree mortality
+    ! Here is where the trees actually die and biomass is moved around.  
+    ! First, we kill all the trees that died because of human intervention.
+    ! When we mark trees for killing the reason of their dead is also
+    ! stored in circ_class_kill. This is where we make use of that 
+    ! information.
+
+
+    !+++CHECK+++
+    ! This is called always. It is not clear whether this relates to
+    ! the DGVM or not. The temperature dependencies suggest it does.
+    ! check when working on the DGVM. It is not needed for when the
+    ! PFTs are prescribed.
+
+!!$    ! Does not depend on age, therefore does not change crown area.
+!!$    CALL gap (npts, dt_days, &
+!!$         npp_longterm, turnover_longterm, lm_lastyearmax, &
+!!$         PFTpresent, t2m_min_daily, Tmin_spring_time, &
+!!$         biomass, ind, bm_to_litter, mortality)
+
+    ! Debug
+    IF (printlev_loc>=4) CALL debug_write(npts,'before anthrop. mortality', &
+         circ_class_biomass, circ_class_n, circ_class_kill, &
+         plant_status, veget_max_hist, soil_n_min, forest_managed)
+    !-
+   
+    ! Initialize
+    init_tot_wood_volume(:,:) = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    init_stand_wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+
+    IF (printlev_loc>=4) THEN
+       DO i=1,ncirc
+           DO j=1, nfm_types
+                   DO k=1, ncut_times
+                           WRITE(numout,*) 'test_circ_class_kill',&
+                                i, j, k, circ_class_kill(test_grid,test_pft,i,j,k)
+                   ENDDO
+           ENDDO
+       ENDDO    
+    ENDIF
+
+    CALL anthropogenic_mortality (npts, bm_to_litter, &
+         woody_litter_by_cut, circ_class_biomass, circ_class_kill, &
+         circ_class_n, harvest_pool_bound, harvest_pool, harvest_type, &
+         harvest_cut, harvest_area, &
+         veget_max, age_stand, last_cut, mai_count, &
+         coppice_dens, plant_status, biomass_cut)
+    CALL bmnan_probe(bm_to_litter, 'anthropogenic_mort')
+
+
+
+    ! Change in wood volume
+    wood_volume = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    delta_wood_vol_tot_hist(:,:,ihar) = wood_volume(:,:)-init_tot_wood_volume(:,:)
+    wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+    delta_wood_vol_stand_hist(:,:,ihar) = wood_volume(:,:)-init_stand_wood_volume(:,:)
+
+    ! Now we kill all the plants which died due to natural causes. This comes
+    ! after the plant died due to human causes, since in theory a forest
+    ! that is thinned will not suffer as high of natural mortality.
+    ! When we mark trees for killing the reason of their dead is also
+    ! stored in circ_class_kill. This is where we make use of that information.
+
+    ! Debug
+    IF (printlev_loc>=4) CALL debug_write(npts, 'before natural mortality', &
+         circ_class_biomass, circ_class_n, circ_class_kill, &
+        plant_status, veget_max_hist, soil_n_min, forest_managed)
+    !-
+
+    ! Initialize
+    init_tot_wood_volume(:,:) = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    init_stand_wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+
+    CALL natural_mortality (npts, bm_to_litter, woody_litter_by_cut, &
+         circ_class_biomass, circ_class_kill, circ_class_n, emissions_fire, &
+         veget_max, biomass_cut, plant_status, tot_res_target, &
+         tot_lab_target, forest_managed)
+    CALL bmnan_probe(bm_to_litter, 'natural_mort')
+
+
+
+    co2_fire(:,:) = SUM(emissions_fire(:,:,icarbon,:),DIM=3)
+    co2_fire_hist(:,:,iage) = co2_fire(:,:)
+
+   ! Change in wood volume
+    wood_volume = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    delta_wood_vol_tot_hist(:,:,imor) = wood_volume(:,:)-init_tot_wood_volume(:,:) 
+    wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+    delta_wood_vol_stand_hist(:,:,imor) = wood_volume(:,:)-init_stand_wood_volume(:,:)
+    
+    ! Mass balance calculations
+    DO iele=1,nelements
+       check_intern(:,:,iland2atm,iele) = check_intern(:,:,iland2atm,iele) &
+             -un * emissions_fire(:,:,iele,ifirecrown) * veget_max(:,:) * dt_days
+    ENDDO
+
+!!$    IF ( ok_dgvm ) THEN
+!!$
+!!$       ! reset attributes for eliminated PFTs
+!!$       CALL kill (npts, 'gap       ', lm_lastyearmax, &
+!!$            ind, PFTpresent, cn_ind, biomass, senescence, RIP_time, &
+!!$            lai, age, leaf_age, leaf_frac, npp_longterm, &
+!!$            when_growthinit, everywhere, veget_max, bm_to_litter, sugar_load)
+!!$
+!!$    ENDIF
+
+ !! 9. Change forestry
+       
+       ! PFTs have been managed and killed based on the outcome of 
+       ! the operations and processes it is now decided whether we
+       ! will replant the PFT possible with a different species.
+       IF(ok_change_species)THEN
+          CALL sapiens_forestry_flag_species_change(npts, veget_max, circ_class_biomass,&
+            circ_class_n,lpft_replant, forest_managed)
+       ENDIF
+       
+ !! 10. Clean the stands after mortality
+
+    ! Now we need to do some checking. If there is no biomass on the site,
+    ! some variables have to be reset. If some of the circumference classes
+    ! are empty, we need to redistribute the biomass among them.  Notice this
+    ! must be done after both the natural and human killing is done, because
+    ! circ_class_kill for the natural killing is calculated based on 
+    ! circ_class_biomass, and if we redistribute we change circ_class_biomass.
+    ! If a PFT is found empty (= killed) it is getting replanted unless
+    ! species change is used. In that case we wait for the end of the year
+    ! to replant with a different species. Note: gpp_week and resp_maint_week
+    ! do not need to be cleaned as these are associated to a growing PFT. When
+    ! planting a new PFT, they will be calculated again.   
+
+    ! mortality_clean puts certain idead directly to iprescribe, so we need
+    ! to account for this mortality before, and after we will add also the ones
+    ! from turn_over called later, but without counting twice the idead which
+    ! where already here at this step
+    pft_died(:,:) = zero
+    WHERE (plant_status(:,:).EQ.idead .AND. &
+        veget_max(:,:) .GT. zero)
+       pft_died(:,:) = un
+    ENDWHERE
+
+
+    ! Debug
+    IF (printlev_loc>=4) CALL debug_write(npts, 'before mortality_clean', &
+         circ_class_biomass, circ_class_n, circ_class_kill, &
+         plant_status, veget_max_hist, soil_n_min, forest_managed)
+    !-
+
+    ! Initialize
+    init_tot_wood_volume(:,:) = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    init_stand_wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+
+    CALL mortality_clean (npts, circ_class_biomass, circ_class_n, dt_days, &
+         veget_max, species_change_map, fm_change_map, &
+         longevity_eff_leaf, longevity_eff_sap, longevity_eff_root, &
+         lpft_replant, bm_sapl_2D, wstress_season, wstress_month, &
+         nstress_season, n_input, n_input_daily, vegstress_season, &
+         vegstress_month, vegstress_week, vegstress, humrel, season_drought_legacy, &
+         everywhere, PFTpresent, sugar_load, cn_leaf_min_season, &
+         cn_leaf_init_2D, Light_Abs_Tot, Light_Tran_Tot, &
+         laieff_isotrop, lm_lastyearmax, &
+         lm_thisyearmax, age, &
+         leaf_frac, leaf_age, light_tran_to_floor_season, &
+         qsintveg, us, when_growthinit, gdd_from_growthinit, &
+         gdd_midwinter, time_hum_min, hum_min_dormance, gdd_m5_dormance, &
+         ncd_dormance, ngd_minus5, mean_start_gs, &
+         maxvegstress_lastyear, maxvegstress_thisyear, &
+         minvegstress_lastyear, minvegstress_thisyear, &
+         maxgppweek_lastyear, maxgppweek_thisyear, &
+         n_reserve_longterm, n_reserve_balance, &
+         maxfpc_lastyear, maxfpc_thisyear, &
+         turnover_longterm, dead_leaves, grow_season_len, &
+         KF, atm_to_bm, npp_longterm, croot_longterm, &
+         gpp_daily, gpp_year, gpp_decade, resp_maint, resp_growth, resp_hetero, &
+         npp_daily, rue_longterm, leaching_daily, &
+         emission_daily, gpp_week, resp_maint_week, mai, &
+         pai, mai_count, previous_wood_volume, age_stand, &
+         last_cut, k_latosa_adapt, litter, bm_to_litter, &
+         tree_bm_to_litter, leaf_age_crit, leaf_classes, co2_fire, litterfuel, &
+         turnover_daily, soil_n_min, p_O2, bact, &
+         deepSOM_a, deepSOM_s, deepSOM_p, som, &
+         lignin_struc, lignin_wood, lignin_snag, forest_managed, plant_status, &
+         kill_vessels, vessel_loss_previous, biomass_init_drought, &
+         count_daylight, &
+         CN_som_litter_longterm, zf_soil, &
+         MatrixV, MatrixA, VectorU, VectorB, gap_area_save, total_ba_init)
+    CALL bmnan_probe(bm_to_litter, 'mortality_clean')
+
+
+   
+    ! Store intermediate veget_max and atm_to_bm in order to calculate
+    ! the mass balance closure at the end odf the subroutine. atm_to_bm
+    ! is set to zero after each subroutine. These variables should be updated
+    ! after each subroutine where veget_max or atm_to_bm can get new values.
+    ! The key variables to close the mass balance are veget_max_hist and
+    ! atm_to_bm_hist. The other xxx_hist fluxes are not really necessary
+    ! but largely facilitate maintaining the nbp consistency check.
+    gpp_daily_hist(:,:,icle) = gpp_daily(:,:)
+    resp_maint_hist(:,:,icle) = resp_maint(:,:)
+    resp_growth_hist(:,:,icle) = resp_growth(:,:)
+    resp_hetero_hist(:,:,icle) = resp_hetero(:,:)
+    co2_fire_hist(:,:,icle) = co2_fire(:,:)
+    n_input_daily_hist(:,:,icle) = SUM(n_input_daily(:,:,:),3)
+    emission_daily_hist(:,:,icle) = SUM(emission_daily(:,:,:),3)
+    leaching_daily_hist(:,:,icle) = SUM(leaching_daily(:,:,:),3)
+    atm_to_bm_hist(:,:,icle,:) = atm_to_bm(:,:,:)
+    veget_max_hist(:,:,icle) =  veget_max(:,:)
+    atm_to_bm(:,:,:) = zero
+
+    ! Change in wood volume
+    wood_volume = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    delta_wood_vol_tot_hist(:,:,icle) = wood_volume(:,:)-init_tot_wood_volume(:,:)
+    wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+    delta_wood_vol_stand_hist(:,:,icle) = wood_volume(:,:)-init_stand_wood_volume(:,:)
+
+  !! 11. Leaf senescence and other turnover processes
+
+    ! Calculate all turnover processes which are responsible
+    ! for moving carbon/nitrogen to bifferent living biomass pools in 
+    ! the case of sapwood to heartwood turnover or moving carbon/
+    ! nitrogen from the living biomass to the litter pools. The
+    ! turnover module also deals with leaf fall in autumn.
+
+    ! Debug
+    IF (printlev_loc>=4) CALL debug_write(npts,'before turnover', &
+         circ_class_biomass, circ_class_n, circ_class_kill, &
+         plant_status, veget_max_hist, soil_n_min, forest_managed)
+    !-
+
+    ! Initialize
+    init_tot_wood_volume(:,:) = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    init_stand_wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+
+    CALL turn_over (npts, dt_days, PFTpresent, herbivores, &
+         gpp_week, resp_maint_week, &
+         maxvegstress_lastyear, minvegstress_lastyear, vegstress_week, &
+         vegstress_month, t2m_longterm, t2m_month, t2m_week, &
+         veget_max, gdd_from_growthinit, leaf_age, leaf_frac, age, &
+         turnover_daily, plant_status, turnover_time, &
+         circ_class_biomass, circ_class_n, &
+         when_growthinit, longevity_eff_leaf, longevity_eff_sap, longevity_eff_root, &
+         harvest_pool, harvest_type, harvest_cut, harvest_area, &
+         wstress_month, leaf_age_crit, doy_end_gs)
+    CALL bmnan_probe(bm_to_litter, 'turn_over')
+
+
+
+    ! Count mortality with idead - used for natural mortality, crops
+    ! harvest and for tree cut  
+    WHERE (plant_status(:,:).EQ.idead .AND. &
+        veget_max(:,:) .GT. zero)
+       pft_died(:,:) = un
+    ENDWHERE
+    CALL xios_orchidee_send_field("MORT",pft_died)
+    
+    ! Change in wood volume
+    wood_volume = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    delta_wood_vol_tot_hist(:,:,itur) = wood_volume(:,:)-init_tot_wood_volume(:,:)
+    wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+    delta_wood_vol_stand_hist(:,:,itur) = wood_volume(:,:)-init_stand_wood_volume(:,:)
+
+  !! 12. Update seasonal variables
+
+    ! Seasonal variables related to harvest, wind, fire and pests
+    ! need to be updated before the end of the year to guarantee
+    ! restartability of the model. The seasonal variables are stored 
+    ! in the restarts but the variables used to calculate them are
+    ! not.
+
+    CALL season_post_disturbance(npts, dt_days, t2m_daily, tau_longterm, &
+         circ_class_biomass, litter, circ_class_n, & 
+         gap_area_save, sumTeff, beetle_diapause, n_reserve_balance, &
+         n_reserve_longterm, doy_start_gs, doy_end_gs, mean_start_gs, &
+         valid_start_gs, total_ba_init, veget_max, woody_litter_by_cut, &
+         woody_litter_to_use)
+
+    IF (ts_annual_proc) THEN
+       CALL histwrite_p(hist_id_stomate, 'BEETLE_GENERATION', itime, &
+            i_beetles_generation(:,:,1), npts*nvm, horipft_index)
+       CALL histwrite_p(hist_id_stomate, 'WOOD_LEFTOVER', itime, &
+            wood_leftover_legacy(:,:,1), npts*nvm, horipft_index)
+       CALL histwrite_p(hist_id_stomate, 'DROUGHT_SEASON', itime, &
+            season_drought_legacy(:,:,1), npts*nvm, horipft_index) 
+    ELSE
+       tmp_legacy(:,:,:) = zero
+       CALL histwrite_p(hist_id_stomate, 'BEETLE_GENERATION', itime, &
+            tmp_legacy(:,:,1), npts*nvm, horipft_index)
+       CALL histwrite_p(hist_id_stomate, 'WOOD_LEFTOVER', itime, &
+            tmp_legacy(:,:,1), npts*nvm, horipft_index)
+       CALL histwrite_p(hist_id_stomate, 'DROUGHT_SEASON', itime, &
+            tmp_legacy(:,:,1), npts*nvm, horipft_index)
+       CALL histwrite_p (hist_id_stomate, 'HARVEST_5Y', itime, &
+            tmp_legacy(:,:,1), npts*nvm, horipft_index)
+    ENDIF
+
+    
+ !! 14. Establishment of saplings/recruitment   
+    
+    ! Initialize. When recruitment is not calculated, initial values
+    ! are needed to make xios work.
+    init_tot_wood_volume(:,:) = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    init_stand_wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+    bm_sapl_2D(:,:,:,:,:) = zero
+    new_ind(:,:) = zero
+
+    IF(ts_annual_proc)THEN
+
+       IF(ok_change_species)THEN
+          ! Nothing should be done now. If there is a species change 
+          ! the new species is planted in the land cover change code
+       ELSE
+           ! Debug
+           IF(printlev_loc.GT.2) WRITE(numout,*) 'Call recruitment from stomate_lpj.f90'
+           IF (printlev_loc>=4) CALL debug_write(npts,'before recruitment', &
+                circ_class_biomass, circ_class_n, circ_class_kill, &
+                plant_status, veget_max_hist, soil_n_min, forest_managed)
+           !-
+
+           !! 14.1 Call recruitment process in
+           do_now_recruit = .TRUE.
+
+           ! No need to cycle over PFT 1. No biomass to prescribe on bare soil.
+           DO ivm = 2, nvm
+              DO ipts = 1,npts
+
+                 ! Set flag for writing debug statements in prescribe
+                 write_debug = .FALSE.
+                 IF (ipts==test_grid.AND.ivm==test_pft) write_debug=.TRUE.
+
+                 ! Prescribe is used in several subroutines and is most often
+                 ! use to calculate the new biomass for a single pixel x pft.
+                 ! The subroutines works on a single pixel x pft and is therefore
+                 ! placed in DO-loops
+                 IF (printlev_loc.GE.3) THEN
+                    WRITE(numout,*) 'Calling precribe from stomate_lpj 2, ', ipts, ivm
+                 END IF
+                 CALL prescribe (ivm, veget_max(ipts,ivm), dt_days, PFTpresent(ipts,ivm), &
+                      everywhere(ipts,ivm), when_growthinit(ipts,ivm),leaf_frac(ipts,ivm,:), &
+                      circ_class_n(ipts,ivm,:), &
+                      circ_class_biomass(ipts,ivm,:,:,:), atm_to_bm(ipts,ivm,:),&
+                      forest_managed(ipts,ivm), KF(ipts,ivm),plant_status(ipts,ivm), &
+                      age(ipts,ivm), npp_longterm(ipts,ivm),lm_lastyearmax(ipts,ivm), &
+                      longevity_eff_leaf(ipts,ivm), longevity_eff_sap(ipts,ivm),&
+                      longevity_eff_root(ipts,ivm), k_latosa_adapt(ipts,ivm),light_tran_to_floor_season(ipts,ivm), &
+                      species_change_map(ipts,ivm), &
+                      cn_leaf_init_2D(ipts,ivm), bm_sapl_2D(ipts,ivm,:,:,:), new_ind(ipts,ivm),&
+                      pipe_tune2(ipts,ivm), alpha_self_thinning(ipts,ivm),write_debug, &
+                      tot_res_target(ipts,ivm,:),tot_lab_target(ipts,ivm,:), &
+                      gpp_week(ipts,ivm), t2m_week(ipts))
+              END DO
+           END DO
+           do_now_recruit = .FALSE.
+       ENDIF ! ok_change_species
+
+    ENDIF ! establishment/recruitment
+
+    ! Number of recruits in trees m-2 day-1
+    CALL xios_orchidee_send_field("RECRUITS_IND",new_ind(:,:))
+    ! As we multiply with the number of recruits the unit is gC m-2
+    temp(:,:) = new_ind(:,:) * (bm_sapl_2D(:,:,1,isapabove,icarbon) + &
+         bm_sapl_2D(:,:,1,iheartabove,icarbon))
+    CALL xios_orchidee_send_field("RECRUITS_M_AB_c",temp(:,:))
+    temp(:,:) = new_ind(:,:) * (bm_sapl_2D(:,:,1,isapbelow,icarbon) + &
+         bm_sapl_2D(:,:,1,iheartbelow,icarbon))
+    CALL xios_orchidee_send_field("RECRUITS_M_BE_c",temp(:,:))
+
+    ! Store intermediate veget_max and atm_to_bm in order to calculate
+    ! the mass balance closure at the end odf the subroutine. atm_to_bm
+    ! is set to zero after each subroutine. These variables should be updated
+    ! after each subroutine where veget_max or atm_to_bm can get new values.
+    ! The key variables to close the mass balance are veget_max_hist and
+    ! atm_to_bm_hist. The other xxx_hist fluxes are not really necessary
+    ! but largely facilitate maintaining the nbp consistency check.
+    gpp_daily_hist(:,:,irec) = gpp_daily(:,:)
+    resp_maint_hist(:,:,irec) = resp_maint(:,:)
+    resp_growth_hist(:,:,irec) = resp_growth(:,:)
+    resp_hetero_hist(:,:,irec) = resp_hetero(:,:)
+    co2_fire_hist(:,:,irec) = co2_fire(:,:)
+    n_input_daily_hist(:,:,irec) = SUM(n_input_daily(:,:,:),3)
+    emission_daily_hist(:,:,irec) = SUM(emission_daily(:,:,:),3)
+    leaching_daily_hist(:,:,irec) = SUM(leaching_daily(:,:,:),3)
+    atm_to_bm_hist(:,:,irec,:) = atm_to_bm(:,:,:)
+    veget_max_hist(:,:,irec) =  veget_max(:,:)
+    atm_to_bm(:,:,:) = zero
+
+    ! Change in wood volume
+    wood_volume = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    delta_wood_vol_tot_hist(:,:,irec) = wood_volume(:,:)-init_tot_wood_volume(:,:)
+    wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+    delta_wood_vol_stand_hist(:,:,irec) = wood_volume(:,:)-init_stand_wood_volume(:,:)
+
+ !! 15. Replant PFTs with a different species.
+
+    ! Initialize
+    init_tot_wood_volume(:,:) = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+
+    init_stand_wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+
+    IF ( ts_annual_proc ) THEN
+
+       IF(ok_change_species)THEN
+
+          ! Debug
+          IF (printlev_loc>=4) CALL debug_write(npts,'before species change', &
+               circ_class_biomass, circ_class_n, circ_class_kill, &
+               plant_status, veget_max_hist, soil_n_min, forest_managed)
+          !-
+
+          IF(printlev_loc>4)  WRITE(numout,*) 'species change lpft_replant'
+
+          ! This is an ad-hoc method to change the species after they die.
+          ! It is only meant to change species through human intervention.
+          ! In theory, this is a function that should be done in a DGVM, which
+          ! is why this code is considered only temporary. Because we passed
+          ! the mortality routines the PFTs may have changed. For example, in 
+          ! sapiens_forestry the oldest age class was marked for harvest. In
+          ! kill the biomass is removed and the surface area taken by the 
+          ! oldest age class was moved to the youngest age class of that group
+          ! Here we will move the youngest age class of the intial group to
+          ! the younest age class of the new species group. First create
+          ! the vectors that are then used to calculate the losses and gains
+          ! in surface area (veget_max)
+          CALL sapiens_forestry_species_change(npts, lpft_replant, veget_max_new, &
+               forest_managed, species_change_map, veget_max, fm_change_map)
+
+          ! Use the land cover change code to move the biomass to the
+          ! correct PFT. When veget_max is lost (i.e., oaks are changed 
+          ! to grasslandsthe) standard code will distribute this loss 
+          ! proportionaly (i.e., all age classes with oak will be partly
+          ! coverted) to the populated age classes of the species group. 
+          ! In case of species change we only want to change the surface 
+          ! area of the youngest age class (because we will only plant 
+          ! trees in the youngest age class). set losses = youngest
+          losses = 'youngest'
+          failed_vegfrac(:,:) = .FALSE.
+          frac_nobio_new(:,:) = frac_nobio(:,:)
+          CALL adjust_delta_veget_max(npts, veget_max, frac_nobio, &
+               veget_max_new, frac_nobio_new, loss_gain, losses, failed_vegfrac)
+
+          CALL land_cover_change_main(&
+            npts,                 dt_days,            veget_max,         veget, &
+            harvest_pool,         harvest_type,       harvest_cut,       harvest_area, &
+            litter,               som,                lignin_struc,      lignin_wood, &
+            PFTpresent,           everywhere,         when_growthinit,   leaf_frac, &
+            circ_class_n,         circ_class_biomass, atm_to_bm,         forest_managed, &
+            KF,                   wstress_season,     wstress_month,     plant_status, &
+            npp_longterm,         croot_longterm,     age,               lm_lastyearmax, &
+            harvest_pool_bound,   bm_to_litter,       turnover_daily,    leaf_age, &
+            longevity_eff_leaf, longevity_eff_sap, longevity_eff_root, &
+            veget_max_disturb,    loss_gain,          age_stand,         last_cut, &
+            k_latosa_adapt,       losses, light_tran_to_floor_season,    lpft_replant, &
+            soil_n_min,           bact,               species_change_map, &
+            cn_leaf_init_2D,      bm_sapl_2D,         tree_bm_to_litter, fLulccResidue, &
+            fDeforestToProduct,   deepSOM_a,          deepSOM_s,         deepSOM_p, &
+            sugar_load,           frac_nobio,         frac_nobio_new,    zf_soil, &
+            burried_litter,       burried_fresh_ltr,  burried_fresh_som, burried_bact, &
+            burried_min_nitro,    burried_som,        burried_deepSOM_a, burried_deepSOM_s, &
+            burried_deepSOM_p,    burried,            kill_vessels,      vessel_loss_previous, & 
+            biomass_init_drought, mean_start_gs,      woody_litter_by_cut, &
+            lignin_snag)
+          CALL bmnan_probe(bm_to_litter, 'lcc_3')
+
+       ENDIF ! checking for species change
+
+    ENDIF ! checking for the end of the year
+
+    ! Store intermediate veget_max and atm_to_bm in order to calculate
+    ! the mass balance closure at the end odf the subroutine. atm_to_bm
+    ! is set to zero after each subroutine. These variables should be updated
+    ! after each subroutine where veget_max or atm_to_bm can get new values.
+    ! The key variables to close the mass balance are veget_max_hist and
+    ! atm_to_bm_hist. The other xxx_hist fluxes are not really necessary
+    ! but largely facilitate maintaining the nbp consistency check.
+    gpp_daily_hist(:,:,ispc) = gpp_daily(:,:)
+    resp_maint_hist(:,:,ispc) = resp_maint(:,:)
+    resp_growth_hist(:,:,ispc) = resp_growth(:,:)
+    resp_hetero_hist(:,:,ispc) = resp_hetero(:,:)
+    co2_fire_hist(:,:,ispc) = co2_fire(:,:)
+    n_input_daily_hist(:,:,ispc) = SUM(n_input_daily(:,:,:),3)
+    emission_daily_hist(:,:,ispc) = SUM(emission_daily(:,:,:),3)
+    leaching_daily_hist(:,:,ispc) = SUM(leaching_daily(:,:,:),3)
+    veget_max_hist(:,:,ispc) = veget_max(:,:)
+    atm_to_bm_hist(:,:,ispc,:) = atm_to_bm(:,:,:)
+    atm_to_bm(:,:,:) = zero
+
+    ! Change in wood volume
+    wood_volume = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    delta_wood_vol_tot_hist(:,:,ispc) = wood_volume(:,:)-init_tot_wood_volume(:,:)
+    wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+    delta_wood_vol_stand_hist(:,:,ispc) = wood_volume(:,:)-init_stand_wood_volume(:,:)
+
+  !! 13. Product use
+
+    !  The product use routines should be called even if we run the model without
+    !  LCC. The reason for this is that one could run a simulation with LCC and
+    !  then continue without LCC. The continuation run should account for the 
+    !  decomposition of wood use,
+
+    !  Agricultural harvest now goes into the short-lived product pool.
+    !  In previous versions product use was an integral part of LCC. 
+    !  Maintaining the previous approach would result in inconsistencies with 
+    !  harvest from forestry and agriculture. Note that there is still no real 
+    !  harvest from grasslands. Grasslands are thus wrongly considered natural 
+    !  PFTs without any human use. 
+
+    ! Accumulate harvest_pool for use in product degradation subroutines.
+    harvest_pool_acc(:,:,:,:,:) = harvest_pool_acc(:,:,:,:,:) + harvest_pool(:,:,:,:,:)
+    harvest_area_acc(:,:,:) = harvest_area_acc(:,:,:) + harvest_area(:,:,:)
+
+    ! Guillaume M. -- AED_FEEDBACK: edge-generating forest disturbance from harvest. The
+    ! forestry-harvest area is sized by basal area in section 5.4 above; only the
+    ! land-cover-change cut is added here, as it already provides a real changed area
+    ! (loss_gain) and is filled by anthropogenic_mortality just above. Trees only.
+    IF (ok_aed_feedback .AND. ALLOCATED(dA_harvest)) THEN
+       DO ivm = 1, nvm
+          IF (is_tree(ivm)) THEN
+             dA_harvest(:) = dA_harvest(:) + harvest_area(:,ivm,ilcc)
+          ENDIF
+       ENDDO
+    ENDIF
+    
+    ! These variables will be reset in product use so send them
+    ! to xios first
+    CALL histwrite_p (hist_id_stomate, 'HARVEST_TYPE', itime, &
+         harvest_type(:,:), npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'HARVEST_CUT', itime, &
+         harvest_cut(:,:), npts*nvm, horipft_index)
+    CALL xios_orchidee_send_field("HARVEST_TYPE",harvest_type(:,:))
+    CALL xios_orchidee_send_field("HARVEST_CUT",harvest_cut(:,:))
+    CALL xios_orchidee_send_field("HARVEST_AREA",harvest_area(:,:,iharvest))
+    CALL xios_orchidee_send_field("LCC_AREA",harvest_area(:,:,ilcc))
+    CALL xios_orchidee_send_field("HARVEST_LCC_AREA_ACC",SUM(harvest_area_acc(:,:,:),3))
+
+    ! Decompose 1/365th of the product pools at daily time step
+    CALL product_decomp(npts, dt_days, &
+         flux_prod_s, flux_prod_m, flux_prod_l, prod_s, &
+         prod_m, prod_l, prod_s_total, prod_m_total, &
+         prod_l_total, flux_prod_total, flux_s, flux_m, &
+         flux_l, veget_max)
+ 
+    ! Add a new cohort of harvest to the product pools once per year
+    IF (ts_annual_proc) THEN
+       
+       ! Debug
+       IF (printlev_loc>=4) CALL debug_write(npts,'before wood use', &
+            circ_class_biomass, circ_class_n, circ_class_kill,&
+            plant_status, veget_max_hist, soil_n_min, forest_managed)
+       !- 
+       
+       ! Harvest decomposed, put into product pools and product pools
+       ! are decomposed.
+       CALL product_add(npts, dt_days, harvest_pool_bound, harvest_pool_acc, &
+            harvest_type, harvest_cut, harvest_area, &
+            prod_s, prod_m, prod_l, prod_s_total, prod_m_total, &
+            prod_l_total, flux_s, flux_m, flux_l, veget_max, flux_s_pft)
+       
+    ENDIF
+
+!!$    !! 10. Light competition
+!!$    
+!!$    !! If not using constant mortality then kill with light competition
+!!$!    IF ( ok_dgvm .OR. .NOT.(lpj_gap_const_mort) ) THEN
+!!$    IF ( ok_dgvm ) THEN
+!!$ 
+!!$       !! 10.1 Light competition
+!!$       CALL light (npts, dt_days, &
+!!$            veget_max, fpc_max, PFTpresent, cn_ind, lai, maxfpc_lastyear, &
+!!$            lm_lastyearmax, ind, biomass, veget_lastlight, bm_to_litter, mortality)
+!!$       
+!!$       !! 10.2 Reset attributes for eliminated PFTs
+!!$       CALL kill (npts, 'light     ', lm_lastyearmax, &
+!!$            ind, PFTpresent, cn_ind, biomass, senescence, RIP_time, &
+!!$            lai, age, leaf_age, leaf_frac, npp_longterm, &
+!!$            when_growthinit, everywhere, veget_max, bm_to_litter, sugar_load)
+!!$
+!!$    ENDIF
+!!$
+!!$    
+!!$  !! 11. Establishment of saplings
+!!$    
+!!$    IF ( ok_dgvm .OR. .NOT.lpj_gap_const_mort ) THEN
+!!$
+!!$       !! 11.1 Establish new plants
+!!$       CALL establish (npts, dt_days, PFTpresent, regenerate, &
+!!$       CALL establish (npts, dt_days, PFTpresent, regenerate, &
+!!$       CALL establish (npts, dt_days, PFTpresent, regenerate, &
+!!$            neighbours, resolution, need_adjacent, herbivores, &
+!!$            precip_lastyear, gdd0_lastyear, lm_lastyearmax, &
+!!$            cn_ind, lai, avail_tree, avail_grass, npp_longterm, &
+!!$            leaf_age, leaf_frac, &
+!!$            ind, biomass, age, everywhere, co2_to_bm, &
+!!$            soil_n_min, n_uptake_daily, nstress_season, veget_max, woodmass_ind, &
+!!$            mortality, bm_sapl_2D, bm_to_litter)
+!!$
+!!$       IF (printlev>=3) WRITE (numout,*) 'after establish soil_n_min(test_grid,test_pft,:):',soil_n_min(test_grid,test_pft,:)
+!!$
+!!$       !! 11.2 Calculate new crown area (and maximum vegetation cover)
+!!$       CALL crown (npts, PFTpresent, &
+!!$            ind, biomass, woodmass_ind, &
+!!$            veget_max, cn_ind, height)
+!!$
+!!$    ENDIF
+!!$
+!!$  !! 12. Calculate final LAI and vegetation cover
+!!$    
+!!$    CALL cover (npts, cn_ind, ind, biomass, &
+!!$         veget_max, veget_max_tmp, lai, &
+!!$         litter, som, turnover_daily, bm_to_litter, &
+!!$         co2_to_bm, co2_fire, resp_hetero, resp_hetero_litter, resp_hetero_soil, resp_maint, resp_growth, &
+!!$         gpp_daily, deepSOM_a, deepSOM_s, deepSOM_p, lignin_struc, lignin_wood, soil_n_min)
+!!$
+!!$    IF (printlev>=3) WRITE (numout,*) 'after cover soil_n_min(test_grid,test_pft,:):',soil_n_min(test_grid,test_pft,:)
+
+   !  peatland: to be clarified if this part should be kept or to be modified for the case of agri_peat
+   ! IF (update_peatfrac) THEN
+   !     CALL lpj_cover_peat(npts,lalo, cn_ind, ind, biomass, veget_max_new, veget_max, &
+   !          veget_max_tmp, litter, litter_avail, litter_not_avail, carbon, &
+   !          fuel_1hr, fuel_10hr, fuel_100hr, fuel_1000hr, &
+   !          turnover_daily, bm_to_litter, &
+   !          co2_to_bm, co2_fire, resp_hetero, resp_maint, resp_growth, gpp_daily, &
+   !          deepC_a, deepC_s, deepC_p, &
+   !          dt_days, age, PFTpresent, senescence, when_growthinit,&
+   !          everywhere, leaf_frac, lm_lastyearmax, npp_longterm,&
+   !          carbon_save,deepC_a_save,deepC_s_save,deepC_p_save,delta_fsave,liqwt_max_lastyear)
+   !    update_peatfrac = .FALSE.
+   !    done_update_peatfrac = .TRUE.
+   ! ELSE   
+   !  ![chaoyue] veget_max_tmp is used as veget_max_old in cover SUBROUTINE
+   !  CALL cover (npts, cn_ind, ind, biomass, &
+   !       veget_max, veget_max_tmp, lai, &
+   !       litter, litter_avail, litter_not_avail, carbon, & 
+   !       fuel_1hr, fuel_10hr, fuel_100hr, fuel_1000hr, &
+   !       turnover_daily, bm_to_litter, &
+   !       co2_to_bm, co2_fire, resp_hetero, resp_maint, resp_growth, gpp_daily, &
+   !       deepC_a, deepC_s,deepC_p)
+   ! ENDIF
+   ! peat
+
+    IF ( ok_soil_carbon_discretization ) THEN 
+       ! define pft-mean soil C profile
+       deepSOM_pftmean(:,:,:,:) = 0._r_std
+       DO iv = 1, nvm
+          DO il=1,ngrnd
+            DO iele=1,nelements
+             deepSOM_pftmean(:,il,iactive,iele)  = deepSOM_pftmean(:,il,iactive,iele)  + deepSOM_a(:,il,iv,iele) * veget_max(:,iv)
+             deepSOM_pftmean(:,il,islow,iele)    = deepSOM_pftmean(:,il,islow,iele)    + deepSOM_s(:,il,iv,iele) * veget_max(:,iv)
+             deepSOM_pftmean(:,il,ipassive,iele) = deepSOM_pftmean(:,il,ipassive,iele) + deepSOM_p(:,il,iv,iele) * veget_max(:,iv)
+            END DO
+          END DO
+       END DO
+
+       CALL xios_orchidee_send_field ( 'deepC_a_pftmean', deepSOM_pftmean(:,:,iactive,icarbon))
+       CALL xios_orchidee_send_field ( 'deepC_s_pftmean', deepSOM_pftmean(:,:,islow,icarbon))
+       CALL xios_orchidee_send_field ( 'deepC_p_pftmean', deepSOM_pftmean(:,:,ipassive,icarbon))
+       CALL xios_orchidee_send_field ( 'deepN_a_pftmean', deepSOM_pftmean(:,:,iactive,initrogen))
+       CALL xios_orchidee_send_field ( 'deepN_s_pftmean', deepSOM_pftmean(:,:,islow,initrogen))
+       CALL xios_orchidee_send_field ( 'deepN_p_pftmean', deepSOM_pftmean(:,:,ipassive,initrogen))
+       CALL xios_orchidee_send_field ( 'deepC_a', deepSOM_a(:,:,:,icarbon))
+       CALL xios_orchidee_send_field ( 'deepC_s', deepSOM_s(:,:,:,icarbon)) 
+       CALL xios_orchidee_send_field ( 'deepC_p', deepSOM_p(:,:,:,icarbon)) 
+       CALL xios_orchidee_send_field ( 'deepN_a', deepSOM_a(:,:,:,initrogen)) 
+       CALL xios_orchidee_send_field ( 'deepN_s', deepSOM_s(:,:,:,initrogen))
+       CALL xios_orchidee_send_field ( 'deepN_p', deepSOM_p(:,:,:,initrogen)) 
+
+       deepSOM_pftmean_stock(:,:,:,:) = zero
+       DO il = 1, ngrnd
+         DO iele = 1, nelements
+            DO k = 1, ncarb
+               deepSOM_pftmean_stock(:,il,k,iele) = deepSOM_pftmean(:,il,k,iele)*(zf_soil(il)-zf_soil(il-1))
+            ENDDO
+         ENDDO
+       ENDDO
+       CALL xios_orchidee_send_field ( 'deepC_a_pftmean_stock', deepSOM_pftmean_stock(:,:,iactive,icarbon))
+       CALL xios_orchidee_send_field ( 'deepC_s_pftmean_stock', deepSOM_pftmean_stock(:,:,islow,icarbon))
+       CALL xios_orchidee_send_field ( 'deepC_p_pftmean_stock', deepSOM_pftmean_stock(:,:,ipassive,icarbon))
+       CALL xios_orchidee_send_field ( 'deepN_a_pftmean_stock', deepSOM_pftmean_stock(:,:,iactive,initrogen))
+       CALL xios_orchidee_send_field ( 'deepN_s_pftmean_stock', deepSOM_pftmean_stock(:,:,islow,initrogen))
+       CALL xios_orchidee_send_field ( 'deepN_p_pftmean_stock', deepSOM_pftmean_stock(:,:,ipassive,initrogen))
+
+       !call calc_vert_int_som(npts, deepSOM_a, deepSOM_s, deepSOM_p, som, som_surf, zf_soil)
+       som(:,:,:,:) = zero
+       DO il = 1, ngrnd
+         DO iele = 1, nelements
+           som(:,iactive,:,iele) = som(:,iactive,:,iele) + deepSOM_a(:,il,:,iele)*(zf_soil(il)-zf_soil(il-1))
+           som(:,islow,:,iele) = som(:,islow,:,iele) + deepSOM_s(:,il,:,iele)*(zf_soil(il)-zf_soil(il-1))
+           som(:,ipassive,:,iele) = som(:,ipassive,:,iele) + deepSOM_p(:,il,:,iele)*(zf_soil(il)-zf_soil(il-1))
+         ENDDO
+       ENDDO
+
+       som_surf(:,:,:,:) = zero
+       DO il = 1, ngrnd
+        DO iele = 1, nelements
+          IF (zf_soil(il-1) .lt. maxdepth ) THEN
+             som_surf(:,iactive,:,iele) = som_surf(:,iactive,:,iele) + &
+                  deepSOM_a(:,il,:,iele)*(min(maxdepth,zf_soil(il))-zf_soil(il-1))
+             som_surf(:,islow,:,iele) = som_surf(:,islow,:,iele) + &
+                  deepSOM_s(:,il,:,iele)*(min(maxdepth,zf_soil(il))-zf_soil(il-1))
+             som_surf(:,ipassive,:,iele) = som_surf(:,ipassive,:,iele) + &
+                  deepSOM_p(:,il,:,iele)*(min(maxdepth,zf_soil(il))-zf_soil(il-1))
+          ENDIF
+        ENDDO
+       ENDDO
+
+    ENDIF
+
+
+  !! 16. Calculate vcmax
+
+
+    ! Debug
+    IF (printlev_loc>=4) CALL debug_write(npts,'before vmax', &
+         circ_class_biomass, circ_class_n, circ_class_kill, &
+         plant_status, veget_max_hist, soil_n_min, forest_managed)
+    !-
+
+    CALL vmax (npts, dt_days, leaf_age, leaf_frac, assim_param, &
+         circ_class_biomass, circ_class_n, sugar_load, leaf_age_crit, &
+         leaf_classes, veget_max)
+
+  !! 17. Compute the effective leaf area index. 
+     
+    ! Need to put in a function here to compute the height of the
+    ! photosynthesis levels given the height of the energy levels and the 
+    ! vegetation on the grid square.  The hightest levels will be a 
+    ! function of the height of the vegetation so that we don't waste 
+    ! computational time on empty levels.
+
+    ! Debug
+    IF (printlev_loc>=4) CALL debug_write(npts,'before lai effective', &
+         circ_class_biomass, circ_class_n, circ_class_kill, &
+         plant_status, veget_max_hist, soil_n_min, forest_managed)
+    !- 
+
+
+    CALL calculate_z_level_photo(npts, circ_class_biomass, circ_class_n, &
+         z_level_photo)
+    
+    ! Finding the true LAI per level is different from finding the
+    ! effective LAI per level, so we'll do that here.  This only
+    ! changes once every day so hopefully it is not too expensive.
+    ! It will eventually be needed by the energy budget.  It is
+    ! also needed by effective_lai for grasses and crops.
+    CALL find_lai_per_level(npts, z_level_photo, &
+         circ_class_biomass, circ_class_n, lai_per_level, &
+         max_height_store)
+
+    ! Change the dimensions of z_level_photo so it can be used in 
+    ! sechiba, mleb, and fitting_laieff
+    DO icir = 1,ncirc
+       z_array_out(:,:,icir,:) = z_level_photo(:,:,:)
+    END DO
+
+    ! This is a function of the solar angle, and needed for the albedo
+    ! and the photosynthesis.  It was very expensive to compute, so instead
+    ! of computing it at every timestep we compute it at a couple points
+    ! throughout the day and fit a function to it.  We do this now because
+    ! the canopy as it appears now will be used for the next day.
+    ! Now we actually find the effective LAI and fit the function 
+    ! we'll use later on 
+    CALL fitting_laieff(npts, z_array_out, circ_class_biomass, & 
+         circ_class_n, veget_max, lai_per_level, laieff_fit)
+ 
+ !! 18. Check numerical consistency of this routine
+
+    ! Check consistencies within a pixel
+    IF(err_act.GT.1)THEN
+   
+       ! All initial checks should be done in slowproc right after the map
+       ! is being read. If vegetation fractions or frac_nobio is adjusted
+       ! afterwards, mass balance problems are unavoidable.
+       CALL check_pixel_area("End of stomate_lpj", npts, veget_max, frac_nobio)
+
+    END IF ! err_act.GT.1
+
+    ! Check surface area
+    !  This test is always performed. If err_act.EQ.1 then 
+    !  the value of the mass balance error -if any- is written 
+    !  to the history file.
+    CALL check_vegetation_area("stomate_lpj", npts, veget_max_hist(:,:,ibeg), &
+         veget_max,'pixel',change_nobio)
+
+    ! Prepare variables to be used in stomate.f90 and 
+    ! subsequently in the history files
+    DO j=1,nvm
+       IF(is_tree(j)) THEN
+          tree_bm_to_litter(:,j,:,:)=bm_to_litter(:,j,:,:)
+       ELSE
+          tree_bm_to_litter(:,j,:,:)=0.
+       ENDIF
+    ENDDO
+
+    ! Set the values to be used in stomate.f90
+    turnover_resid(:,:,:,:) = turnover_daily(:,:,:,:)
+    bm_to_litter_resid(:,:,:,:) = bm_to_litter(:,:,:,:)
+    tree_bm_to_litter_resid(:,:,:,:) = tree_bm_to_litter(:,:,:,:)
+
+    ! 14.3 Mass balance closure 
+    ! 14.3.1 Calculate final biomass
+    pool_end(:,:,:) = zero 
+    DO iele = 1,nelements
+       DO ipar = 1,nparts
+          DO icir=1,ncirc
+             pool_end(:,:,iele) = pool_end(:,:,iele) + &
+                  circ_class_biomass(:,:,icir,ipar,iele)* &
+                  circ_class_n(:,:,icir) * veget_max(:,:)
+          ENDDO
+       END DO
+       IF (ok_soil_carbon_discretization) THEN
+          ! Soil carbon (gC m-3) * (m2 m-2)
+          DO igrn = 1,ngrnd
+             pool_end(:,:,iele) = pool_end(:,:,iele) + &
+                  (deepSOM_a(:,igrn,:,iele) + deepSOM_s(:,igrn,:,iele) + &
+                  deepSOM_p(:,igrn,:,iele)) * &
+                  (zf_soil(igrn)-zf_soil(igrn-1)) * veget_max(:,:)
+          END DO
+       ELSE
+          DO icarb = 1,ncarb
+             pool_end(:,:,iele) = pool_end(:,:,iele) + &
+                  som(:,icarb,:,iele) * veget_max(:,:)
+          ENDDO
+       ENDIF
+
+       DO ipar = 1,nparts
+          pool_end(:,:,iele) = pool_end(:,:,iele) + &
+               (bm_to_litter(:,:,ipar,iele)  + &
+               turnover_daily(:,:,ipar,iele)) * veget_max(:,:)
+       ENDDO
+
+       pool_end(:,1,iele) = pool_end(:,1,iele) + &
+            ( SUM(SUM(SUM(harvest_pool_acc(:,:,:,iele,:),4),3),2) + &
+            SUM(SUM(SUM(prod_l(:,:,iele,:,:),2),2),2) + &
+            SUM(SUM(SUM(prod_m(:,:,iele,:,:),2),2),2) + &
+            SUM(SUM(SUM(prod_s(:,:,iele,:,:),2),2),2) ) / &
+            (area(:) * contfrac(:))
+      
+       ! burried_XX variables are cummulative. burried_fresh_ltr should
+       ! therefore be accounted for at the start and end of the mass balance
+       ! check. Change_nobio can differ from zero only the days that lcc is 
+       ! accounted for. burried_som, burried_deepSOM_x, burried_min_nitro, 
+       ! and burried litter should not be accounted for because the soil 
+       ! organic matter and litter are not touched in stomate_lpj.f90, it 
+       ! is only moved around. The mass balance check assumes nothing 
+       ! happens to som, deepSOM_a and litter but does not explicitly check 
+       ! for these pools. They are however checked in the nbp consistency 
+       ! cross-checking. bact and burried_bact are diagnostic variables and 
+       ! not accounted for in the mass balance check.
+       pool_end(:,1,iele) = pool_end(:,1,iele) + &
+            SUM(burried_fresh_ltr(:,:,iele),2)
+    ENDDO
+
+    pool_end(:,:,initrogen) = pool_end(:,:,initrogen) + &
+         ( soil_n_min(:,:,iammonium) + soil_n_min(:,:,initrate) ) * veget_max(:,:)
+
+    ! Common processes. Atm_to_bm should be empty when the model enters
+    ! stomate_lpj but its value can change at severals call in stomate_lpj.
+    ! for this reason the history of atm_to_bm needs to be stored and
+    ! it has been multiplied by the history of veget_max within stomate_lpj
+    ! to track all the carbon down.
+    ! write the information from atm_to_bm_hist (which is a local variable) 
+    ! into atm_to_bm (which is an inout variable). That way the c and n fluxes
+    ! contained in atm_to_bm_hist can be accounted for in stomate.f90
+    DO iele = 1,nelements
+
+       ! atm_to_bm is set to zero after each subroutine. The real information is
+       ! in atm_to_bm_hist. If we want to use atm_to_bm_hist in stomate.f90
+       ! we need to transfer it here. Not sure whether this divide by veget_max
+       ! is robust when we run the code with land cover changes.
+       check_intern(:,:,iatm2land,iele) = &
+            check_intern(:,:,iatm2land,iele) + &
+            SUM(atm_to_bm_hist(:,:,:,iele) * veget_max_hist(:,:,:),3) * dt_days
+
+       check_intern(:,1,iland2atm,iele) = check_intern(:,1,iland2atm,iele) &
+            -un * ( SUM(SUM(flux_prod_s(:,iele,:,:),2),2) + &
+            SUM(SUM(flux_prod_m(:,iele,:,:),2),2) + &
+            SUM(SUM(flux_prod_l(:,iele,:,:),2),2))
+
+       check_intern(:,:,ilat2out,iele) = zero
+       check_intern(:,:,ilat2in,iele) = -un * zero
+       check_intern(:,:,ipoolchange,iele) = -un * (pool_end(:,:,iele) - &
+            pool_start(:,:,iele))
+    ENDDO
+
+    closure_intern = zero
+    DO ivm=1, nvm
+       ! More details
+       DO imbc = 1,nmbcomp
+          ! Debug
+          IF (printlev_loc>=4) THEN              
+             WRITE(numout,*) &
+                  'imbc, ivm, check_intern', test_grid , imbc, &
+                  ivm, check_intern(test_grid,ivm,imbc,icarbon), &
+                  check_intern(test_grid,ivm,imbc,initrogen)
+          ENDIF
+          !-
+          ! Calculate closure_intern
+          DO iele=1,nelements
+             closure_intern(:,ivm,iele) = closure_intern(:,ivm,iele) + &
+                  check_intern(:,ivm,imbc,iele)
+          ENDDO
+       ENDDO
+    ENDDO
+
+    CALL check_mass_balance("stomate_lpj", closure_intern, npts, &
+         pool_end, pool_start, veget_max, 'pixel')
+
+    ! Save the mass balance closure to be cumulated in stomate 
+    ! with total daily mass balance closure
+    mbc_stomate_lpj(:,:) = SUM(closure_intern(:,:,:),2)
+
+    ! Because atm_to_bm_hist is used in the mass balance check of
+    ! stomate_lpj, atm_to_immob_daily should not be in atm_to_immob_daily
+    ! when checking the mass balance for stomate_lpj. It should be added
+    ! after the mass balance check but before the nbp consistency check
+    ! (= here). It should be added because the nbp deals with both stomate
+    ! and stomate_lpj.f90. atm_to_immob_daily is a flux that comes from
+    ! stomate.f90. Add the atmospheric nitrogen to support immobilisation.
+    ! Note that because we add it here the variable ATM_TO_BM_n that is
+    ! based on atm_to_bm_hist and written later in stomate_lpj,f90 contains
+    ! both the nitrogen for plant establisment and nitrogen for
+    ! immobilisation.
+    atm_to_bm_hist(:,:,ibeg,initrogen) = atm_to_immob_daily(:,:) * &
+         dt_sechiba / one_day
+    
+    !! 15. Consistency cross checking
+    ! NBP can be calculated solely based on changes in the C and N pools
+    ! or solely based on fluxes. If the mass balance is closed and the
+    ! all C and N is correctly accounted for the pool- and flux-based
+    ! calculations should be identical. The pool-based calculations are
+    ! straigtforward because the pools are moved togehter with veget_max
+    ! in age class distribution, land cover change and following
+    ! disturbances. The flux-based NBP is more difficult to keep track of
+    ! because the fluxes need to be associated to the veget_max for which
+    ! they were generated and cannot be moved as this would violate
+    ! mass balance preservation (i.e., fluxes generated at the start of
+    ! stomate_lpj might dissapear when the veget_max of that PFT is set
+    ! to zer later on in stomate_lpj). The NBP consistency check puts 
+    ! constraints on how fluxes are coded in the stomate_lpj subroutines.
+    
+    ! Calculate flux-based daily NBP
+    CALL calculate_nbp_flux(npts, atm_to_bm_hist, gpp_daily_hist, &
+       resp_growth_hist, resp_maint_hist, resp_hetero_hist, &
+       co2_fire_hist, emission_daily_hist, leaching_daily_hist, &
+       veget_max_hist, n_input_daily_hist, flux_prod_s, &
+       flux_prod_m, flux_prod_l, nbp_daily_flux, &
+       fco2_flux, emissions_fire)
+    
+    ! Calculate the pool-based NBP over gC m-2 day-1 
+    CALL calculate_nbp_pool(npts, veget_max, litter, deepSOM_a, deepSOM_s, &
+         deepSOM_p, zf_soil, som, bm_to_litter, turnover_daily, &
+         circ_class_biomass, circ_class_n, harvest_pool_acc, prod_s, &
+         prod_m, prod_l, soil_n_min, nbp_pool_end)
+
+    ! Accumulate the flux based nbp (both for C and N) over the length
+    ! of the simulation. nbp_accu_flux is in gC m-2 (accumulated over the 
+    ! length of the simulation). nbp_daily_flux is in gC m-2 d-1 
+    nbp_accu_flux(:,:) = nbp_accu_flux(:,:) + nbp_daily_flux(:,:)
+
+    ! Calculate daily nbp by making use of the change in C and N in the different
+    ! pools. Note that if mass is preserved and the nbp calculations are conceptualy 
+    ! correct nbp_daily_flux should be identical to the nbp_daily pool calculated
+    ! here. bnp_pool_end and nbp_pool_start are in gC m-1. The difference 
+    ! between these variables is calculated over the course of a single day
+    ! so nbp_daily_pool is expressed in gC m-2 d-1. nbp_pool_end and 
+    ! nbp_pool_start account for veget_max. Likelwise burried accounts for 
+    ! change_nobio.
+    nbp_daily_pool(:,:) = nbp_pool_end(:,:) + burried(:,:) - nbp_pool_start(:,:)
+
+    ! Prepare for the next time step and account for the carbon and nitrogen 
+    ! that was burried. This carbon and nitrogen is no longer available in the
+    ! vegetation. nbp_accu_flux and nbp_pool_end account for veget_max. Likewise
+    ! burried accounts for change_nobio.
+    nbp_accu_flux(:,:) = nbp_accu_flux(:,:) - burried(:,:) 
+    nbp_pool_start(:,:) = nbp_pool_end(:,:) - burried(:,:)
+
+    ! Consistency cross-checking
+    IF (err_act .GE. 3) THEN
+
+       DO iele = 1,nelements
+          
+          IF (iele == icarbon) THEN
+             element_str(iele) = 'carbon'
+          ELSEIF (iele == initrogen) THEN
+             element_str(iele) = 'nitrogen'
+          ELSE
+             CALL ipslerr_p(3,'stomate.f90','Define label for iele','','')
+          ENDIF
+          
+          ! If mass is preserved and the nbp calculations are conceptualy 
+          ! correct nbp_daily_flux should be identical to the nbp_daily pool.
+          ! The burried C and N should be accounted for in the check but it
+          ! should not be added to nbp_pool.
+          error_count(:) = zero
+          WHERE (ABS(nbp_daily_flux(:,iele)-nbp_daily_pool(:,iele)).GT.min_stomate)
+             error_count(:) = un
+          END WHERE
+          
+          ! Write error messages if needed
+          IF (SUM(error_count(:)).GT.zero) THEN
+             DO ipts = 1,npts
+                IF (error_count(ipts).GT.zero) THEN
+                   WRITE(numout,*) 'pixel, iele, ', ipts, element_str(iele)
+                   WRITE(numout,*) 'Accumulated flux-based nbp, ',nbp_accu_flux(ipts,:)
+                   WRITE(numout,*) 'Accumulated pool-based nbp, ',nbp_pool_start(ipts,:)
+                   WRITE(numout,*) 'nbp_daily_flux, ', nbp_daily_flux(ipts,:)
+                   WRITE(numout,*) 'nbp_pool, ', nbp_daily_pool(ipts,:)
+                   WRITE(numout,*) 'updated nbp_accu_flux, ', nbp_accu_flux(ipts,:) + nbp_daily_flux(ipts,:)
+                   WRITE(numout,*) 'nbp_pool_end, ', nbp_pool_end(ipts,:)
+                   WRITE(numout,*) 'burried , ', burried(ipts,iele)
+                   WRITE(numout,*) 'difference, ', nbp_daily_flux(ipts,iele) - &
+                        nbp_daily_pool(ipts,iele) - burried(ipts,iele)
+                   DO ivm = 1,nvm
+                      CALL history_write(ipts, ivm, iele, atm_to_bm_hist, gpp_daily_hist, &
+                           resp_growth_hist, resp_maint_hist, resp_hetero_hist, co2_fire_hist, &
+                           n_input_daily_hist, emission_daily_hist, leaching_daily_hist, &
+                           veget_max_hist, 'concistency check')
+                   END DO
+                   CALL ipslerr_p(plev, &
+                        'Inconsistency between flux and pool based nbp', &
+                        'pixel and element are listed above','','')
+                END IF
+             END DO
+          END IF
+          
+          ! By definition the time integral of nbp (0 -> t) should equal the 
+          ! actual ecosystem level C-stock at time t. In the orchidee world
+          ! this means that nbp_accu_flux should equal nbp_pool_end.
+          ! The burried C and N should be accounted for in the check but it
+          ! should not be added to nbp_pool.
+          
+          ! If err_act .GE. 3 the model will crash when the difference between
+          ! the accumulated flux-based and pool-based nbp differ by more then
+          ! min_stomate. Given that nbp is calculated daily, 50 years into the
+          ! simulation means 10e5 days. A daily bias of 10e-13 between the flux 
+          ! and pool based estimates would be very acceptable but 50 years later 
+          ! would have accumulated to 10e-8 and would thus make the model crash.
+          ! At the same time 50 years within the simulation some of the pools
+          ! will have increased to 10e4 thus further decreasing the precision
+          ! of the calculations to 10e-12 at best. Given these fundamental 
+          ! computational issues it seems unrealistic to expect that it is 
+          ! possible to keep the cumulated flux and pool based nbp within a range
+          ! of 10e-8 for more than a couple of decades. At present we are not
+          ! interested in putting a lot of time in increasing the precision of
+          ! each individual subroutine to have a more precise nbp calculation.
+!!$          error_count(:) = zero
+!!$          WHERE (ABS(nbp_pool_end(:,iele)-nbp_accu_flux(:,iele)).GT.min_stomate)
+!!$             error_count(:) = un
+!!$          END WHERE
+!!$          
+!!$          ! Write error messages if needed
+!!$          IF (SUM(error_count(:)).GT.zero) THEN
+!!$             DO ipts = 1,npts
+!!$                IF (error_count(ipts).GT.zero) THEN
+!!$                   WRITE(numout,*) 'pixel, iele, ',ipts, element_str(iele)
+!!$                   WRITE(numout,*) 'nbp_accu_flux, ', nbp_accu_flux(ipts,iele)
+!!$                   WRITE(numout,*) 'nbp_pool_end, ', nbp_pool_end(ipts,iele)
+!!$                   WRITE(numout,*) 'burried , ', burried(ipts,iele)
+!!$                   WRITE(numout,*) 'difference, ', nbp_pool_end(ipts,iele) - &
+!!$                        nbp_accu_flux(ipts,icarbon) - burried(ipts,iele)
+!!$                   CALL ipslerr_p(plev,'Inconsistency between the time integral of nbp', &
+!!$                        'and the actual biomass pools','pixel and element are listed above','')
+!!$                END IF
+!!$             END DO
+!!$          END IF
+
+       END DO ! iele
+    END IF ! err_act  
+
+    ! +++CHECK+++
+    ! Gap fill gpp_decade with the average gpp_decade for pixels where it
+    ! exists. This is needed to calculate a reasonable alpha_self_thinning
+    ! right after a land cover change. Taking the average gpp is very
+    ! simple to implement but it overlooks predictable spatial gradients
+    ! in gpp. Also it introduces some unwanted dependencies/sensitivities
+    ! in the model. The condition of the spinup will determine the value
+    ! of the pre_indust_ref_gpp and thus also the value of alpha_self_thinning
+    ! later in the simulation experiment.
+
+    ! Allocate temporary variable and gather the variable on the global grid.
+    ! gpp_decade always has to be gapfilled so ALLOCATE and gather all
+    ! variables now. Some of the variables will only be used during the
+    ! spinup.
+    IF (ts_annual_proc) THEN
+    
+       IF (is_root_prc) THEN
+          ALLOCATE(ref_gpp_g(nbp_glo,nvm))
+          ALLOCATE(gpp_decade_g(nbp_glo,nvm))
+          ALLOCATE(veget_max_g(nbp_glo,nvm))
+       ELSE
+          ALLOCATE(ref_gpp_g(1,1))
+          ALLOCATE(gpp_decade_g(1,1))
+          ALLOCATE(veget_max_g(1,1))
+       ENDIF
+
+       CALL gather(pre_indust_ref_gpp,ref_gpp_g)
+       CALL gather(gpp_decade,gpp_decade_g)
+       CALL gather(veget_max,veget_max_g)
+
+       ! On the global grid, calculate global means
+       IF (is_root_prc) THEN
+          glob_mean_ref(:) = zero
+          glob_mean_decade(:) = zero
+          DO ivm = 1,nvm
+             count_g = zero
+             IF (is_tree(ivm)) THEN
+                DO ipts = 1,nbp_glo
+                   IF (veget_max_g(ipts,ivm).GT.min_stomate) THEN
+                      count_g = count_g + 1
+                      glob_mean_ref(ivm) = glob_mean_ref(ivm) + ref_gpp_g(ipts,ivm)
+                      glob_mean_decade(ivm) = glob_mean_decade(ivm) + gpp_decade_g(ipts,ivm)
+                   END IF
+                END DO
+                IF (count_g.GT.zero) THEN
+                   glob_mean_ref(ivm) = glob_mean_ref(ivm)/count_g
+                   glob_mean_decade(ivm) = glob_mean_decade(ivm)/count_g
+                ELSE
+                   !+++CHECK+++
+                   ! For global runs all PFTs should occur somewhere in the domain.
+                   ! Possible exception for smaller domains. Need to fix this later
+                   WRITE(numout,*) 'The PFT does not occur in the entire domain, ',ivm
+                   WRITE(numout,*) 'A global mean pre_indust_ref_gpp cannot be calculated'
+                   WRITE(numout,*) 'Use prescribed default values instead'
+                   CALL ipslerr_p(2,'stomate_io', &
+                        'Trying to calculate a global mean for', &
+                        'pre_indus_ref_gpp at the PFT level', &
+                        'no values were found for this PFT')
+                   glob_mean_ref(ivm) = &
+                        init_pre_indust_ref_gpp(ivm)
+                   glob_mean_decade(ivm) = &
+                        init_pre_indust_ref_gpp(ivm)
+                   !+++++++++++
+                END IF
+                !-
+             END IF
+          END DO 
+       ENDIF
+
+       ! Deallocate after use
+       DEALLOCATE(ref_gpp_g)
+       DEALLOCATE(gpp_decade_g)
+       DEALLOCATE(veget_max_g)
+          
+       ! Send the value for the global mean to all processors.
+       CALL bcast(glob_mean_decade)
+       CALL bcast(glob_mean_ref)
+
+       ! Attribute global mean to all pixels without values. This is
+       ! needed to have a reference gpp when LCC creates a forest PFT
+       ! in a pixel where that forest PFT did not exist before.
+       ! The global mean values is used as an easy way for gapfilling.
+       ! The gapfilling in needed in case there is a LCC. If a new
+       ! PFT emerges on the pixel, a pre_indust_ref_gpp is not known.
+       ! Given this is a pre industrial reference it will no longer be
+       ! updated after the spinup.
+       DO ivm = 1,nvm
+          IF (is_tree(ivm)) THEN
+             IF (calculate_gpp_preind) THEN
+                ! During the spinup the pre_industrial and the
+                ! decadal gpp have to be gapfilled and updated.
+                WHERE (veget_max(:,ivm) .LT. min_stomate)
+                   pre_indust_ref_gpp(:,ivm)=glob_mean_ref(ivm)
+                   gpp_decade(:,ivm)=glob_mean_decade(ivm)
+                ENDWHERE
+             ELSE
+                ! During transient, historical and future
+                ! runs only the decadal gpp has to be updated.
+                WHERE (veget_max(:,ivm) .LT. min_stomate)
+                   gpp_decade(:,ivm)=glob_mean_decade(ivm)
+                ENDWHERE
+             END IF
+          ELSE
+             pre_indust_ref_gpp(:,ivm)=zero
+             gpp_decade(:,ivm)=zero
+          END IF
+       END DO
+
+    END IF ! ts_annual_proc 
+    !+++++++++++
+
+  !! 16. Output
+
+    !! Administration
+    DO iele = 1,nelements
+       IF (iele == icarbon) THEN
+          element_str(iele) = '_c'
+       ELSEIF (iele == initrogen) THEN
+          element_str(iele) = '_n'
+       ELSE
+          CALL ipslerr_p(3,'stomate_lpj.f90','Define label for iele','stomate_lpj_main','')
+       ENDIF
+    END DO
+
+    ! Write to output and convert the units to kg C m-2 s-1 (one_day = 86400 s).
+    ! Output for stomate and ipcc files. Only trust and write the NBP_flux and
+    ! if the the model passed the consistency checks.
+    DO iele = 1,nelements
+       ! Write to output and convert the units to kg C m-2 s-1 (one_day = 86400 s).
+       ! Output for stomate and ipcc files
+       CALL xios_orchidee_send_field('NBP_flux'//TRIM(element_str(iele)), &
+            nbp_daily_flux(:,iele)/1e3/one_day)
+       CALL xios_orchidee_send_field('NBP_pool'//TRIM(element_str(iele)), &
+            nbp_daily_pool(:,iele)/1e3/one_day)
+       CALL xios_orchidee_send_field('nbp'//TRIM(element_str(iele)), &
+            nbp_daily_flux(:,iele)/1e3/one_day)
+       ! Calculated in gC m-2 d-1
+       CALL xios_orchidee_send_field('MBC_NBP1'//TRIM(element_str(iele)), &
+            (nbp_daily_flux(:,iele)-nbp_daily_pool(:,iele)))
+       ! nbp_pool_end and nbp_accu_flux are pools. Their unit is gC m-2. It is the
+       ! change in a pool over the course of the entire simulation including the
+       ! spinup because both variables are stored in the restart files.
+       CALL xios_orchidee_send_field('MBC_NBP2'//TRIM(element_str(iele)), &
+            (nbp_pool_end(:,iele)-nbp_accu_flux(:,iele)))
+    END DO
+
+    
+    ! Write the harvest pools to the history files. The code does not keep
+    ! track of the number of harvest events, hence, the operation in the
+    ! field definition file is "accumulate". When harvest is related to a 
+    ! LCC it is possible that the veget_max of that PFT becomes zero. 
+    ! Therefore, the units are gC/grid/y. If we would like to use gC m-2 y-1
+    ! as the unit we would have to keep track of the veget_max prior to LCC.
+    CALL histwrite_p (hist_id_stomate, 'HARVEST_TOTAL_c', itime, &
+         SUM(SUM(harvest_pool(:,:,:,icarbon,:),4),3), npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'HARVEST_TOTAL_n', itime, &
+         SUM(SUM(harvest_pool(:,:,:,initrogen,:),4),3), npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'HARVEST_AREA', itime, &
+         SUM(harvest_area(:,:,:),3), npts*nvm, horipft_index)
+
+    temp4(:,:,:,:) = zero
+    DO ilan = 1,nlanduse
+       DO j = 2,nvm
+          ! Sum the wood, grass and crops across the diameter classes for the wood pool
+          ! dimensions of harvest_poolr: npts, nvm, ndia_harvest+1, nelements, nlanduse
+          temp5(:,:,:,ilan)=harvest_pool(:,j,:,:,ilan)
+          IF (is_tree(j)) THEN
+             temp4(:,iforest,:,ilan) = temp4(:,iforest,:,ilan) + SUM(temp5(:,:,:,ilan),2)
+          ELSEIF (.NOT. is_tree(j).AND.natural(j)) THEN
+             temp4(:,igrass,:,ilan) = temp4(:,igrass,:,ilan) + SUM(temp5(:,:,:,ilan),2)
+          ELSEIF (.NOT. natural(j)) THEN
+             temp4(:,icrop,:,ilan) = temp4(:,icrop,:,ilan) + SUM(temp5(:,:,:,ilan),2)
+          ELSE
+             CALL ipslerr_p(3,'stomate_lpj','land cover type of PFT is unknown','','')
+          ENDIF
+       END DO
+    ENDDO
+
+    CALL xios_orchidee_send_field("HARVEST_VEGET_c",SUM(harvest_pool(:,:,:,icarbon,iharvest),3))
+    CALL xios_orchidee_send_field("HARVEST_LCC_CROP_c",SUM(temp4(:,icrop,icarbon,:),2))
+    CALL xios_orchidee_send_field("HARVEST_LCC_CROP_n",SUM(temp4(:,icrop,initrogen,:),2))
+    CALL xios_orchidee_send_field("HARVEST_LCC_GRASS_c",SUM(temp4(:,igrass,icarbon,:),2))
+    CALL xios_orchidee_send_field("HARVEST_LCC_GRASS_n",SUM(temp4(:,igrass,initrogen,:),2))
+    CALL xios_orchidee_send_field("HARVEST_FOREST_c",temp4(:,iforest,icarbon,iharvest))
+    CALL xios_orchidee_send_field("HARVEST_FOREST_n",temp4(:,iforest,initrogen,iharvest))
+    CALL xios_orchidee_send_field("LCC_FOREST_c",temp4(:,iforest,icarbon,ilcc))
+    CALL xios_orchidee_send_field("LCC_FOREST_n",temp4(:,iforest,initrogen,ilcc))
+    CALL xios_orchidee_send_field("HARVEST_LCC_ACC_c",SUM(SUM(temp4(:,:,icarbon,:),3),2))
+    CALL xios_orchidee_send_field("HARVEST_LCC_ACC_n",SUM(SUM(temp4(:,:,initrogen,:),3),2))
+
+    ! NOTE: use veget_max for pools, use veget_max_hist(iage) for fluxes. Use
+    ! atm_to_bm_hist in combination with veget_max_hist for and estimate of
+    ! C and N bypassing gpp through atm_to_bm.
+    tot_soil(:,:,:) = zero
+    tot_litter(:,:,:) = zero
+    sum_cLitterGrass = zero
+    sum_cLitterCrop = zero
+    sum_cSoilGrass = zero
+    sum_cSoilCrop = zero
+    sum_cVegGrass = zero
+    sum_cVegCrop = zero
+    sum_cLitterTree = zero
+    sum_cSoilTree = zero
+    sum_cVegTree = zero
+
+    DO j=2,nvm
+
+       DO iele=1,nelements
+
+          ! NOTE: "iwoody" does not exist in tag 2.1 
+          tot_litter(:,j,iele) = tot_litter(:,j,iele) + (litter(:,istructural,j,iabove,iele) + &
+               &          litter(:,imetabolic,j,iabove,iele) + litter(:,iwoody,j,iabove,iele) + &
+               &          litter(:,istructural,j,ibelow,iele) + litter(:,imetabolic,j,ibelow,iele)+ &
+               &          litter(:,isnag,j,iabove,iele) + litter(:,isnag,j,ibelow,iele)+ &
+               &          litter(:,iwoody,j,ibelow,iele))
+
+          IF (ok_soil_carbon_discretization) THEN
+             ! NOTE: "deepSOM_x" does not exit in tag 2.1
+             DO igrn = 1,ngrnd
+                tot_soil(:,j,iele) = tot_soil(:,j,iele) + & 
+                     ( deepSOM_a(:,igrn,j,iele) + deepSOM_s(:,igrn,j,iele) + &
+                     deepSOM_p(:,igrn,j,iele) ) * (zf_soil(igrn)-zf_soil(igrn-1)) 
+             END DO
+          ELSE
+             ! NOTE: "isurface" does not exist in tag 2.1
+             tot_soil(:,j,iele) = tot_soil(:,j,iele) + (som(:,iactive,j,iele) + &
+                  &          som(:,islow,j,iele) + som(:,ipassive,j,iele) + &
+                  &          som(:,isurface,j,iele))
+          END IF
+
+       END DO
+
+       ! NOTE: same as in tag 2.1 but tot_litter differs (see above)
+       IF ((.NOT. is_tree(j))  .AND. natural(j)) THEN
+          sum_cLitterGrass(:) = sum_cLitterGrass(:) + tot_litter(:,j,icarbon)*veget_max(:,j)
+       ELSE IF ((.NOT. is_tree(j))  .AND. (.NOT. natural(j)) ) THEN
+          sum_cLitterCrop(:) = sum_cLitterCrop(:) + tot_litter(:,j,icarbon)*veget_max(:,j)
+       ELSE IF (is_tree(j)) THEN
+          sum_cLitterTree(:) = sum_cLitterTree(:) + tot_litter(:,j,icarbon)*veget_max(:,j)
+       ENDIF
+       
+       ! NOTE: same as in tag 2.1 but tot_soil_carb differs (see above)
+       IF ((.NOT. is_tree(j)) .AND. natural(j)) THEN
+          sum_cSoilGrass(:) = sum_cSoilGrass(:) + tot_soil(:,j,icarbon)*veget_max(:,j)
+       ELSE IF ((.NOT. is_tree(j))  .AND. (.NOT. natural(j)) ) THEN
+          sum_cSoilCrop(:) = sum_cSoilCrop(:) + tot_soil(:,j,icarbon)*veget_max(:,j)
+       ELSE IF (is_tree(j)) THEN
+          sum_cSoilTree(:) = sum_cSoilTree(:) + tot_soil(:,j,icarbon)*veget_max(:,j)
+       END IF
+    END DO
+
+    ! NOTE: same as in tag 2.1 but tot_soil differs (see above)
+    tot_litter_soil(:,:,:) = tot_litter(:,:,:) + tot_soil(:,:,:)
+
+    ! NOTE: "ilabile" does not exist in tag 2.1
+    tot_turnover(:,:,:) = turnover_daily(:,:,ileaf,:) + turnover_daily(:,:,isapabove,:) + &
+         &         turnover_daily(:,:,isapbelow,:) + turnover_daily(:,:,iheartabove,:) + &
+         &         turnover_daily(:,:,iheartbelow,:) + turnover_daily(:,:,iroot,:) + &
+         &         turnover_daily(:,:,ifruit,:) + turnover_daily(:,:,icarbres,:) + &
+         &         turnover_daily(:,:,ilabile,:) 
+
+    ! NOTE: "ilabile" does not exist in tag 2.1
+    tot_bm_to_litter(:,:,:) = bm_to_litter(:,:,ileaf,:) + bm_to_litter(:,:,isapabove,:) +&
+         &             bm_to_litter(:,:,isapbelow,:) + bm_to_litter(:,:,iheartbelow,:) +&
+         &             bm_to_litter(:,:,iheartabove,:) + bm_to_litter(:,:,iroot,:) + &
+         &             bm_to_litter(:,:,ifruit,:) + bm_to_litter(:,:,icarbres,:) + &
+         &             bm_to_litter(:,:,ilabile,:)
+    
+
+  !! 17. Write history
+
+    !! 19.1 Calculate the latest values before writing
+    lai(:,:) = zero
+    qm_dia(:,:) = zero
+    qm_height(:,:) = zero
+    dom_dia(:,:) = zero
+    dom_height(:,:) = zero
+    up_half_dia(:,:) = zero
+    rdi_target_upper(:,:) = zero
+    rdi_target_lower(:,:) = zero
+    rdi(:,:) = zero
+    vcmax_new(:,:)=zero
+
+    DO ipts = 1,npts
+       DO ivm=2,nvm
+          IF(veget_max(ipts,ivm) .EQ. zero) CYCLE
+          ! Use cc_to_lai so that the calculation of lai correctly 
+          ! accounts for whether sla is dynamic or not
+          lai(ipts,ivm) = cc_to_lai(circ_class_biomass(ipts,ivm,:,ileaf,icarbon),&
+               circ_class_n(ipts,ivm,:),ivm)
+          IF (is_tree(ivm)) THEN
+             ! Quadratic diameter and height
+             qm_dia(ipts,ivm)=wood_to_qmdia(circ_class_biomass(ipts,ivm,:,:,icarbon), &
+                 circ_class_n(ipts,ivm,:), ivm, pipe_tune2(ipts,ivm))
+             qm_height(ipts,ivm)=wood_to_qmheight(circ_class_biomass(ipts,ivm,:,:,icarbon), &
+                  circ_class_n(ipts,ivm,:), ivm, pipe_tune2(ipts,ivm))
+             ! Dominant diameter and height (values for ncirc)
+             temp3(:,:) = circ_class_biomass(ipts,ivm,:,:,icarbon)
+             temp_n(:)  = circ_class_n(ipts,ivm,:)
+             ! Dominant diameter and height are calculated based on only the last diameter class
+             ! Guillaume M. -- Zero BOTH the biomass and the stem number of the non-dominant
+             ! classes: otherwise wood_to_qmdia divides by the full stem number and
+             ! underestimates dom_dia.
+             IF (ncirc.GT.1) THEN
+                DO icir = 1,ncirc-1
+                   temp3(icir,:) = zero
+                   temp_n(icir)  = zero
+                END DO
+             END IF
+             dom_dia(ipts,ivm) = wood_to_qmdia(temp3(:,:), temp_n(:), &
+                  ivm, pipe_tune2(ipts,ivm))
+             dom_height(ipts,ivm) = wood_to_qmheight(temp3(:,:), temp_n(:), &
+                  ivm, pipe_tune2(ipts,ivm))
+             ! Diameter of the upper half of the population (used to calculate rdi_target)
+             up_half_dia(ipts,ivm) = wood_to_qmdia_up_half(circ_class_biomass(ipts,ivm,:,:,icarbon), &
+                  circ_class_n(ipts,ivm,:), ivm, pipe_tune2(ipts,ivm))
+
+             ! The variables below are calculated only once per year for managed
+             ! forests but daily for unmanaged forest. They are recalculted daily
+             ! to avoid problems with XIOS.
+             IF (qm_dia(ipts,ivm).GT.zero) THEN
+
+                rdi(ipts,ivm) = (SUM(circ_class_n(ipts,ivm,:))* &
+                     m2_to_ha)/Nmax(qm_dia(ipts,ivm)*m_to_cm,alpha_self_thinning(ipts,ivm),ivm, forest_managed(ipts, ivm))
+
+                ifm = forest_managed(ipts, ivm)
+                CALL calculate_rdi_boundaries(up_half_dia(ipts,ivm), ivm, ifm, &
+                                        rdi_target_upper(ipts,ivm), rdi_target_lower(ipts,ivm))
+             ENDIF ! qm_dia(ipts,ivm).GT.zero
+
+          ENDIF ! is_tree(ivm)
+                 
+          IF(SUM(circ_class_biomass(ipts,ivm,:,ileaf,icarbon)*&
+               circ_class_n(ipts,ivm,:)) .GT. min_stomate)THEN
+             
+             IF (is_tree(ivm)) THEN
+                vcmax_new(ipts,ivm)=assim_param(ipts,ivm,inue)*&
+                     SUM(circ_class_biomass(ipts,ivm,:,ileaf,initrogen)*&
+                     circ_class_n(ipts,ivm,:))* ext_coeff_N(ivm) / &
+                     ( 1.-exp(-ext_coeff_N(ivm) * lai(ipts,ivm)))
+             ELSE
+                vcmax_new(ipts,ivm)=assim_param(ipts,ivm,inue)*&
+                     circ_class_biomass(ipts,ivm,1,ileaf,initrogen)*&
+                     circ_class_n(ipts,ivm,1) * ext_coeff_N(ivm) / &
+                     ( 1.-exp(-ext_coeff_N(ivm) * lai(ipts,ivm)))
+                
+             ENDIF ! is_tree(ivm)
+          ENDIF ! circ_class_biomass(ipts,ivm,:,ileaf,icarbon)
+       ENDDO ! ivm
+    ENDDO ! ipts
+
+    !! Soil, litter, biomass and llc
+
+    ! Total living biomass (gC m-2)
+    DO l=1,nelements
+      
+       ! Total simulated (includes all trees)
+       ! NOTE: "ilabile" does not exit in tag 2.1.
+       tot_live_biomass(:,:,l) = SUM((circ_class_biomass(:,:,:,ileaf,l) +& 
+            circ_class_biomass(:,:,:,isapabove,l) + &
+            circ_class_biomass(:,:,:,isapbelow,l) + &
+            circ_class_biomass(:,:,:,iheartabove,l) + &
+            circ_class_biomass(:,:,:,iheartbelow,l) + &
+            circ_class_biomass(:,:,:,iroot,l) + &
+            circ_class_biomass(:,:,:,ifruit,l) + &
+            circ_class_biomass(:,:,:,ilabile,l) + &
+            circ_class_biomass(:,:,:,icarbres,l))*circ_class_n(:,:,:),3)
+
+       ! NOTE: "ilabile"does not exit in tag 2.1
+       Other(:,l) =   SUM(SUM(bm_to_litter(:,:,:,l),3) * veget_max(:,:),2) + &
+                      SUM(SUM(turnover_daily(:,:,:,l),3) * veget_max(:,:),2) + &
+                      SUM(SUM(SUM(harvest_pool_acc(:,:,:,l,:),4),3),2)/ &
+                      (area(:)*contfrac(:))
+
+       ! Only includes trees exceeding the threshold diameter. This variable
+       ! should be compared against forest inventory estimates
+       DO ipts = 1,npts
+          DO ivm = 1,nvm
+             IF(is_tree(ivm))THEN
+                circ_dia(:) = wood_to_dia(circ_class_biomass(ipts,ivm,:,:,icarbon), &
+                     ivm, pipe_tune2(ipts,ivm))
+                circ_n(:) = circ_class_n(ipts,ivm,:)
+                WHERE (circ_dia(:) .lt. dia_thresh_inv(ivm))
+                   circ_n(:) = zero
+                ENDWHERE
+                ! Use only half of the labile and carbres because the other
+                ! half is assumed to be belowground.
+                tot_ab_biomass_inv(ipts,ivm,l) = &
+                     SUM((circ_class_biomass(ipts,ivm,:,ileaf,l) + & 
+                     circ_class_biomass(ipts,ivm,:,isapabove,l) + &
+                     circ_class_biomass(ipts,ivm,:,iheartabove,l) + &
+                     circ_class_biomass(ipts,ivm,:,ifruit,l) + &
+                     0.5*circ_class_biomass(ipts,ivm,:,ilabile,l) + &
+                     0.5*circ_class_biomass(ipts,ivm,:,icarbres,l)) * &
+                     circ_n(:))
+                tot_be_biomass_inv(ipts,ivm,l) = &
+                     SUM((circ_class_biomass(ipts,ivm,:,iroot,l) + & 
+                     circ_class_biomass(ipts,ivm,:,isapbelow,l) + &
+                     circ_class_biomass(ipts,ivm,:,iheartbelow,l) + &
+                     0.5*circ_class_biomass(ipts,ivm,:,ilabile,l) + &
+                     0.5*circ_class_biomass(ipts,ivm,:,icarbres,l)) * &
+                     circ_n(:))
+             ELSE
+                ! This is a forest-inventory variable. Not meaningfull
+                ! for grasslands and croplands
+                tot_ab_biomass_inv(ipts,ivm,l) = zero
+                tot_be_biomass_inv(ipts,ivm,l) = zero
+             END IF
+          END DO
+       END DO
+    ENDDO
+    
+    DO j= 1,nvm
+
+       ! NOTE: same as in tag 2.1
+       IF ((.NOT. is_tree(j))  .AND. natural(j)) THEN
+          sum_cVegGrass(:) = sum_cVegGrass(:) + tot_live_biomass(:,j,icarbon)*veget_max(:,j)
+       ELSE IF ((.NOT. is_tree(j))  .AND. (.NOT. natural(j)) ) THEN
+          sum_cVegCrop(:) = sum_cVegCrop(:) + tot_live_biomass(:,j,icarbon)*veget_max(:,j)
+       ELSE IF (is_tree(j)) THEN
+          sum_cVegTree(:) = sum_cVegTree(:) + tot_live_biomass(:,j,icarbon)*veget_max(:,j)
+       ENDIF
+
+    END DO
+    
+    ! NOTE: same as in tag 2.1
+    carb_mass_variation(:)=-carb_mass_total(:)
+
+    ! NOTE: the way it is calculated in tag 2.1 overlooks the carbon that was
+    ! put in the turnover and bm_to_litter pools at the end of stomate_lpj.
+    ! the harvest pool is emptied only once per year. So, harvest should also
+    ! be accounted for. In this revised calculation all pools are accounted 
+    ! for (see also nbp_pool_end in stomate.f90 for which mass conservation 
+    ! has been checked and confirmed). If all is correct carb_mass_total
+    ! (in this routine) shoudl equal nbp_pool_end (in stomate.f90)(gC m-2).
+    carb_mass_total(:)=SUM((tot_live_biomass(:,:,icarbon) + &
+         tot_litter(:,:,icarbon) + tot_soil(:,:,icarbon) + &
+         tot_turnover(:,:,icarbon) + tot_bm_to_litter(:,:,icarbon)) * &
+         veget_max(:,:),dim=2) + &
+         SUM(SUM(SUM(harvest_pool_acc(:,:,:,icarbon,:),4),3),2) + &
+         (SUM(SUM(prod_s_total(:,icarbon,:,:) + &
+         prod_m_total(:,icarbon,:,:) + &
+         prod_l_total(:,icarbon,:,:),2),2)) / &
+         (area(:) * contfrac(:))
+
+    ! NOTE: same as in tag 2.1. If all is correct carb_mass_variation 
+    ! (in this routine) should equal nbp_pool (in stomate.f90)
+    carb_mass_variation(:)=carb_mass_total(:)+carb_mass_variation(:)
+    
+    !! Calculate the wood volume change at pixel level by ncuts
+    DO ivm = 1,nvm
+       IF(is_tree(ivm))THEN
+          DO icut= 1,ncut_times
+             ! This variable is used to monitor the change in biomass due
+             ! to different reasons for cutting trees. For this variable we
+             ! don't care about the exact forest management but we do care
+             ! whether the forest was managed or not. If the forest is
+             ! managed the cuttings will be exported. If the forest is not
+             ! managed the cuttings are left on-site.
+             wood_volume_pix_cut(:,icut) = wood_volume_pix_cut(:,icut) + &
+                  ((biomass_cut(:,ivm,isapabove,icarbon,ifm_none,icut) + &
+                  biomass_cut(:,ivm,iheartabove,icarbon,ifm_none,icut)) * &
+                  (1-branch_ratio(ivm)) / pipe_density(ivm) + &
+                  (biomass_cut(:,ivm,isapabove,icarbon,ifm_thin,icut) + &
+                  biomass_cut(:,ivm,iheartabove,icarbon,ifm_thin,icut)) * &
+                  (1-branch_ratio(ivm)) / pipe_density(ivm) + &
+                  (biomass_cut(:,ivm,isapabove,icarbon,ifm_uneven,icut) + &
+                  biomass_cut(:,ivm,iheartabove,icarbon,ifm_uneven,icut)) * &
+                  (1-branch_ratio(ivm)) / pipe_density(ivm) + &
+                  (biomass_cut(:,ivm,isapabove,icarbon,ifm_cop,icut) + &
+                  biomass_cut(:,ivm,iheartabove,icarbon,ifm_cop,icut)) * &
+                  (1-branch_ratio(ivm)) / pipe_density(ivm) + &
+                  (biomass_cut(:,ivm,isapabove,icarbon,ifm_src,icut) + &
+                  biomass_cut(:,ivm,iheartabove,icarbon,ifm_src,icut)) * &
+                  (1-branch_ratio(ivm)) / pipe_density(ivm)) * &
+                  veget_max(:,ivm)       
+          ENDDO !icut
+       ENDIF ! is_tree
+    ENDDO !ivm
+    CALL xios_orchidee_send_field("WOOD_VOL_PIX_CUT",wood_volume_pix_cut)
+
+    ! Many details on wood volumes used during code development
+    CALL xios_orchidee_send_field("WOOD_BEG",delta_wood_vol_tot_hist(:,:,ibeg))
+    CALL xios_orchidee_send_field("WOOD_PRE",delta_wood_vol_tot_hist(:,:,ipre))
+    CALL xios_orchidee_send_field("WOOD_PHE",delta_wood_vol_tot_hist(:,:,iphe))
+    CALL xios_orchidee_send_field("WOOD_GRO",delta_wood_vol_tot_hist(:,:,igro))
+    CALL xios_orchidee_send_field("WOOD_AGE",delta_wood_vol_tot_hist(:,:,iage))
+    CALL xios_orchidee_send_field("WOOD_LUC",delta_wood_vol_tot_hist(:,:,iluc))
+    CALL xios_orchidee_send_field("WOOD_CLE",delta_wood_vol_tot_hist(:,:,icle))
+    CALL xios_orchidee_send_field("WOOD_REC",delta_wood_vol_tot_hist(:,:,irec))
+    CALL xios_orchidee_send_field("WOOD_SPC",delta_wood_vol_tot_hist(:,:,ispc))
+    CALL xios_orchidee_send_field("WOOD_HAR",delta_wood_vol_tot_hist(:,:,ihar))
+    CALL xios_orchidee_send_field("WOOD_MOR",delta_wood_vol_tot_hist(:,:,imor))
+    CALL xios_orchidee_send_field("WOOD_TUR",delta_wood_vol_tot_hist(:,:,itur))
+    ! Change in total wood volume (above and belowground) between start and end of stomate_lpj.f90
+    wood_volume = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    delta_wood_vol_tot_hist(:,:,ilpj) = wood_volume(:,:)-delta_wood_vol_tot_hist(:,:,ibeg)
+    CALL xios_orchidee_send_field("WOOD_LPJ",delta_wood_vol_tot_hist(:,:,ilpj))
+    
+    ! Net wood increment and standing wood volume (aboveground) at the end of stomate_lpj.f90
+    wood_volume = wood_to_stand_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,0)
+    delta_wood_vol_stand_hist(:,:,ilpj) = wood_volume(:,:)-delta_wood_vol_stand_hist(:,:,ibeg)
+    CALL xios_orchidee_send_field("WOOD_VOL",wood_volume)
+    CALL xios_orchidee_send_field("WOOD_VOL_INC",delta_wood_vol_stand_hist(:,:,ilpj) - &
+    delta_wood_vol_stand_hist(:,:,imor) - delta_wood_vol_stand_hist(:,:,ihar))
+
+    CALL xios_orchidee_send_field("RESOLUTION_X",resolution(:,1))
+    CALL xios_orchidee_send_field("RESOLUTION_Y",resolution(:,2))
+    CALL xios_orchidee_send_field("T2M_MONTH",t2m_month)
+    CALL xios_orchidee_send_field("T2M_WEEK",t2m_week)
+    CALL xios_orchidee_send_field("TSEASON",Tseason)
+    CALL xios_orchidee_send_field("TMIN_SPRING_TIME", Tmin_spring_time)
+    CALL xios_orchidee_send_field("FPC_MAX",fpc_max)
+    CALL xios_orchidee_send_field("MAXFPC_LASTYEAR",maxfpc_lastyear)
+    CALL xios_orchidee_send_field("HET_RESP",resp_hetero(:,:))
+    CALL xios_orchidee_send_field("CO2_FIRE",co2_fire)
+    CALL xios_orchidee_send_field("ATM_TO_BM_c",SUM(atm_to_bm_hist(:,:,:,icarbon),3))
+    ! Contains atmospheric nitrogen for growth and immobilisation
+    CALL xios_orchidee_send_field("ATM_TO_BM_n",SUM(atm_to_bm_hist(:,:,:,initrogen),3))
+    ! Only atmospheric nitrogen for immobilisation
+    CALL xios_orchidee_send_field("ATM_TO_IMMOB_n",atm_to_immob_daily(:,:))
+    CALL xios_orchidee_send_field("VEGET_MAX",veget_max)
+    CALL xios_orchidee_send_field("NPP_STOMATE",npp_daily)
+
+    IF (ok_spitfire) THEN
+        CALL xios_orchidee_send_field("CO2_FIRE_SURFACE",emissions_fire(:,:,icarbon,ifiresurface))
+        CALL xios_orchidee_send_field("CO2_FIRE_CROWN",emissions_fire(:,:,icarbon,ifirecrown))
+    ENDIF
+
+    ! GPP_daily only contains the GPP through LAI
+    ! there is also "GPP" that bypasses diffuco. Those fluxes are stored
+    ! in atm_to_bm which is in gC m-2 dt_stomate-1
+    CALL xios_orchidee_send_field("GPP",gpp_daily+SUM(atm_to_bm_hist(:,:,:,icarbon),3))
+
+    WHERE (SUM(circ_class_n(:,:,:),3).GE.zero)
+        ind_diag = SUM(circ_class_n(:,:,:),3)
+    ELSEWHERE
+        ind_diag = xios_default_val
+    ENDWHERE
+    CALL xios_orchidee_send_field("IND",ind_diag)
+    CALL xios_orchidee_send_field("CN_IND",cn_ind)
+    CALL xios_orchidee_send_field("WOODMASS_IND",woodmass_ind)
+    CALL xios_orchidee_send_field("MAINT_RESP",resp_maint)
+    CALL xios_orchidee_send_field("GROWTH_RESP",resp_growth)
+    CALL xios_orchidee_send_field("PLANT_STATUS",plant_status)
+    CALL xios_orchidee_send_field("LEAF_M_MAX_c", &
+            SUM(circ_class_biomass(:,:,:,ileaf,icarbon)*circ_class_n(:,:,:),3))
+
+    DO l=1,nelements 
+       IF     (l == icarbon) THEN 
+          element_str(l) = '_c' 
+       ELSEIF (l == initrogen) THEN 
+          element_str(l) = '_n' 
+       ELSE 
+          STOP 'Define element_str' 
+       ENDIF 
+
+       CALL xios_orchidee_send_field("TOTAL_M"//TRIM(element_str(l)), &
+            tot_live_biomass(:,:,l))
+       CALL xios_orchidee_send_field("TOTAL_AB_M_INV"//TRIM(element_str(l)),&
+            tot_ab_biomass_inv(:,:,l))
+       CALL xios_orchidee_send_field("TOTAL_BE_M_INV"//TRIM(element_str(l)),&
+            tot_be_biomass_inv(:,:,l))
+       CALL xios_orchidee_send_field("TOTAL_AB_M"//TRIM(element_str(l)),&
+            SUM((circ_class_biomass(:,:,:,ileaf,l) + &
+            circ_class_biomass(:,:,:,isapabove,l) + &
+            circ_class_biomass(:,:,:,iheartabove,l) + &
+            circ_class_biomass(:,:,:,ifruit,l) + &
+            0.5*circ_class_biomass(:,:,:,ilabile,l) + &
+            0.5*circ_class_biomass(:,:,:,icarbres,l))*circ_class_n(:,:,:),3))
+       CALL xios_orchidee_send_field("TOTAL_BE_M"//TRIM(element_str(l)),&
+            SUM((circ_class_biomass(:,:,:,isapbelow,l) + &
+            circ_class_biomass(:,:,:,iheartbelow,l) + &
+            circ_class_biomass(:,:,:,iroot,l) + &
+            0.5*circ_class_biomass(:,:,:,ilabile,l) + &
+            0.5*circ_class_biomass(:,:,:,icarbres,l))*circ_class_n(:,:,:),3))
+       ! Note: Other is not on pft level
+       CALL xios_orchidee_send_field("TOTAL_OTHER"//TRIM(element_str(l)),Other(:,l)/1e3) 
+       CALL xios_orchidee_send_field("LEAF_M"//TRIM(element_str(l)),&
+            SUM(circ_class_biomass(:,:,:,ileaf,l)*circ_class_n(:,:,:),3))
+       CALL xios_orchidee_send_field("SAP_M_AB"//TRIM(element_str(l)),&
+            SUM(circ_class_biomass(:,:,:,isapabove,l)*circ_class_n(:,:,:),3))
+       CALL xios_orchidee_send_field("SAP_M_BE"//TRIM(element_str(l)),&
+            SUM(circ_class_biomass(:,:,:,isapbelow,l)*circ_class_n(:,:,:),3))
+       CALL xios_orchidee_send_field("HEART_M_AB"//TRIM(element_str(l)),&
+            SUM(circ_class_biomass(:,:,:,iheartabove,l)*circ_class_n(:,:,:),3))
+       CALL xios_orchidee_send_field("HEART_M_BE"//TRIM(element_str(l)),&
+            SUM(circ_class_biomass(:,:,:,iheartbelow,l)*circ_class_n(:,:,:),3))
+       CALL xios_orchidee_send_field("ROOT_M"//TRIM(element_str(l)),&
+            SUM(circ_class_biomass(:,:,:,iroot,l)*circ_class_n(:,:,:),3))
+       CALL xios_orchidee_send_field("FRUIT_M"//TRIM(element_str(l)),&
+            SUM(circ_class_biomass(:,:,:,ifruit,l)*circ_class_n(:,:,:),3))
+       CALL xios_orchidee_send_field("LABILE_M"//TRIM(element_str(l)),&
+            SUM(circ_class_biomass(:,:,:,ilabile,l)*circ_class_n(:,:,:),3))
+       CALL xios_orchidee_send_field("RESERVE_M"//TRIM(element_str(l)),&
+            SUM(circ_class_biomass(:,:,:,icarbres,l)*circ_class_n(:,:,:),3))
+
+       CALL xios_orchidee_send_field("TOTAL_TURN"//TRIM(element_str(l)),tot_turnover(:,:,l))
+       CALL xios_orchidee_send_field("LEAF_TURN"//TRIM(element_str(l)),turnover_daily(:,:,ileaf,l))
+       CALL xios_orchidee_send_field("SAP_AB_TURN"//TRIM(element_str(l)),turnover_daily(:,:,isapabove,l))
+       CALL xios_orchidee_send_field("ROOT_TURN"//TRIM(element_str(l)),turnover_daily(:,:,iroot,l))
+       CALL xios_orchidee_send_field("FRUIT_TURN"//TRIM(element_str(l)),turnover_daily(:,:,ifruit,l))
+       CALL xios_orchidee_send_field("TOTAL_BM_LITTER"//TRIM(element_str(l)),tot_bm_to_litter(:,:,l))
+       CALL xios_orchidee_send_field("LEAF_BM_LITTER"//TRIM(element_str(l)),bm_to_litter(:,:,ileaf,l))
+       CALL xios_orchidee_send_field("SAP_AB_BM_LITTER"//TRIM(element_str(l)),bm_to_litter(:,:,isapabove,l))
+       CALL xios_orchidee_send_field("SAP_BE_BM_LITTER"//TRIM(element_str(l)),bm_to_litter(:,:,isapbelow,l))
+       CALL xios_orchidee_send_field("HEART_AB_BM_LITTER"//TRIM(element_str(l)),bm_to_litter(:,:,iheartabove,l))
+       CALL xios_orchidee_send_field("HEART_BE_BM_LITTER"//TRIM(element_str(l)),bm_to_litter(:,:,iheartbelow,l))
+       CALL xios_orchidee_send_field("ROOT_BM_LITTER"//TRIM(element_str(l)),bm_to_litter(:,:,iroot,l))
+       CALL xios_orchidee_send_field("FRUIT_BM_LITTER"//TRIM(element_str(l)),bm_to_litter(:,:,ifruit,l))
+       CALL xios_orchidee_send_field("LABILE_BM_LITTER"//TRIM(element_str(l)),bm_to_litter(:,:,ilabile,l))
+       CALL xios_orchidee_send_field("RESERVE_BM_LITTER"//TRIM(element_str(l)),bm_to_litter(:,:,icarbres,l))
+       CALL xios_orchidee_send_field("LITTER_STR_AB"//TRIM(element_str(l)),litter(:,istructural,:,iabove,l))
+       CALL xios_orchidee_send_field("LITTER_MET_AB"//TRIM(element_str(l)),litter(:,imetabolic,:,iabove,l))
+       CALL xios_orchidee_send_field("LITTER_WOD_AB"//TRIM(element_str(l)),litter(:,iwoody,:,iabove,l))
+       CALL xios_orchidee_send_field("LITTER_SNG_AB"//TRIM(element_str(l)),litter(:,isnag,:,iabove,l))
+       CALL xios_orchidee_send_field("LITTER_SNG_BE"//TRIM(element_str(l)),litter(:,isnag,:,ibelow,l))
+       CALL xios_orchidee_send_field("LITTER_STR_BE"//TRIM(element_str(l)),litter(:,istructural,:,ibelow,l))
+       CALL xios_orchidee_send_field("LITTER_MET_BE"//TRIM(element_str(l)),litter(:,imetabolic,:,ibelow,l))
+       CALL xios_orchidee_send_field("LITTER_WOD_BE"//TRIM(element_str(l)),litter(:,iwoody,:,ibelow,l))
+       CALL xios_orchidee_send_field("SNAG_FALL_AB"//TRIM(element_str(l)),snag_to_wood_flux(:,:,iabove,l))
+       CALL xios_orchidee_send_field("SNAG_FALL_BE"//TRIM(element_str(l)),snag_to_wood_flux(:,:,ibelow,l))
+       CALL xios_orchidee_send_field("SOIL_ACTIVE"//TRIM(element_str(l)),som(:,iactive,:,l))
+       CALL xios_orchidee_send_field("SOIL_SLOW"//TRIM(element_str(l)),som(:,islow,:,l))
+       CALL xios_orchidee_send_field("SOIL_PASSIVE"//TRIM(element_str(l)),som(:,ipassive,:,l))
+       CALL xios_orchidee_send_field("SOIL_SURF"//TRIM(element_str(l)),som(:,isurface,:,l))
+
+       CALL xios_orchidee_send_field('FLUX_PROD_S_LCC_LCT'//TRIM(element_str(l)),flux_prod_s(:,l,ilcc,:))
+       CALL xios_orchidee_send_field('FLUX_PROD_M_LCC_LCT'//TRIM(element_str(l)),flux_prod_m(:,l,ilcc,:))
+       CALL xios_orchidee_send_field('FLUX_PROD_L_LCC_LCT'//TRIM(element_str(l)),flux_prod_l(:,l,ilcc,:))
+       CALL xios_orchidee_send_field('FLUX_PROD_S_LCC'//TRIM(element_str(l)),SUM(flux_prod_s(:,l,ilcc,:),2))
+       CALL xios_orchidee_send_field('FLUX_PROD_M_LCC'//TRIM(element_str(l)),SUM(flux_prod_m(:,l,ilcc,:),2))
+       CALL xios_orchidee_send_field('FLUX_PROD_L_LCC'//TRIM(element_str(l)),SUM(flux_prod_l(:,l,ilcc,:),2))
+       CALL xios_orchidee_send_field('FLUX_PROD_TOTAL_LCC'//TRIM(element_str(l)),SUM(flux_prod_total(:,l,ilcc,:),2))
+       CALL xios_orchidee_send_field('PROD_S_LCC'//TRIM(element_str(l)),SUM(prod_s(:,:,l,ilcc,:),3))
+       CALL xios_orchidee_send_field('PROD_M_LCC'//TRIM(element_str(l)),SUM(prod_m(:,:,l,ilcc,:),3))
+       CALL xios_orchidee_send_field('PROD_L_LCC'//TRIM(element_str(l)),SUM(prod_l(:,:,l,ilcc,:),3))
+       !ChaoComment: no need to output these variables, as they're actually used as pools in the code.
+       ! Outputing them make things confusing
+       !CALL xios_orchidee_send_field('FLUX_S_LCC'//TRIM(element_str(l)),SUM(flux_s(:,:,l,ilcc,:),3))
+       !CALL xios_orchidee_send_field('FLUX_M_LCC'//TRIM(element_str(l)),SUM(flux_m(:,:,l,ilcc,:),3))
+       !CALL xios_orchidee_send_field('FLUX_L_LCC'//TRIM(element_str(l)),SUM(flux_l(:,:,l,ilcc,:),3))
+       CALL xios_orchidee_send_field('FLUX_PROD_S_HARVEST_LCT'//TRIM(element_str(l)),flux_prod_s(:,l,iharvest,:))
+       CALL xios_orchidee_send_field('FLUX_PROD_M_HARVEST_LCT'//TRIM(element_str(l)),flux_prod_m(:,l,iharvest,:))
+       CALL xios_orchidee_send_field('FLUX_PROD_L_HARVEST_LCT'//TRIM(element_str(l)),flux_prod_l(:,l,iharvest,:))
+       CALL xios_orchidee_send_field('FLUX_PROD_S_HARVEST'//TRIM(element_str(l)),SUM(flux_prod_s(:,l,iharvest,:),2))
+       CALL xios_orchidee_send_field('FLUX_PROD_M_HARVEST'//TRIM(element_str(l)),SUM(flux_prod_m(:,l,iharvest,:),2))
+       CALL xios_orchidee_send_field('FLUX_PROD_L_HARVEST'//TRIM(element_str(l)),SUM(flux_prod_l(:,l,iharvest,:),2))
+       CALL xios_orchidee_send_field('FLUX_PROD_TOTAL_HARVEST'//TRIM(element_str(l)),SUM(flux_prod_total(:,l,iharvest,:),2))
+       CALL xios_orchidee_send_field('PROD_S_HARVEST'//TRIM(element_str(l)),SUM(prod_s(:,:,l,iharvest,:),3))
+       CALL xios_orchidee_send_field('PROD_M_HARVEST'//TRIM(element_str(l)),SUM(prod_m(:,:,l,iharvest,:),3))
+       CALL xios_orchidee_send_field('PROD_L_HARVEST'//TRIM(element_str(l)),SUM(prod_l(:,:,l,iharvest,:),3))
+       !ChaoComment: no need to output these variables, as they're actually used as pools in the code.
+       !CALL xios_orchidee_send_field('FLUX_S_HARVEST'//TRIM(element_str(l)),SUM(flux_s(:,:,l,iharvest,:),3))
+       !CALL xios_orchidee_send_field('FLUX_M_HARVEST'//TRIM(element_str(l)),SUM(flux_m(:,:,l,iharvest,:),3))
+       !CALL xios_orchidee_send_field('FLUX_L_HARVEST'//TRIM(element_str(l)),SUM(flux_l(:,:,l,iharvest,:),3))
+    ENDDO
+
+    CALL xios_orchidee_send_field("DEADLEAF_COVER",deadleaf_cover)
+    CALL xios_orchidee_send_field("TOTAL_LITTER_SOIL_c",tot_litter_soil(:,:,icarbon))
+    CALL xios_orchidee_send_field("TOTAL_LITTER_SOIL_n",tot_litter_soil(:,:,initrogen))
+    CALL xios_orchidee_send_field("TOTAL_SOIL_c",tot_soil(:,:,icarbon))
+    CALL xios_orchidee_send_field("TOTAL_SOIL_n",tot_soil(:,:,initrogen))
+
+    !+++CHECK+++
+    ! Seems to never get a value. It should be calculated in hydrology and 
+    ! passed to here.
+!!$    CALL xios_orchidee_send_field("LITTERHUM",litterhum_daily)
+    !+++++++++++
+    CALL xios_orchidee_send_field("TURNOVER_TIME_LEAF",turnover_time(:,:,ileaf))
+    CALL xios_orchidee_send_field("TURNOVER_TIME_ROOT",turnover_time(:,:,iroot))
+    CALL xios_orchidee_send_field("TURNOVER_TIME_SAP_AB",turnover_time(:,:,isapabove))
+    CALL xios_orchidee_send_field("TURNOVER_TIME_FRUIT",turnover_time(:,:,ifruit))
+
+ 
+    ! CN longterm ratios
+    IF (spinup_analytic) THEN
+       CALL xios_orchidee_send_field("CN_LONGTERM_ACTIVE",CN_som_litter_longterm(:,:,iactive_pool))
+       CALL xios_orchidee_send_field("CN_LONGTERM_SLOW",CN_som_litter_longterm(:,:,islow_pool))
+       CALL xios_orchidee_send_field("CN_LONGTERM_PASSIVE",CN_som_litter_longterm(:,:,ipassive_pool))
+       CALL xios_orchidee_send_field("CN_LONGTERM_SURF",CN_som_litter_longterm(:,:,isurface_pool))
+       CALL xios_orchidee_send_field("CN_LONGTERM_LITTER_STR_AB",CN_som_litter_longterm(:,:,istructural_above))
+       CALL xios_orchidee_send_field("CN_LONGTERM_LITTER_STR_BE",CN_som_litter_longterm(:,:,istructural_below))
+       CALL xios_orchidee_send_field("CN_LONGTERM_LITTER_MET_AB",CN_som_litter_longterm(:,:,imetabolic_above))
+       CALL xios_orchidee_send_field("CN_LONGTERM_LITTER_MET_BE",CN_som_litter_longterm(:,:,imetabolic_below))
+       CALL xios_orchidee_send_field("CN_LONGTERM_LITTER_WOD_AB",CN_som_litter_longterm(:,:,iwoody_above))
+       CALL xios_orchidee_send_field("CN_LONGTERM_LITTER_WOD_BE",CN_som_litter_longterm(:,:,iwoody_below))
+       CALL xios_orchidee_send_field("CN_LONGTERM_LITTER_SNG_AB",CN_som_litter_longterm(:,:,isnag_above))
+       CALL xios_orchidee_send_field("CN_LONGTERM_LITTER_SNG_BE",CN_som_litter_longterm(:,:,isnag_below))
+    ENDIF
+
+    WHERE (SUM(circ_class_biomass(:,:,:,ileaf,icarbon),3).GT.zero)
+        vcmax_diag(:,:) = assim_param(:,:,ivcmax)
+        vcmax_new_diag(:,:) = assim_param(:,:,inue) * assim_param(:,:,ileafn)
+        lai_diag(:,:) = lai(:,:)
+    ELSEWHERE
+        vcmax_diag(:,:) = xios_default_val
+        vcmax_new_diag(:,:) = xios_default_val
+        lai_diag(:,:) = xios_default_val
+    ENDWHERE
+    CALL xios_orchidee_send_field("VCMAX",vcmax_new_diag)
+    CALL xios_orchidee_send_field("LAI_MAX",lai_diag)
+    CALL xios_orchidee_send_field("LAI_MEAN",lai)
+    CALL xios_orchidee_send_field("LAI_MEAN_GS",lai_diag)
+    CALL xios_orchidee_send_field("AGE",age)
+    ! Guillaume M. -- STAND_AGE: conserved biomass-weighted mean stand age (per PFT slot)
+    CALL xios_orchidee_send_field("AGE_STAND_BM", age_stand_bm)
+    CALL xios_orchidee_send_field("HEIGHT",qm_height)
+    CALL xios_orchidee_send_field("PIPE_TUNE2",pipe_tune2)
+    CALL xios_orchidee_send_field("PRE_INDUST_REF_GPP",pre_indust_ref_gpp)
+    CALL xios_orchidee_send_field("GPP_DECADE",gpp_decade)
+    ! alpha_self_thinning is NOT in the restart because it has to be
+    ! calculated every time step from a reference time t0 instead of
+    ! the previous time step t-1.
+    CALL xios_orchidee_send_field("ALPHA_SELF_THINNING",alpha_self_thinning)
+    CALL xios_orchidee_send_field("FIREINDEX",fireindex)
+    CALL xios_orchidee_send_field("DIAMETER",qm_dia)  
+    CALL xios_orchidee_send_field("LAI_PER_LEVEL",lai_per_level)
+    CALL xios_orchidee_send_field("CLEVEL_HEIGHT",z_level_photo)
+
+    ! for functional allocation, we have all of this information
+    ! at every step so we can write it out.
+    var_real=REAL(age_stand)
+    CALL xios_orchidee_send_field("AGE_STAND",var_real)
+    var_real=REAL(forest_managed)
+    CALL xios_orchidee_send_field("FOREST_MANAGED",var_real)
+    var_real=REAL(last_cut)
+    CALL xios_orchidee_send_field("LAST_CUT",var_real)
+    var_real=REAL(rotation_n)
+    CALL xios_orchidee_send_field("ROTATION_N",var_real)
+    CALL xios_orchidee_send_field("LITTER_RAKE_FRAC",lrake_frac)
+    CALL xios_orchidee_send_field("MAI",mai)
+    CALL xios_orchidee_send_field("PAI",pai)
+    CALL xios_orchidee_send_field("SIGMA",sigma)
+    CALL xios_orchidee_send_field("GAMMA",gammas)
+    ! Guillaume M. -- AED_EDGE_RDI_WEIGHT: publish rdi for update_edge_length. The WHOLE
+    ! array is copied rather than assigned inside the loop: rdi is zeroed up front and then
+    ! filled branch by branch, so a global copy cannot miss a path.
+    IF (ALLOCATED(rdi_stand)) rdi_stand(:,:) = rdi(:,:)
+
+    CALL xios_orchidee_send_field("RDI",rdi(:,:))
+    CALL xios_orchidee_send_field("DIAMETER_DOM",dom_dia(:,:))
+    CALL xios_orchidee_send_field("DIAMETER_UP_HALF",up_half_dia(:,:))
+    CALL xios_orchidee_send_field("RDI_TARGET_UPPER",rdi_target_upper(:,:))
+    CALL xios_orchidee_send_field("RDI_TARGET_LOWER",rdi_target_lower(:,:))
+    ! Guillaume M. -- Sent HERE and not next to the AC12 diagnostics: those are filled by
+    ! age_class_distr, this one by sapiens_forestry_main, which runs LATER in the time step.
+    ! A send at the AC12 site shipped nothing: the array was not yet allocated and the
+    ! ALLOCATED guard silently dropped the field. RDI_TARGET_LOWER above is recomputed for
+    ! output without the band override; RDI_THIN_LIMIT is what the thinning actually used.
+    IF (ALLOCATED(rdi_thin_limit_diag)) &
+         CALL xios_orchidee_send_field("RDI_THIN_LIMIT", rdi_thin_limit_diag)
+
+    ! ipcc history
+    ! Carbon stock transformed from gC/m2 into kgC/m2
+    CALL xios_orchidee_send_field("cVeg",SUM(tot_live_biomass(:,:,icarbon)*veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("nVeg",SUM(tot_live_biomass(:,:,initrogen)*veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("cVegGrass",sum_cVegGrass/1e3)
+    CALL xios_orchidee_send_field("cVegCrop",sum_cVegCrop/1e3)
+    CALL xios_orchidee_send_field("cVegTree",sum_cVegTree/1e3)
+    CALL xios_orchidee_send_field("cOther",Other(:,icarbon)/1e3)
+    CALL xios_orchidee_send_field("nOther",Other(:,initrogen)/1e3)
+    CALL xios_orchidee_send_field("cLitter",SUM(tot_litter(:,:,icarbon)*veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("nLitter",SUM(tot_litter(:,:,initrogen)*veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("cLitterGrass",sum_cLitterGrass/1e3)
+    CALL xios_orchidee_send_field("cLitterCrop",sum_cLitterCrop/1e3)
+    CALL xios_orchidee_send_field("cLitterTree",sum_cLitterTree/1e3)
+    CALL xios_orchidee_send_field("cVegLitter", &
+         SUM((tot_bm_to_litter(:,:,icarbon) + tot_turnover(:,:,icarbon))*&
+         veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("cSoil",SUM(tot_soil(:,:,icarbon)*veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("nSoil",SUM(tot_soil(:,:,initrogen)*veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("cSoilGrass",sum_cSoilGrass/1e3)
+    CALL xios_orchidee_send_field("cSoilCrop",sum_cSoilCrop/1e3)
+    CALL xios_orchidee_send_field("cSoilTree",sum_cSoilTree/1e3)
+    CALL xios_orchidee_send_field("cProduct",SUM(SUM( &
+         prod_s_total(:,icarbon,:,:) + prod_m_total(:,icarbon,:,:) + &
+         prod_l_total(:,icarbon,:,:),2),2) / area(:)/ contfrac(:)/1e3)
+
+    ! NOTE: rewrote this variable based on its name
+    cproductlut(:,:)=xios_default_val
+    WHERE(fraclut(:,id_psl) > min_sechiba)
+       cproductlut(:,id_psl)= SUM(prod_s_total(:,icarbon,ilcc,:) + &
+            prod_m_total(:,icarbon,ilcc,:) + &
+            prod_l_total(:,icarbon,ilcc,:),2) / area(:)/ contfrac(:)/1e3/fraclut(:,id_psl)
+    ENDWHERE
+    CALL xios_orchidee_send_field("cproductlut",cproductlut)
+    CALL xios_orchidee_send_field("cMassVariation",carb_mass_variation/1e3/one_day)
+    ! m2/m2
+    CALL xios_orchidee_send_field("lai_ipcc",SUM(lai(:,:)*veget_max(:,:),dim=2)) 
+    
+    ! Carbon fluxes transformed from gC/m2/d into kgC/m2/s
+    ! NOTE: tag 2.1 does not account for atm_to_bm. Given that ORCHIDEE cannot
+    ! grow from a seed to a seedling, the carbon used to create seedlings is taken
+    ! from the atmosphere. atm_to_bm should be considered as a bypass of gpp and
+    ! should be accounted for when reporting "gpp" fluxes. 
+    CALL xios_orchidee_send_field("gpp_ipcc",SUM(gpp_daily(:,:)*&
+         veget_max_hist(:,:,iage),dim=2)/1e3/one_day)
+    CALL xios_orchidee_send_field("ra",SUM((resp_maint+resp_growth)*&
+         veget_max,dim=2)/1e3/one_day)
+    
+    vartmp(:)=zero
+    DO j = 2, nvm
+       IF ( .NOT. is_tree(j) .AND. natural(j) ) THEN
+          vartmp(:) = vartmp(:) + (resp_maint_hist(:,j,iage)+resp_growth_hist(:,j,iage))* &
+               veget_max_hist(:,j,iage)
+       ENDIF
+    ENDDO
+    CALL xios_orchidee_send_field("raGrass",vartmp/1e3/one_day)
+
+    vartmp(:)=zero
+    DO j = 2, nvm
+       IF (( .NOT. is_tree(j)) .AND. (.NOT. natural(j)) ) THEN
+          vartmp(:) = vartmp(:) + (resp_maint_hist(:,j,iage)+resp_growth_hist(:,j,iage))* &
+               veget_max_hist(:,j,iage)
+       ENDIF
+    ENDDO
+    CALL xios_orchidee_send_field("raCrop",vartmp/1e3/one_day)
+
+    vartmp(:)=zero
+    DO j = 2, nvm
+       IF ( is_tree(j) ) THEN
+          vartmp(:) = vartmp(:) + (resp_maint_hist(:,j,iage)+resp_growth_hist(:,j,iage))* &
+               veget_max_hist(:,j,iage)
+       ENDIF
+    ENDDO
+    CALL xios_orchidee_send_field("raTree",vartmp/1e3/one_day)
+
+    ! NOTE: use veget_max_hist(iage) because that is veget_max 
+    ! after age_class_distr in which npp_daily might move to a different age class. 
+    CALL xios_orchidee_send_field("npp_ipcc",SUM(npp_daily(:,:)*veget_max_hist(:,:,iage),dim=2)/1e3/one_day)
+
+    ! NOTE: use veget_max_hist(iage) because that is veget_max 
+    ! of age_class_distr in which npp_daily might move to a different age class.
+    vartmp(:)=zero
+    DO j = 2, nvm
+       IF ( .NOT. is_tree(j) .AND. natural(j) ) THEN
+          vartmp(:) = vartmp(:) + npp_daily(:,j)*veget_max_hist(:,j,iage)
+       ENDIF
+    ENDDO
+    CALL xios_orchidee_send_field("nppGrass",vartmp/1e3/one_day)
+
+    ! NOTE: use veget_max_hist(age) because that is veget_max 
+    ! of age_class_distr in which npp_daily might move to a different age class.
+    DO j = 2, nvm
+       IF ( (.NOT. is_tree(j)) .AND. (.NOT. natural(j)) ) THEN
+          vartmp(:) = vartmp(:) + npp_daily(:,j)*veget_max_hist(:,j,iage)
+       ENDIF
+    ENDDO
+    CALL xios_orchidee_send_field("nppCrop",vartmp/1e3/one_day)
+
+    ! NOTE: use veget_max_hist(igro) because that is veget_max 
+    ! of age_class_distr in which npp_daily might move to a different age class.
+    vartmp(:)=zero
+    DO j = 2, nvm
+       IF ( is_tree(j) ) THEN
+          vartmp(:) = vartmp(:) + npp_daily(:,j)*veget_max_hist(:,j,iage)
+       ENDIF
+    ENDDO
+    CALL xios_orchidee_send_field("nppTree",vartmp/1e3/one_day)
+
+    ! NOTE: same as in tag 2.1
+    CALL xios_orchidee_send_field("rh",SUM(resp_hetero_hist(:,:,iage)*veget_max_hist(:,:,iage),dim=2)/1e3/one_day)
+    CALL xios_orchidee_send_field("rhLitter",SUM(resp_hetero_litter*veget_max_hist(:,:,iage),dim=2)/1e3/one_day)
+    CALL xios_orchidee_send_field("rhSoil",SUM(resp_hetero_soil*veget_max_hist(:,:,iage),dim=2)/1e3/one_day)
+    CALL xios_orchidee_send_field("HET_RESP_SOIL",resp_hetero_soil(:,:))
+    CALL xios_orchidee_send_field("HET_RESP_LITTER",resp_hetero_litter(:,:))
+
+    ! Soil and litter turnover for model evaluation. Initially the processing was 
+    ! done in XIOS but it made the model crash because of a division by zero. This
+    ! approach is less elegant but avoids crashes
+    vartmp(:)=SUM(resp_hetero_soil*veget_max_hist(:,:,iage),dim=2)
+    WHERE (vartmp(:).GT.zero)
+       vartmp(:) = SUM(tot_soil(:,:,icarbon)*veget_max,dim=2)/&
+            (SUM(resp_hetero_soil*veget_max_hist(:,:,iage),dim=2)*365.25)
+    ELSEWHERE
+       vartmp(:) = xios_default_val
+    ENDWHERE
+    CALL xios_orchidee_send_field("cSoilturnover",vartmp(:))
+
+    vartmp(:)=SUM(resp_hetero_litter*veget_max_hist(:,:,iage),dim=2)
+    WHERE (vartmp(:).GT.zero)
+       vartmp(:) = SUM(tot_litter(:,:,icarbon)*veget_max,dim=2)/&
+            (SUM(resp_hetero_litter*veget_max_hist(:,:,iage),dim=2)*365.25)
+    ELSEWHERE
+       vartmp(:) = xios_default_val
+    ENDWHERE
+    CALL xios_orchidee_send_field("cLitterturnover",vartmp(:))
+
+    vartmp(:)=SUM(resp_hetero_hist(:,:,iage)*veget_max_hist(:,:,iage),dim=2)
+    WHERE (vartmp(:).GT.zero)
+       vartmp(:) =SUM((tot_soil(:,:,icarbon)+tot_litter(:,:,icarbon))*veget_max,dim=2)/&
+            (SUM(resp_hetero_hist(:,:,iage)*veget_max_hist(:,:,iage),dim=2)*365.25) 
+    ELSEWHERE
+       vartmp(:) = xios_default_val
+    ENDWHERE
+    CALL xios_orchidee_send_field("cSoilLitterturnover",vartmp(:))
+
+    ! NOTE: co2_fire is calculated after luc. It's a flux so it is not moved
+    ! when veget_max is changing. Hence, use the veget_max from the subroutine
+    ! in which the flux was calculated.
+    CALL xios_orchidee_send_field("fFire",SUM(co2_fire_hist(:,:,iluc)*veget_max_hist(:,:,iluc),dim=2)/1e3/one_day)
+    ctotfirelut(:,:)=xios_default_val
+    WHERE(fraclut(:,id_psl) > min_sechiba)  
+       ctotfirelut(:,id_psl)= SUM(co2_fire_hist(:,:,iluc)*veget_max_hist(:,:,iluc),dim=2)/1e3/one_day &
+            / fraclut(:,id_psl)
+    ENDWHERE
+    CALL xios_orchidee_send_field("ctotfirelut",ctotfirelut)
+
+    ! NOTE: in tag 2.1 harvest_above was used. This approach assumes that the 
+    ! crop harvest decomposes in a single year, hence harvest = C-flux to the 
+    ! atmosphere. In ORCHIDEE 4.0 crop harvest decomposes over nshort (which 
+    ! could but should not be 1). Hence, the fluxes from product decomposition
+    ! need to be used.
+    vartmp(:) = SUM(SUM(flux_s(:,:,icarbon,:,icrop),2),2) + &
+         SUM(SUM(flux_m(:,:,icarbon,:,icrop),2),2) + &
+         SUM(SUM(flux_l(:,:,icarbon,:,icrop),2),2)
+    CALL xios_orchidee_send_field("fHarvest",vartmp/1e3/one_day)
+
+    vartmp(:) = SUM(SUM(flux_s(:,:,initrogen,:,icrop),2),2) + &
+         SUM(SUM(flux_m(:,:,initrogen,:,icrop),2),2) + &
+         SUM(SUM(flux_l(:,:,initrogen,:,icrop),2),2)
+    CALL xios_orchidee_send_field("fNHarvest",vartmp/1e3/one_day)
+
+    ! NOTE: in tag 2.1 wood harvest from forest management did not enter the
+    ! products pools. Hence the product pools only dealt with luc. In ORCHIDEE 4.0
+    ! product pools from harvest and luc were calculated separatly. Here only
+    ! the product pools from land cover changes are considered
+    CALL xios_orchidee_send_field("fLuc",SUM(flux_prod_total(:,icarbon,ilcc,:),2)/1e3/one_day)
+    CALL xios_orchidee_send_field("fNLuc",SUM(flux_prod_total(:,initrogen,ilcc,:),2)/1e3/one_day)   
+    
+    ! NOTE: According to the definitions in ORCHIDEE 4.0 this output should 
+    ! not consider the wood from land cover changes. 
+    CALL xios_orchidee_send_field("fWoodharvest", &
+         flux_prod_total(:,icarbon,iharvest,iforest)/1e3/one_day)
+    CALL xios_orchidee_send_field("fNWoodharvest", &
+         flux_prod_total(:,initrogen,iharvest,iforest)/1e3/one_day)
+
+    ! NOTE: According to the definitions in ORCHIDEE 4.0 this output should 
+    ! not consider the wood from harvest.
+    CALL xios_orchidee_send_field("fDeforestToProduct",&
+         flux_prod_total(:,icarbon,ilcc,iforest)/1e3/one_day)
+
+    ! NOTE: without the precise definitions of these fluxes it is extremely
+    ! difficult to understand what exactly has been calculated in tag 2.1.
+    ! Trying to match what was done in tag 2.1 but this should be carefully
+    ! checked.
+    flulccproductlut(:,:)=xios_default_val
+    flulccproductlut(:,id_psl)=flux_prod_total(:,icarbon,iharvest,iforest) + &
+         flux_prod_total(:,icarbon,iharvest,igrass)
+    flulccproductlut(:,id_crp)=flux_prod_total(:,icarbon,iharvest,icrop) 
+    WHERE(fraclut(:,id_psl) > min_sechiba)
+       flulccproductlut(:,id_psl)= (flulccproductlut(:,id_psl) + &
+            flux_prod_total(:,icarbon,ilcc,iforest) + &
+            flux_prod_total(:,icarbon,ilcc,igrass) ) &
+            /1e3/one_day / fraclut(:,id_psl)
+    ELSEWHERE
+       flulccproductlut(:,id_psl)= xios_default_val
+    ENDWHERE
+    WHERE(fraclut(:,id_crp) > min_sechiba)
+       flulccproductlut(:,id_crp)= (flulccproductlut(:,id_crp) + & 
+            flux_prod_total(:,icarbon,ilcc,iforest))&
+            /1e3/one_day / fraclut(:,id_crp)
+    ELSEWHERE
+       flulccproductlut(:,id_crp)= xios_default_val
+    ENDWHERE
+    CALL xios_orchidee_send_field("flulccproductlut",flulccproductlut)
+
+    ! NOTE: here I [SL] got completely lost in the definitions or better
+    ! in the lack of definitions. If you need this output restore it 
+    ! with our without my help.
+!!$    CALL xios_orchidee_send_field("flulccresiduelut",flulccresiduelut)
+!!$    CALL xios_orchidee_send_field("flulccresidue",flulccresidue)
+!!$    CALL xios_orchidee_send_field("flulccatmlut",flulccatmlut)
+
+
+    ! NOTE: same as in tag 2.1. In tag 2.1 nbp is written from stomate_lpj.f90
+    ! In ORCHIDEE 4.0 consistency of nbp is checked in stomate.f90 and the
+    ! variable is written to the history files after it passed cross checking.
+    CALL xios_orchidee_send_field("fVegLitter", &
+         SUM((tot_bm_to_litter(:,:,icarbon) + tot_turnover(:,:,icarbon))*&
+         veget_max,dim=2)/1e3/one_day)
+    CALL xios_orchidee_send_field("fNVegLitter", &
+         SUM((tot_bm_to_litter(:,:,initrogen) + tot_turnover(:,:,initrogen))*&
+         veget_max,dim=2)/1e3/one_day)
+    CALL xios_orchidee_send_field("fLitterSoil", &
+         SUM(SUM(som_input(:,:,:,icarbon),dim=2)*veget_max,dim=2)/1e3/one_day)
+    CALL xios_orchidee_send_field("fNLitterSoil", &
+         SUM(SUM(som_input(:,:,:,initrogen),dim=2)*veget_max,dim=2)/1e3/one_day)
+    ! Carbon stock transformed from gC/m2 into kgC/m2
+    CALL xios_orchidee_send_field("cLeaf",SUM(SUM(circ_class_biomass(:,:,:,ileaf,icarbon)*&
+         circ_class_n(:,:,:),3)*veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("nLeaf",SUM(SUM(circ_class_biomass(:,:,:,ileaf,initrogen)*&
+         circ_class_n(:,:,:),3)*veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("cStem",SUM(SUM((circ_class_biomass(:,:,:,isapabove,icarbon)+&
+         circ_class_biomass(:,:,:,iheartabove,icarbon))*circ_class_n(:,:,:),3)*veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("nStem",SUM(SUM((circ_class_biomass(:,:,:,isapabove,initrogen)+&
+         circ_class_biomass(:,:,:,iheartabove,initrogen))*circ_class_n(:,:,:),3)*veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("cWood",SUM(SUM((circ_class_biomass(:,:,:,isapabove,icarbon)+&
+         circ_class_biomass(:,:,:,iheartabove,icarbon)+circ_class_biomass(:,:,:,isapbelow,icarbon)+&
+         circ_class_biomass(:,:,:,iheartbelow,icarbon))*circ_class_n(:,:,:),3)*veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("cRoot",SUM(SUM((circ_class_biomass(:,:,:,iroot,icarbon) + &
+         circ_class_biomass(:,:,:,isapbelow,icarbon) + &
+         circ_class_biomass(:,:,:,iheartbelow,icarbon) )*circ_class_n(:,:,:),3)*veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("nRoot",SUM(SUM((circ_class_biomass(:,:,:,iroot,initrogen) + &
+         circ_class_biomass(:,:,:,isapbelow,initrogen) + &
+         circ_class_biomass(:,:,:,iheartbelow,initrogen) )*circ_class_n(:,:,:),3)*veget_max,dim=2)/1e3)
+
+    ! NOTE: "ilabile" does not exist in tag 2.1
+    CALL xios_orchidee_send_field("cMisc", &
+         SUM(SUM((circ_class_biomass(:,:,:,icarbres,icarbon) + &
+         circ_class_biomass(:,:,:,ilabile,icarbon) + & 
+         circ_class_biomass(:,:,:,ifruit,icarbon)) * &
+         circ_class_n(:,:,:),3)*veget_max,dim=2)/1e3)
+
+    ! NOTE: "iwoody" does not exist in tag 2.1
+    CALL xios_orchidee_send_field("cLitterAbove", &
+         SUM((litter(:,istructural,:,iabove,icarbon) + &
+         litter(:,imetabolic,:,iabove,icarbon) + & 
+         litter(:,iwoody,:,iabove,icarbon) + &
+         litter(:,isnag,:,iabove,icarbon))*veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("nLitterAbove", &
+         SUM((litter(:,istructural,:,iabove,initrogen) + &
+         litter(:,imetabolic,:,iabove,initrogen) + & 
+         litter(:,iwoody,:,iabove,initrogen) + &
+         litter(:,isnag,:,iabove,initrogen))*veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("cLitterBelow", &
+         SUM((litter(:,istructural,:,ibelow,icarbon) + &
+         litter(:,imetabolic,:,ibelow,icarbon) + &
+         litter(:,iwoody,:,ibelow,icarbon) + &
+         litter(:,isnag,:,ibelow,icarbon))*veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("nLitterBelow", &
+         SUM((litter(:,istructural,:,ibelow,initrogen) + &
+         litter(:,imetabolic,:,ibelow,initrogen) + &
+         litter(:,iwoody,:,ibelow,initrogen) + &
+         litter(:,isnag,:,ibelow,initrogen))*veget_max,dim=2)/1e3)
+
+    ! Carbon stock transformed from gC/m2 into kgC/m2
+    CALL xios_orchidee_send_field("cLitterCwd",SUM((litter(:,iwoody,:,ibelow,icarbon)+&
+         litter(:,iwoody,:,iabove,icarbon)+litter(:,isnag,:,ibelow,icarbon)+&
+         litter(:,isnag,:,iabove,icarbon))*veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("nLitterCwd",SUM((litter(:,iwoody,:,ibelow,initrogen)+&
+         litter(:,iwoody,:,iabove,initrogen)+litter(:,isnag,:,ibelow,initrogen)+&
+         litter(:,isnag,:,iabove,initrogen))*veget_max,dim=2)/1e3)
+
+    ! NOTE: "isurface" does not exist on tag 2.1
+    CALL xios_orchidee_send_field("cSoilFast", &
+         SUM((som(:,iactive,:,icarbon) + &
+         som(:,isurface,:,icarbon))*veget_max,dim=2)/1e3)
+
+    ! NOTE: same as in tag 2.1
+    CALL xios_orchidee_send_field("cSoilMedium", &
+         SUM(som(:,islow,:,icarbon)*veget_max,dim=2)/1e3)
+    CALL xios_orchidee_send_field("cSoilSlow",&
+         SUM(som(:,ipassive,:,icarbon)*veget_max,dim=2)/1e3)
+
+    ! NOTE: includes "isurface" which does not exist on tag 2.1
+    DO k = 1, ncarb
+       csoilpools(:,k) = SUM(som(:,k,:,icarbon)*veget_max,dim=2)/1e3
+    END DO
+    CALL xios_orchidee_send_field("cSoilPools",csoilpools)
+
+    ! Vegetation fractions [0,100]
+    CALL xios_orchidee_send_field("landCoverFrac",veget_max*100)
+
+    ! Carbon fluxes transformed from gC/m2/d into kgC/m2/s
+    CALL xios_orchidee_send_field("rGrowth",SUM(resp_growth_hist(:,:,iage)*veget_max_hist(:,:,iage),dim=2)/1e3/one_day)
+    CALL xios_orchidee_send_field("rMaint",SUM(resp_maint_hist(:,:,iage)*veget_max_hist(:,:,iage),dim=2)/1e3/one_day)
+
+    ! +++CHECK+++
+    ! When bm_alloc is calculated in stomate_growth_fun_all.f90) the C
+    ! allocated to the reserves and labile pools is NOT accounted for in
+    ! bm_alloc. I [SL] suspect that bm_alloc(ilabile) and bm_alloc(icarbres)
+    ! will always be zero. When calculating bm_alloc the npp is distributed
+    ! over the leaves, wood, roots and fruits but the labile and reserves
+    ! were overlooked. If you want to use the variables, revise the code
+    ! in stomate_growth_fun_all.f90.
+    CALL xios_orchidee_send_field("nppLeaf",SUM(bm_alloc(:,:,ileaf,icarbon)*veget_max_hist(:,:,igro),dim=2)/1e3/one_day)
+    ! nppStem : from wood above surface
+    CALL xios_orchidee_send_field("nppStem",SUM((bm_alloc(:,:,isapabove,icarbon) + bm_alloc(:,:,iheartabove,icarbon)) &
+         *veget_max_hist(:,:,igro),dim=2)/1e3/one_day)
+    ! nppWood : from wood above and below surface 
+    CALL xios_orchidee_send_field("nppWood",SUM((bm_alloc(:,:,isapabove,icarbon) + bm_alloc(:,:,iheartabove,icarbon) + &
+         bm_alloc(:,:,isapbelow,icarbon) + bm_alloc(:,:,iheartbelow,icarbon)) &
+         *veget_max_hist(:,:,igro),dim=2)/1e3/one_day)
+    ! nppRoot : from wood below surface and fine roots
+    CALL xios_orchidee_send_field("nppRoot",SUM((bm_alloc(:,:,isapbelow,icarbon) + bm_alloc(:,:,iheartbelow,icarbon) + &
+         bm_alloc(:,:,iroot,icarbon)) * veget_max_hist(:,:,igro),dim=2)/1e3/one_day)
+    CALL xios_orchidee_send_field("nppOther",SUM(( bm_alloc(:,:,ifruit,icarbon) + bm_alloc(:,:,icarbres,icarbon) + bm_alloc(:,:,ilabile,icarbon) ) * &
+         veget_max_hist(:,:,igro),dim=2)/1e3/one_day)
+    !+++++++++++
+
+    ! Calculate variables according to LUMIP specifications. 
+    clitterlut(:,:) = 0 
+    csoillut(:,:) = 0 
+    cveglut(:,:) = 0
+    lailut(:,:) = 0
+    ralut(:,:) = 0
+    rhlut(:,:) = 0
+    npplut(:,:) = 0
+
+    DO j=1,nvm
+       IF (natural(j)) THEN
+          ! NOTE: same as in tag 2.1 although some of the variables going into
+          ! these calculations may be slightly different (see above)
+          clitterlut(:,id_psl) = clitterlut(:,id_psl) + tot_litter(:,j,icarbon)*veget_max(:,j)/1e3
+          csoillut(:,id_psl) = csoillut(:,id_psl) + tot_soil(:,j,icarbon)*veget_max(:,j)/1e3
+          cveglut(:,id_psl) = cveglut(:,id_psl) + tot_live_biomass(:,j,icarbon)*veget_max(:,j)/1e3
+          lailut(:,id_psl) = lailut(:,id_psl) + lai(:,j)*veget_max(:,j)
+          ralut(:,id_psl) = ralut(:,id_psl) + &
+               (resp_maint_hist(:,j,iage)+resp_growth_hist(:,j,iage)) * &
+               veget_max_hist(:,j,iage)/1e3/one_day
+          rhlut(:,id_psl) = rhlut(:,id_psl) + &
+               resp_hetero_hist(:,j,iage)*veget_max_hist(:,j,iage)/1e3/one_day
+          npplut(:,id_psl) = npplut(:,id_psl) + &
+               npp_daily(:,j)*veget_max_hist(:,j,iage)/1e3/one_day
+       ELSE
+          clitterlut(:,id_crp) = clitterlut(:,id_crp) + tot_litter(:,j,icarbon)*veget_max(:,j)/1e3
+          csoillut(:,id_crp) = csoillut(:,id_crp) + tot_soil(:,j,icarbon)*veget_max(:,j)/1e3
+          cveglut(:,id_crp) = cveglut(:,id_crp) + tot_live_biomass(:,j,icarbon)*veget_max(:,j)/1e3
+          lailut(:,id_crp) = lailut(:,id_crp) + lai(:,j)*veget_max(:,j)
+          ralut(:,id_crp) = ralut(:,id_crp) + &
+               (resp_maint_hist(:,j,iage)+resp_growth_hist(:,j,iage))*veget_max_hist(:,j,iage)/1e3/one_day
+          rhlut(:,id_crp) = rhlut(:,id_crp) + &
+               resp_hetero_hist(:,j,iage)*veget_max_hist(:,j,iage)/1e3/one_day
+          npplut(:,id_crp) = npplut(:,id_crp) + &
+               npp_daily(:,j)*veget_max_hist(:,j,iage)/1e3/one_day
+       END IF
+    END DO
+
+    ! NOTE: same as in tag 2.1
+    WHERE (fraclut(:,id_psl)>min_sechiba)
+       clitterlut(:,id_psl) = clitterlut(:,id_psl)/fraclut(:,id_psl)
+       csoillut(:,id_psl) = csoillut(:,id_psl)/fraclut(:,id_psl)
+       cveglut(:,id_psl) = cveglut(:,id_psl)/fraclut(:,id_psl)
+       lailut(:,id_psl) = lailut(:,id_psl)/fraclut(:,id_psl)
+       ralut(:,id_psl) = ralut(:,id_psl)/fraclut(:,id_psl)
+       rhlut(:,id_psl) = rhlut(:,id_psl)/fraclut(:,id_psl)
+       npplut(:,id_psl) = npplut(:,id_psl)/fraclut(:,id_psl)
+    ELSEWHERE
+       clitterlut(:,id_psl) = xios_default_val
+       csoillut(:,id_psl) = xios_default_val
+       cveglut(:,id_psl) = xios_default_val
+       lailut(:,id_psl) = xios_default_val
+       ralut(:,id_psl) = xios_default_val
+       rhlut(:,id_psl) = xios_default_val
+       npplut(:,id_psl) = xios_default_val
+    END WHERE
+
+    ! NOTE: same as in tag 2.1
+    WHERE (fraclut(:,id_crp)>min_sechiba)
+       clitterlut(:,id_crp) = clitterlut(:,id_crp)/fraclut(:,id_crp)
+       csoillut(:,id_crp) = csoillut(:,id_crp)/fraclut(:,id_crp)
+       cveglut(:,id_crp) = cveglut(:,id_crp)/fraclut(:,id_crp)
+       lailut(:,id_crp) = lailut(:,id_crp)/fraclut(:,id_crp)
+       ralut(:,id_crp) = ralut(:,id_crp)/fraclut(:,id_crp)
+       rhlut(:,id_crp) = rhlut(:,id_crp)/fraclut(:,id_crp)
+       npplut(:,id_crp) = npplut(:,id_crp)/fraclut(:,id_crp)
+    ELSEWHERE
+       clitterlut(:,id_crp) = xios_default_val
+       csoillut(:,id_crp) = xios_default_val
+       cveglut(:,id_crp) = xios_default_val
+       lailut(:,id_crp) = xios_default_val
+       ralut(:,id_crp) = xios_default_val
+       rhlut(:,id_crp) = xios_default_val
+       npplut(:,id_crp) = xios_default_val
+    END WHERE
+
+    ! NOTE: same as in tag 2.1
+    clitterlut(:,id_pst) = xios_default_val
+    clitterlut(:,id_urb) = xios_default_val
+    csoillut(:,id_pst)   = xios_default_val
+    csoillut(:,id_urb)   = xios_default_val
+    cveglut(:,id_pst)    = xios_default_val
+    cveglut(:,id_urb)    = xios_default_val
+    lailut(:,id_pst)     = xios_default_val
+    lailut(:,id_urb)     = xios_default_val
+    ralut(:,id_pst)      = xios_default_val
+    ralut(:,id_urb)      = xios_default_val
+    rhlut(:,id_pst)      = xios_default_val
+    rhlut(:,id_urb)      = xios_default_val
+    npplut(:,id_pst)     = xios_default_val
+    npplut(:,id_urb)     = xios_default_val
+
+    CALL xios_orchidee_send_field("clitterlut",clitterlut)
+    CALL xios_orchidee_send_field("csoillut",csoillut)
+    CALL xios_orchidee_send_field("cveglut",cveglut)
+    CALL xios_orchidee_send_field("lailut",lailut)
+    CALL xios_orchidee_send_field("ralut",ralut)
+    CALL xios_orchidee_send_field("rhlut",rhlut)
+    CALL xios_orchidee_send_field("npplut",npplut)
+
+    IF (ok_peat_NoDiscretisation) THEN
+       CALL xios_orchidee_send_field("TCARBON_ACRO", tcarbon_acro)
+       CALL xios_orchidee_send_field("TCARBON_CATO", tcarbon_cato)
+       CALL xios_orchidee_send_field("CARBON_ACRO",carbon_acro(:,:))
+       CALL xios_orchidee_send_field("CARBON_CATO",carbon_cato(:,:))
+       CALL xios_orchidee_send_field("HEIGHT_ACRO",height_acro)
+       CALL xios_orchidee_send_field("HEIGHT_CATO",height_cato)
+      
+    ENDIF
+
+    ! +++ Output for DBEN +++
+    temp(:,:) = SUM((circ_class_biomass(:,:,:,ileaf,icarbon) +& 
+            circ_class_biomass(:,:,:,isapabove,icarbon) + &
+            circ_class_biomass(:,:,:,isapbelow,icarbon) + &
+            circ_class_biomass(:,:,:,iheartabove,icarbon) + &
+            circ_class_biomass(:,:,:,iheartbelow,icarbon) + &
+            circ_class_biomass(:,:,:,iroot,icarbon) + &
+            circ_class_biomass(:,:,:,ifruit,icarbon) + &
+            circ_class_biomass(:,:,:,ilabile,icarbon) + &
+            circ_class_biomass(:,:,:,icarbres,icarbon))*circ_class_n(:,:,:),3)
+    CALL xios_orchidee_send_field("cveg_dben",temp(:,:)/1e3)
+    !-
+    temp(:,:) = SUM((circ_class_biomass(:,:,:,isapabove,icarbon) + &
+            circ_class_biomass(:,:,:,iheartabove,icarbon))*circ_class_n(:,:,:),3)
+    CALL xios_orchidee_send_field("AGcwood_dben",temp(:,:)/1e3)
+    !-
+    CALL xios_orchidee_send_field("height_dben",dom_height(:,:))
+    !-
+    WHERE (SUM(circ_class_biomass(:,:,:,ileaf,icarbon),3).GT.zero)
+        lai_diag(:,:) = lai(:,:)
+    ELSEWHERE
+        lai_diag(:,:) = xios_default_val
+    ENDWHERE
+    CALL xios_orchidee_send_field("lai_mean_dben",lai(:,:))
+    CALL xios_orchidee_send_field("lai_mean_gs_dben",lai_diag(:,:))
+    !-
+    CALL xios_orchidee_send_field("gpp_dben",gpp_daily(:,:)/1e3/one_day*365)
+    CALL xios_orchidee_send_field("npp_dben",npp_daily(:,:)/1e3/one_day*365)
+    CALL xios_orchidee_send_field('nbp_dben',nbp_daily_flux(:,icarbon)/1e3/one_day*365)
+    !-
+    ! At the end of a time step the sum of WBgrowth_dben and cmort_dben should
+    ! equal cwood_dben. WBgrowth and cmort are fluxes so they are accumulated 
+    ! over the timestep (see xios field definition). cwood_dben is a pool and
+    ! therefor the last value of the time step has to be used. This can be done
+    ! by using the "instant" operator in xios field definition.
+    temp(:,:) = zero
+    DO ivm = 1,nvm
+       IF (is_tree(ivm)) THEN
+          temp(:,ivm) = (delta_wood_vol_tot_hist(:,ivm,ipre) + &
+               delta_wood_vol_tot_hist(:,ivm,igro) + &
+               delta_wood_vol_tot_hist(:,ivm,irec)) * &
+               pipe_density(ivm)
+       END IF
+    END DO
+    CALL xios_orchidee_send_field('WBgrowth_dben',temp(:,:)/1e3)
+    ! Trying anther approach
+    temp(:,:) = zero
+    DO ivm = 1,nvm
+       IF (is_tree(ivm)) THEN
+          temp(:,ivm) = (delta_wood_vol_tot_hist(:,ivm,ipre)) * &
+               pipe_density(ivm)
+       END IF
+    END DO
+    CALL xios_orchidee_send_field('cprescribe_dben',temp(:,:)/1e3)
+    temp(:,:) = zero
+    DO ivm = 1,nvm
+       IF (is_tree(ivm)) THEN
+          temp(:,ivm) = (delta_wood_vol_tot_hist(:,ivm,igro) + &
+               delta_wood_vol_tot_hist(:,ivm,irec)) * &
+               pipe_density(ivm)
+       END IF
+    END DO
+    CALL xios_orchidee_send_field('cgrowth_dben',temp(:,:)/1e3)    
+
+
+    !- 
+    temp(:,:) = zero
+    DO ivm = 1,nvm
+       IF (is_tree(ivm)) THEN
+          temp(:,ivm) = (delta_wood_vol_tot_hist(:,ivm,icle) + &
+               delta_wood_vol_tot_hist(:,ivm,imor) + &
+               delta_wood_vol_tot_hist(:,ivm,itur)) * &
+               pipe_density(ivm)
+       END IF
+    END DO
+    CALL xios_orchidee_send_field('cmort_dben',temp(:,:)/1e3)
+    !-
+    temp(:,:) = zero
+    wood_volume = wood_to_tot_volume(npts,circ_class_biomass, &
+         circ_class_n,branch_ratio,1)
+    DO ivm = 1,nvm
+       IF (is_tree(ivm)) THEN
+          temp(:,ivm) = wood_volume(:,ivm) * &
+               pipe_density(ivm) 
+       END IF
+    END DO
+    CALL xios_orchidee_send_field("cwood_dben",temp(:,:)/1e3)
+    !-
+    ! Write output file with fixed diameter classes
+    ! convert biomass into diameters
+    temp6(:,:,:) = zero
+    temp7(:,:,:) = zero
+    DO ipts = 1,npts
+       DO ivm = 1,nvm
+          IF(is_tree(ivm))THEN
+             circ_dia(:) = wood_to_dia(circ_class_biomass(ipts,ivm,:,:,icarbon),&
+                  ivm,pipe_tune2(ipts,ivm))
+             istart = 2
+             DO icir = 1,ncirc
+                DO iout = istart,noutdiaclass+1
+                   IF (circ_dia(icir).GE.out_dia_class(iout-1) .AND. & 
+                        circ_dia(icir).LT.out_dia_class(iout)) THEN
+                      ! Number of living trees
+                      temp6(ipts,ivm,iout-1) = temp6(ipts,ivm,iout-1) + &
+                           circ_class_n(ipts,ivm,icir)
+                      ! Aboveground woody biomass of living trees
+                      temp7(ipts,ivm,iout-1) = temp7(ipts,ivm,iout-1) + &
+                           (circ_class_biomass(ipts,ivm,icir,isapabove,icarbon) + &
+                           circ_class_biomass(ipts,ivm,icir,iheartabove,icarbon)) * &
+                           circ_class_n(ipts,ivm,icir)
+                      istart = iout
+                   END IF
+                END DO
+             END DO ! icirc
+          END IF ! is_tree
+       END DO ! ivm
+    END DO ! ipts
+    CALL xios_orchidee_send_field("nstem_size_dben",temp6(:,:,:)*m2_to_ha)
+    CALL xios_orchidee_send_field("cwood_size_dben",temp7(:,:,:)/1e3)
+    ! +++++++++++++++++++++++
+
+
+    ! WRITE to IOIPSL
+    CALL histwrite_p (hist_id_stomate, 'RESOLUTION_X', itime, &
+         resolution(:,1), npts, hori_index)
+    CALL histwrite_p (hist_id_stomate, 'RESOLUTION_Y', itime, &
+         resolution(:,2), npts, hori_index)
+    CALL histwrite_p (hist_id_stomate, 'CONTFRAC', itime, &
+         contfrac(:), npts, hori_index)
+
+    CALL histwrite_p (hist_id_stomate, 'DEADLEAF_COVER', itime, &
+         deadleaf_cover, npts, hori_index)
+
+    CALL histwrite_p (hist_id_stomate, 'TOTAL_SOIL_CARB', itime, &
+         tot_soil(:,:,icarbon), npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'TOTAL_LITT_SOIL_CARB', itime, &
+         tot_litter_soil(:,:,icarbon), npts*nvm, horipft_index)
+
+    CALL histwrite_p (hist_id_stomate, 'T2M_MONTH', itime, &
+         t2m_month, npts, hori_index)
+    CALL histwrite_p (hist_id_stomate, 'T2M_WEEK', itime, &
+         t2m_week, npts, hori_index)
+    CALL histwrite_p (hist_id_stomate, 'TSEASON', itime, &
+         Tseason, npts, hori_index)
+    CALL histwrite_p (hist_id_stomate, 'TMIN_SPRING_TIME', itime, &
+         Tmin_spring_time, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'FPC_MAX', itime, &
+         fpc_max, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'MAXFPC_LASTYEAR', itime, &
+         maxfpc_lastyear, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'HET_RESP', itime, &
+         resp_hetero(:,:), npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'FIREINDEX', itime, &
+         fireindex(:,:), npts*nvm, horipft_index)
+!!$    CALL histwrite_p (hist_id_stomate, 'LITTERHUM', itime, &
+!!$         litterhum_daily, npts, hori_index)
+    CALL histwrite_p (hist_id_stomate, 'CO2_FIRE', itime, &
+         co2_fire, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'CO2_TAKEN', itime, &
+         SUM(atm_to_bm_hist(:,:,:,icarbon),3), npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'N_TAKEN', itime, &
+         SUM(atm_to_bm_hist(:,:,:,initrogen),3), npts*nvm, horipft_index)
+
+    CALL histwrite_p (hist_id_stomate, 'LAI', itime, &
+         lai, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'VEGET_MAX', itime, &
+         veget_max, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'NPP', itime, &
+         npp_daily, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'GPP', itime, &
+         gpp_daily, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'IND', itime, &
+         SUM(circ_class_n(:,:,:),3), npts*nvm, horipft_index)
+    var_real=REAL(age_stand)
+    CALL histwrite_p (hist_id_stomate, 'AGE_STAND', itime, &
+         var_real, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'CN_IND', itime, &
+         cn_ind, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'WOODMASS_IND', itime, &
+         woodmass_ind, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'WOOD_VOLUME_PIX_CUT', itime, &
+         wood_volume_pix_cut, npts*ncut_times, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'RDI', itime, &
+         rdi, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'RDI_TARGET_UPPER', itime, &
+        rdi_target_upper, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'RDI_TARGET_LOWER', itime, &
+         rdi_target_lower, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'MAINT_RESP', itime, &
+         resp_maint, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'GROWTH_RESP', itime, &
+         resp_growth, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'PLANT_STATUS', itime, &
+         plant_status, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'AGE', itime, &
+         age, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'DIAMETER', itime, &
+         qm_dia, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'HEIGHT', itime, &
+         qm_height, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'DIAMETER_MAN', itime, &
+         dom_dia, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'HEIGHT_DOM', itime, &
+         dom_height, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'IND_DOM', itime, &
+         circ_class_n(:,:,ncirc), npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'VCMAX', itime, &
+         vcmax_new, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'TURNOVER_TIME_LEAF', itime, &
+         turnover_time(:,:,ileaf), npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'TURNOVER_TIME_ROOT', itime, &
+         turnover_time(:,:,iroot), npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'TURNOVER_TIME_SAP_AB', itime, &
+         turnover_time(:,:,isapabove), npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'TURNOVER_TIME_FRUIT', itime, &
+         turnover_time(:,:,ifruit), npts*nvm, horipft_index) 
+ 
+
+    DO l=1,nelements 
+       IF     (l == icarbon) THEN 
+          element_str(l) = '_c' 
+       ELSEIF (l == initrogen) THEN 
+          element_str(l) = '_n' 
+       ELSE 
+          STOP 'Define element_str' 
+       ENDIF 
+
+       CALL histwrite_p (hist_id_stomate, 'FLUX_PROD_S'//TRIM(element_str(l)), itime, &
+            SUM(SUM(flux_prod_s(:,l,:,:),2),2), npts, hori_index)
+       CALL histwrite_p (hist_id_stomate, 'FLUX_PROD_M'//TRIM(element_str(l)), itime, &
+            SUM(SUM(flux_prod_m(:,l,:,:),2),2), npts, hori_index)
+       CALL histwrite_p (hist_id_stomate, 'FLUX_PROD_L'//TRIM(element_str(l)), itime, &
+            SUM(SUM(flux_prod_l(:,l,:,:),2),2), npts, hori_index)
+       CALL histwrite_p (hist_id_stomate, 'PROD_S'//TRIM(element_str(l)), itime, &
+            SUM(SUM(prod_s(:,:,l,:,:),3),3), npts*(nshort+1), horip_ss_index)
+       CALL histwrite_p (hist_id_stomate, 'PROD_M'//TRIM(element_str(l)), itime, &
+            SUM(SUM(prod_m(:,:,l,:,:),3),3), npts*(nmedium+1), horip_mm_index)
+       CALL histwrite_p (hist_id_stomate, 'PROD_L'//TRIM(element_str(l)), itime, &
+            SUM(SUM(prod_l(:,:,l,:,:),3),3), npts*(nlong+1), horip_ll_index)
+!!$       CALL histwrite_p (hist_id_stomate, 'FLUX_S'//TRIM(element_str(l)), itime, &
+!!$            SUM(SUM(flux_s(:,:,l,:,:),3),3), npts*(nshort+1), horip_ss_index)
+!!$       CALL histwrite_p (hist_id_stomate, 'FLUX_M'//TRIM(element_str(l)), itime, &
+!!$            SUM(SUM(flux_m(:,:,l,:,:),3),3), npts*(nmedium+1), horip_mm_index)
+!!$       CALL histwrite_p (hist_id_stomate, 'FLUX_L'//TRIM(element_str(l)), itime, &
+!!$            SUM(SUM(flux_l(:,:,l,:,:),3),3), npts*(nlong+1), horip_ll_index)
+  
+       CALL histwrite_p (hist_id_stomate, 'LITTER_STR_AB'//TRIM(element_str(l)), itime, & 
+            litter(:,istructural,:,iabove,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'LITTER_MET_AB'//TRIM(element_str(l)), itime, & 
+            litter(:,imetabolic,:,iabove,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'LITTER_STR_BE'//TRIM(element_str(l)), itime, & 
+            litter(:,istructural,:,ibelow,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'LITTER_MET_BE'//TRIM(element_str(l)), itime, & 
+            litter(:,imetabolic,:,ibelow,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'LITTER_WOD_AB'//TRIM(element_str(l)), itime, & 
+            litter(:,iwoody,:,iabove,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'LITTER_WOD_BE'//TRIM(element_str(l)), itime, & 
+            litter(:,iwoody,:,ibelow,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'SOIL_ACTIVE'//TRIM(element_str(l)), itime, & 
+            som(:,iactive,:,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'SOIL_SLOW'//TRIM(element_str(l)), itime, & 
+            som(:,islow,:,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'SOIL_PASSIVE'//TRIM(element_str(l)), itime, & 
+            som(:,ipassive,:,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'SOIL_SURF'//TRIM(element_str(l)), itime, & 
+            som(:,isurface,:,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'TOTAL_M'//TRIM(element_str(l)), itime, & 
+            tot_live_biomass(:,:,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'LEAF_M'//TRIM(element_str(l)), itime, & 
+            SUM(circ_class_biomass(:,:,:,ileaf,l)*circ_class_n(:,:,:),3),&
+            npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'SAP_M_AB'//TRIM(element_str(l)), itime, & 
+            SUM(circ_class_biomass(:,:,:,isapabove,l)*circ_class_n(:,:,:),3), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'SAP_M_BE'//TRIM(element_str(l)), itime, & 
+            SUM(circ_class_biomass(:,:,:,isapbelow,l)*circ_class_n(:,:,:),3), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'HEART_M_AB'//TRIM(element_str(l)), itime, & 
+            SUM(circ_class_biomass(:,:,:,iheartabove,l)*circ_class_n(:,:,:),3), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'HEART_M_BE'//TRIM(element_str(l)), itime, & 
+            SUM(circ_class_biomass(:,:,:,iheartbelow,l)*circ_class_n(:,:,:),3), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'ROOT_M'//TRIM(element_str(l)), itime, & 
+            SUM(circ_class_biomass(:,:,:,iroot,l)*circ_class_n(:,:,:),3), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'FRUIT_M'//TRIM(element_str(l)), itime, & 
+            SUM(circ_class_biomass(:,:,:,ifruit,l)*circ_class_n(:,:,:),3), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'RESERVE_M'//TRIM(element_str(l)), itime, & 
+            SUM(circ_class_biomass(:,:,:,icarbres,l)*circ_class_n(:,:,:),3), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'LABILE_M'//TRIM(element_str(l)), itime, & 
+            SUM(circ_class_biomass(:,:,:,ilabile,l)*circ_class_n(:,:,:),3), npts*nvm, horipft_index)
+
+       CALL histwrite_p (hist_id_stomate, 'TOTAL_TURN'//TRIM(element_str(l)), itime, & 
+            tot_turnover(:,:,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'LEAF_TURN'//TRIM(element_str(l)), itime, & 
+            turnover_daily(:,:,ileaf,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'SAP_AB_TURN'//TRIM(element_str(l)), itime, & 
+            turnover_daily(:,:,isapabove,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'ROOT_TURN'//TRIM(element_str(l)), itime, & 
+            turnover_daily(:,:,iroot,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'FRUIT_TURN'//TRIM(element_str(l)), itime, & 
+            turnover_daily(:,:,ifruit,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'TOTAL_BM_LITTER'//TRIM(element_str(l)), itime, & 
+            tot_bm_to_litter(:,:,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'LEAF_BM_LITTER'//TRIM(element_str(l)), itime, & 
+            bm_to_litter(:,:,ileaf,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'SAP_AB_BM_LITTER'//TRIM(element_str(l)), itime, & 
+            bm_to_litter(:,:,isapabove,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'SAP_BE_BM_LITTER'//TRIM(element_str(l)), itime, & 
+            bm_to_litter(:,:,isapbelow,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'HEART_AB_BM_LITTER'//TRIM(element_str(l)), itime, & 
+            bm_to_litter(:,:,iheartabove,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'HEART_BE_BM_LITTER'//TRIM(element_str(l)), itime, & 
+            bm_to_litter(:,:,iheartbelow,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'ROOT_BM_LITTER'//TRIM(element_str(l)), itime, & 
+            bm_to_litter(:,:,iroot,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'FRUIT_BM_LITTER'//TRIM(element_str(l)), itime, & 
+            bm_to_litter(:,:,ifruit,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'RESERVE_BM_LITTER'//TRIM(element_str(l)), itime, & 
+            bm_to_litter(:,:,icarbres,l), npts*nvm, horipft_index) 
+       CALL histwrite_p (hist_id_stomate, 'LABILE_BM_LITTER'//TRIM(element_str(l)), itime, &
+            bm_to_litter(:,:,ilabile,l), npts*nvm, horipft_index)      
+    ENDDO
+
+    IF ( hist_id_stomate_IPCC > 0 ) THEN
+       vartmp(:)=SUM(tot_live_biomass(:,:,icarbon)*veget_max,dim=2)/1e3
+       CALL histwrite_p (hist_id_stomate_IPCC, "cVeg", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(tot_live_biomass(:,:,initrogen)*veget_max,dim=2)/1e3
+       CALL histwrite_p (hist_id_stomate_IPCC, "nVeg", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(tot_litter(:,:,icarbon)*veget_max,dim=2)/1e3
+       CALL histwrite_p (hist_id_stomate_IPCC, "cLitter", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(tot_litter(:,:,initrogen)*veget_max,dim=2)/1e3
+       CALL histwrite_p (hist_id_stomate_IPCC, "nLitter", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(tot_soil(:,:,icarbon)*veget_max,dim=2)/1e3
+       CALL histwrite_p (hist_id_stomate_IPCC, "cSoil", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)= (SUM(SUM(prod_s_total(:,icarbon,:,:),2),2) + &
+            SUM(SUM(prod_m_total(:,icarbon,:,:),2),2) + &
+            SUM(SUM(prod_l_total(:,icarbon,:,:),2),2) ) / area(:)/ contfrac(:)/ 1e3
+       CALL histwrite_p (hist_id_stomate_IPCC, "cProduct", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=carb_mass_variation/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "cMassVariation", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(lai*veget_max,dim=2)
+       CALL histwrite_p (hist_id_stomate_IPCC, "lai", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(gpp_daily*veget_max_hist(:,:,iage),dim=2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "gpp", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM((resp_maint+resp_growth)*veget_max_hist(:,:,iage),dim=2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "ra", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(npp_daily*veget_max_hist(:,:,iage),dim=2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "npp", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(resp_hetero_hist(:,:,iage)*veget_max_hist(:,:,iage),dim=2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "rh", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(co2_fire_hist(:,:,iluc)*veget_max_hist(:,:,iluc),dim=2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "fFire", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(flux_prod_total(:,icarbon,iharvest,:),2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "fHarvest", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(flux_prod_total(:,initrogen,iharvest,:),2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "fNHarvest", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(flux_prod_total(:,icarbon,ilcc,:),2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "fLuc", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(flux_prod_total(:,initrogen,ilcc,:),2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "fNLuc", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=flux_prod_total(:,icarbon,iharvest,iforest)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "fWoodharvest", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=flux_prod_total(:,initrogen,iharvest,iforest)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "fNWoodharvest", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM((tot_bm_to_litter(:,:,icarbon) + tot_turnover(:,:,icarbon))*veget_max,dim=2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "fVegLitter", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM((tot_bm_to_litter(:,:,initrogen) + tot_turnover(:,:,initrogen))*veget_max,dim=2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "fNVegLitter", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(SUM(som_input(:,:,:,icarbon),dim=2)*veget_max,dim=2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "fLitterSoil", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(SUM(som_input(:,:,:,initrogen),dim=2)*veget_max,dim=2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "fNLitterSoil", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(SUM(circ_class_biomass(:,:,:,ileaf,icarbon)*&
+            circ_class_n(:,:,:),3)*veget_max,dim=2)/1e3
+       CALL histwrite_p (hist_id_stomate_IPCC, "cLeaf", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(SUM(circ_class_biomass(:,:,:,ileaf,initrogen)*&
+            circ_class_n(:,:,:),3)*veget_max,dim=2)/1e3
+       CALL histwrite_p (hist_id_stomate_IPCC, "nLeaf", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(SUM((circ_class_biomass(:,:,:,isapabove,icarbon)+&
+            circ_class_biomass(:,:,:,iheartabove,icarbon))*circ_class_n(:,:,:),3)* &
+            veget_max,dim=2)/1e3
+       CALL histwrite_p (hist_id_stomate_IPCC, "cStem", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(SUM((circ_class_biomass(:,:,:,isapabove,icarbon)+&
+            circ_class_biomass(:,:,:,iheartabove,icarbon)+circ_class_biomass(:,:,:,isapbelow,icarbon)+&
+            circ_class_biomass(:,:,:,iheartbelow,icarbon))*circ_class_n(:,:,:),3)*veget_max,dim=2)/1e3
+       CALL histwrite_p (hist_id_stomate_IPCC, "cWood", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(SUM(( circ_class_biomass(:,:,:,iroot,icarbon) + &
+            circ_class_biomass(:,:,:,isapbelow,icarbon) + &
+            circ_class_biomass(:,:,:,iheartbelow,icarbon) )*circ_class_n(:,:,:),3)*& 
+            veget_max,dim=2)/1e3
+       CALL histwrite_p (hist_id_stomate_IPCC, "cRoot", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(SUM((circ_class_biomass(:,:,:,icarbres,icarbon) + &
+            circ_class_biomass(:,:,:,ilabile,icarbon) + &
+            circ_class_biomass(:,:,:,ifruit,icarbon))*circ_class_n(:,:,:),3)*&
+            veget_max,dim=2)/1e3
+       CALL histwrite_p (hist_id_stomate_IPCC, "cMisc", itime, &
+            vartmp, npts, hori_index)
+   
+       vartmp(:)=SUM((litter(:,istructural,:,iabove,icarbon)+litter(:,imetabolic,:,iabove,icarbon)+ &
+            litter(:,iwoody,:,iabove,icarbon)+litter(:,isnag,:,iabove,icarbon)) * veget_max,dim=2)/1e3
+       CALL histwrite_p (hist_id_stomate_IPCC, "cLitterAbove", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM((litter(:,istructural,:,ibelow,icarbon)+litter(:,imetabolic,:,ibelow,icarbon)+ &
+            litter(:,iwoody,:,ibelow,icarbon)+litter(:,isnag,:,ibelow,icarbon)) * veget_max,dim=2)/1e3
+       CALL histwrite_p (hist_id_stomate_IPCC, "cLitterBelow", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM((som(:,iactive,:,icarbon)+som(:,isurface,:,icarbon))*veget_max,dim=2)/1e3
+       CALL histwrite_p (hist_id_stomate_IPCC, "cSoilFast", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(som(:,islow,:,icarbon)*veget_max,dim=2)/1e3
+       CALL histwrite_p (hist_id_stomate_IPCC, "cSoilMedium", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(som(:,ipassive,:,icarbon)*veget_max,dim=2)/1e3
+       CALL histwrite_p (hist_id_stomate_IPCC, "cSoilSlow", itime, &
+            vartmp, npts, hori_index)
+       DO j=1,nvm
+          histvar(:,j)=veget_max(:,j)*100
+       ENDDO
+       CALL histwrite_p (hist_id_stomate_IPCC, "landCoverFrac", itime, &
+            histvar, npts*nvm, horipft_index)
+       !-
+       vartmp(:)=zero
+       DO j = 2,nvm
+          IF (is_deciduous(j)) THEN
+             vartmp(:) = vartmp(:) + veget_max(:,j)*100
+          ENDIF
+       ENDDO
+       CALL histwrite_p (hist_id_stomate_IPCC, "treeFracPrimDec", itime, &
+            vartmp, npts, hori_index)
+       !-
+       vartmp(:)=zero
+       DO j = 2,nvm
+          IF (is_evergreen(j)) THEN
+             vartmp(:) = vartmp(:) + veget_max(:,j)*100
+          ENDIF
+       ENDDO
+       CALL histwrite_p (hist_id_stomate_IPCC, "treeFracPrimEver", itime, &
+            vartmp, npts, hori_index)
+       !-
+       vartmp(:)=zero
+       DO j = 2,nvm
+          IF ( .NOT.(is_c4(j)) ) THEN
+             vartmp(:) = vartmp(:) + veget_max(:,j)*100
+          ENDIF
+       ENDDO
+       CALL histwrite_p (hist_id_stomate_IPCC, "c3PftFrac", itime, &
+            vartmp, npts, hori_index)
+       !-
+       vartmp(:)=zero
+       DO j = 2,nvm
+          IF ( is_c4(j) ) THEN
+             vartmp(:) = vartmp(:) + veget_max(:,j)*100
+          ENDIF
+       ENDDO
+       CALL histwrite_p (hist_id_stomate_IPCC, "c4PftFrac", itime, &
+            vartmp, npts, hori_index)
+       !-
+       vartmp(:)=SUM(resp_growth_hist(:,:,iage)*veget_max_hist(:,:,iage),dim=2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "rGrowth", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(resp_maint_hist(:,:,iage)*veget_max_hist(:,:,iage),dim=2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "rMaint", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(bm_alloc(:,:,ileaf,icarbon)*veget_max_hist(:,:,igro),dim=2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "nppLeaf", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM((bm_alloc(:,:,isapabove,icarbon) + bm_alloc(:,:,iheartabove,icarbon))*veget_max_hist(:,:,igro),dim=2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "nppStem", itime, &
+            vartmp, npts, hori_index)
+       vartmp(:)=SUM(( bm_alloc(:,:,isapbelow,icarbon) + bm_alloc(:,:,iroot,icarbon) )*veget_max_hist(:,:,igro),dim=2)/1e3/one_day
+       CALL histwrite_p (hist_id_stomate_IPCC, "nppRoot", itime, &
+            vartmp, npts, hori_index)
+
+       CALL histwrite_p (hist_id_stomate_IPCC, 'RESOLUTION_X', itime, &
+            resolution(:,1), npts, hori_index)
+       CALL histwrite_p (hist_id_stomate_IPCC, 'RESOLUTION_Y', itime, &
+            resolution(:,2), npts, hori_index)
+       CALL histwrite_p (hist_id_stomate_IPCC, 'CONTFRAC', itime, &
+            contfrac(:), npts, hori_index)
+
+    ENDIF
+   
+    IF (printlev>=3) WRITE(numout,*) 'Leaving stomate_lpj_vegetation'
+
+  END SUBROUTINE stomate_lpj_vegetation
+
+
+!! ================================================================================================================================
+!! SUBROUTINE   : calculate_nbp_flux
+!!
+!>\BRIEF        Calculate the flux-based nbp
+!!
+!! DESCRIPTION  : Calculate the flux-based nbp for carbon and nitrogen. The challenge is that
+!!                veget_max changes in stomate_lpj. The fluxes need to be associated to the 
+!!                veget_max that was present at the time that flux was generated.
+!!
+!! RECENT CHANGE(S) : None
+!!
+!! MAIN OUTPUT VARIABLE(S): nbp_flux
+!!
+!! REFERENCE(S) : None
+!!
+!! FLOWCHART    : None
+!! \n
+!_ ================================================================================================================================
+
+  SUBROUTINE calculate_nbp_flux(npts, atm_to_bm_hist, gpp_daily_hist, &
+       resp_growth_hist, resp_maint_hist, resp_hetero_hist, &
+       co2_fire_hist, emission_daily_hist, leaching_daily_hist, &
+       veget_max_hist, n_input_daily_hist, flux_prod_s, &
+       flux_prod_m, flux_prod_l, nbp_daily_flux, &
+       fco2_flux,emissions_fire)
+  
+    !! 0. Variable and parameter description
+
+    !! 0.1 Input variables
+    INTEGER(i_std), INTENT(in)                                  :: npts                   !! Domain size (unitless)
+    
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:,:)                 :: atm_to_bm_hist         !! History of atm_to_bm for C and N for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: gpp_daily_hist         !! History of gpp_daily for C for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: resp_growth_hist       !! History of resp_growth for C for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: resp_maint_hist        !! History of resp_maint for C for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: resp_hetero_hist       !! History of resp_hetero for C for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: co2_fire_hist          !! History of co2_fire for C for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: emission_daily_hist    !! History of emission_daily for N for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: leaching_daily_hist    !! History of emission_daily for N for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: veget_max_hist         !! History of veget_max for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: n_input_daily_hist     !! nitrogen inputs into the soil (gN/m**2/day)
+                                                                                          !! NH4 and NOX from the atmosphere, NH4 from BNF,
+                                                                                          !! agricultural fertiliser as NH4/NO3
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:,:)                 :: emissions_fire       !! Emissions from fire.     
+    REAL(r_std), INTENT(inout), DIMENSION(:,:,:,:)              :: flux_prod_s            !! C-released during first years (short term) 
+                                                                                          !! following land cover change @tex ($gC year^{-1}$) @endtex 
+    REAL(r_std), INTENT(inout), DIMENSION(:,:,:,:)              :: flux_prod_m            !! Total annual release from decomposition of 
+                                                                                          !! the medium-lived product pool @tex ($gC year^{-1}$) @endtex
+    REAL(r_std), INTENT(inout), DIMENSION(:,:,:,:)              :: flux_prod_l            !! Total annual release from decomposition of 
+                                                                                          !! the long-lived product pool @tex ($gC year^{-1}$) @endtex
+
+    !! 0.2 Output variables
+    REAL(r_std), INTENT(out), DIMENSION(:,:)                    :: nbp_daily_flux         !! Net Biospheric Production flux based approach (gC.m^-2)
+    REAL(r_std), INTENT(out), DIMENSION(:,:)                    :: fco2_flux              !! CO2 flux between atmosphere and biosphere
+                                                                                          !! @tex $(gC m^{-2} one_day^{-1})$ @endtex
+
+    !! 0.3 Modified variables
+
+    !! 0.4 Local variables
+    CHARACTER(LEN=8), DIMENSION(nelements)                      :: element_str            !! string suffix indicating element 
+    INTEGER(i_std)                                              :: ipts,ivm, iele, iupd   !! PFT Indices
+    REAL(r_std), DIMENSION(npts,nvm,nelements)                  :: nep_daily              !! Net ecosystem production
+                                                                                          !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex
+    REAL(r_std), DIMENSION(npts,nvm,nelements)                  :: nep_temp               !! Dummy variables to calculate net ecosystem production
+                                                                                          !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex
+    REAL(r_std), DIMENSION(npts,nvm,nupdate1)                   :: error_count            !! Count the number of errors in consistency checks.
+    REAL(r_std), DIMENSION(npts,nvm)                            :: error_count2           !! Count the number of errors in consistency checks.
+    INTEGER(i_std), DIMENSION(npts,nvm)                         :: consistency_case       !! Case number of how nep should be calculated
+    INTEGER(i_std), DIMENSION(npts,nvm)                         :: consistency_check      !! Case number of how consistency between nep and 
+                                                                                          !! veget_max should be calculated
+!_ ================================================================================================================================
+
+    IF (printlev_loc>=4) WRITE(numout,*) 'Entering calculate_nbp_flux'
+
+    !! Administration
+    DO iele = 1,nelements
+       IF (iele == icarbon) THEN
+          element_str(iele) = '_c'
+       ELSEIF (iele == initrogen) THEN
+          element_str(iele) = '_n'
+       ELSE
+          CALL ipslerr_p(3,'stomate_lpj.f90','Define label for iele','calculate_nbp_flux','')
+       ENDIF
+    END DO
+
+    !! Error checking to avoid unexpected outcomes in the IF-statements
+    error_count(:,:,:) = zero
+    WHERE (veget_max_hist(:,:,:).LT.zero)
+       error_count(:,:,:) = un
+    END WHERE
+          
+    ! Write error messages if needed
+    IF (SUM(SUM(SUM(error_count(:,:,:),3),2)).GT.zero) THEN
+       DO ipts = 1,npts
+          DO ivm = 1,nvm
+             DO iupd = 1,nupdate1
+                IF (error_count(ipts,ivm,iupd).GT.zero) THEN
+                   WRITE(numout,*) 'ipts, ivm, iupd, ', ipts, ivm, iupd, veget_max_hist(ipts,ivm,iupd)
+                   CALL ipslerr_p (3,'veget_max_hist is negative in stomate_lpj','This should never happen', &
+                        'should have been taken care of in slowproc', 'Fix this problem in slowproc!')
+                END IF
+             END DO
+          END DO
+       END DO
+    END IF
+
+    ! There are many different temporal changes in veget_max. This
+    ! far we managed to deal with all cases with a single bookkeeping
+    ! approach (consistency_case = 1) but additional consistency
+    ! checks (consistency_check) differ between the specific
+    ! changes in veget_max. An explicit approach was used to select
+    ! the different cases because it can be easily documented, it can 
+    ! hopefully be easily maintained in the future as it was believed 
+    ! to be easier to adjust when new subroutines in which veget_max 
+    ! changes are added to stomate_lpj. The disadvantage of being 
+    ! explicit is that it results in lots of code.
+    consistency_case(:,:) = zero
+    consistency_check(:,:) = zero
+    WHERE (veget_max_hist(:,:,igro).GT.min_stomate .AND. &
+         veget_max_hist(:,:,iage).GT.min_stomate .AND. &
+         veget_max_hist(:,:,iluc).GT.min_stomate .AND. &
+         veget_max_hist(:,:,idis).GT.min_stomate)
+       ! 1. The PFT is not replaced during this time step
+       ! The correct fluxes are stored in iage, establishing
+       ! more of this PFT is accounted for in atm_to_bm
+       consistency_case(:,:) = 1
+       consistency_check(:,:) = 1
+    ELSEWHERE (veget_max_hist(:,:,igro).GT.min_stomate .AND. &
+         veget_max_hist(:,:,iage).GT.min_stomate .AND. &
+         veget_max_hist(:,:,iluc).GT.min_stomate .AND. &
+         veget_max_hist(:,:,idis).LT.min_stomate)
+       ! 2. The PFT is replaced by another PFT during ispc
+       ! The correct fluxes are stored in iage, establishing
+       ! more of this PFT is accounted for in atm_to_bm
+       consistency_case(:,:) = 1
+       consistency_check(:,:) = 2
+    ELSEWHERE (veget_max_hist(:,:,igro).GT.min_stomate .AND. &
+         veget_max_hist(:,:,iage).GT.min_stomate .AND. &
+         veget_max_hist(:,:,iluc).LT.min_stomate .AND. &
+         veget_max_hist(:,:,idis).GT.min_stomate)
+       ! 3. The PFT is replaced during iluc but reestablished in ispc
+       ! The correct fluxes are stored in iage, establishing
+       ! more of this PFT is accounted for in atm_to_bm.
+       ! This should never happen because iluc and ispc cannot yet
+       ! be activated at the same time. So iluc should equal to iage
+       ! or iluc should equal to ispc.
+       consistency_case(:,:) = 1
+       consistency_check(:,:) = 3
+    ELSEWHERE (veget_max_hist(:,:,igro).GT.min_stomate .AND. &
+         veget_max_hist(:,:,iage).GT.min_stomate .AND. &
+         veget_max_hist(:,:,iluc).LT.min_stomate .AND. &
+         veget_max_hist(:,:,idis).LT.min_stomate)
+       ! 4. The PFT is replaced during iluc and does not reappear
+       ! The correct fluxes are stored in iage, establishing
+       ! more of this PFT is accounted for in atm_to_bm
+       consistency_case(:,:) = 1
+       consistency_check(:,:) = 4
+    ELSEWHERE (veget_max_hist(:,:,igro).GT.min_stomate .AND. &
+         veget_max_hist(:,:,iage).LT.min_stomate .AND. &
+         veget_max_hist(:,:,iluc).GT.min_stomate .AND. &
+         veget_max_hist(:,:,idis).GT.min_stomate)
+       ! 5. The PFT moves one age class up. The empty PFT is
+       ! re-established during iluc. Fluxes will be moved
+       ! to the new age class. atm_to_bm will account for
+       ! fluxes supporting the establishment of the PFT in 
+       ! iluc.
+       consistency_case(:,:) = 1
+       consistency_check(:,:) = 5
+    ELSEWHERE (veget_max_hist(:,:,igro).GT.min_stomate .AND. &
+         veget_max_hist(:,:,iage).LT.min_stomate .AND. &
+         veget_max_hist(:,:,iluc).GT.min_stomate .AND. &
+         veget_max_hist(:,:,idis).LT.min_stomate)
+       ! 6. The PFT moves one age class up. The empty PFT is 
+       ! re-established in iluc and is replaced by another 
+       ! species in ispc. Seems very unlikely: given the
+       ! re-establishment in iluc, this must be a first 
+       ! age class. Species changes happen at the end of 
+       ! rotations. Species changes in a first age class
+       ! are unlikely. This should never happen because iluc 
+       ! and ispc cannot yet be activated at the same time. 
+       ! So iluc should equal to iage or iluc should equal
+       ! ispc.
+       consistency_case(:,:) = 1
+       consistency_check(:,:) = 6
+    ELSEWHERE (veget_max_hist(:,:,igro).GT.min_stomate .AND. &
+         veget_max_hist(:,:,iage).LT.min_stomate .AND. &
+         veget_max_hist(:,:,iluc).LT.min_stomate .AND. &
+         veget_max_hist(:,:,idis).GT.min_stomate)
+       ! 7. The PFT moves one age class up and remains empty until 
+       ! it is re-established in ispc. Fluxes will move into
+       ! the next age class. Atm_to_bm will account for re-
+       ! establishment.
+       consistency_case(:,:) = 1
+       consistency_check(:,:) = 7
+    ELSEWHERE (veget_max_hist(:,:,igro).GT.min_stomate .AND. &
+         veget_max_hist(:,:,iage).LT.min_stomate .AND. &
+         veget_max_hist(:,:,iluc).LT.min_stomate .AND. &
+         veget_max_hist(:,:,idis).LT.min_stomate)
+       ! 8. The PFT moves one age class up and remains empty.
+       ! There should be no fluxes, all will be taken care 
+       ! of in the new age class.
+       consistency_case(:,:) = 1
+       consistency_check(:,:) = 8
+    ELSEWHERE (veget_max_hist(:,:,igro).LT.min_stomate .AND. &
+         veget_max_hist(:,:,iage).GT.min_stomate .AND. &
+         veget_max_hist(:,:,iluc).GT.min_stomate .AND. &
+         veget_max_hist(:,:,idis).GT.min_stomate)
+       ! 9. The PFT comes from a lower age class. Fluxes are moved
+       ! in age_class_distr. All fluxes are available in iage
+       ! and atm_to_bm accounts for possible establishement in 
+       ! iluc or ispc.
+       consistency_case(:,:) = 1
+       consistency_check(:,:) = 9
+    ELSEWHERE (veget_max_hist(:,:,igro).LT.min_stomate .AND. &
+         veget_max_hist(:,:,iage).GT.min_stomate .AND. &
+         veget_max_hist(:,:,iluc).GT.min_stomate .AND. &
+         veget_max_hist(:,:,idis).LT.min_stomate)
+       ! 10. The PFT comes from a lower age class but is replaced
+       ! by another PFT in ispc. Fluxes are moved in
+       ! age_class_distr. All fluxes are available in iage
+       ! and atm_to_bm accounts for possible establishement in 
+       ! iluc or ispc. 
+       consistency_case(:,:) = 1
+       consistency_check(:,:) = 10
+    ELSEWHERE (veget_max_hist(:,:,igro).LT.min_stomate .AND. &
+         veget_max_hist(:,:,iage).GT.min_stomate .AND. &
+         veget_max_hist(:,:,iluc).LT.min_stomate .AND. &
+         veget_max_hist(:,:,idis).GT.min_stomate)
+       ! 11. The PFT moved in a new age class but is replaced
+       ! during iluc and re-establised during ispc. This 
+       ! should never happen because iluc and ispc cannot 
+       ! yet be activated at the same time. So iluc should 
+       ! equal iage or iluc should equal ispc.
+       consistency_case(:,:) = 1 
+       consistency_check(:,:) = 11
+    ELSEWHERE (veget_max_hist(:,:,igro).LT.min_stomate .AND. &
+         veget_max_hist(:,:,iage).GT.min_stomate .AND. &
+         veget_max_hist(:,:,iluc).LT.min_stomate .AND. &
+         veget_max_hist(:,:,idis).LT.min_stomate)
+       ! 12.The PFT moved in a new age class but is replaced
+       ! during iluc and not re-established afterwards.
+       consistency_case(:,:) = 1
+       consistency_check(:,:) = 12
+    ELSEWHERE (veget_max_hist(:,:,igro).LT.min_stomate .AND. &
+         veget_max_hist(:,:,iage).LT.min_stomate .AND. &
+         veget_max_hist(:,:,iluc).GT.min_stomate .AND. &
+         veget_max_hist(:,:,idis).GT.min_stomate)
+       ! 13. The PFT is first established during iluc. 
+       ! atm_to_bm should account for the establishment
+       consistency_case(:,:) = 1
+       consistency_check(:,:) = 13
+    ELSEWHERE (veget_max_hist(:,:,igro).GT.min_stomate .AND. &
+         veget_max_hist(:,:,iage).LT.min_stomate .AND. &
+         veget_max_hist(:,:,iluc).GT.min_stomate .AND. &
+         veget_max_hist(:,:,idis).LT.min_stomate)
+       ! 14. The PFT moves to another age class and is 
+       ! re-established during iluc and is removed during 
+       ! ispc. This should never happen because iluc and 
+       ! ispc cannot yet be activated at the same time. So 
+       ! iluc should equal iage or iluc should equal ispc. 
+       consistency_case(:,:) = 1
+       consistency_check(:,:) = 14
+    ELSEWHERE (veget_max_hist(:,:,igro).LT.min_stomate .AND. &
+         veget_max_hist(:,:,iage).LT.min_stomate .AND. &
+         veget_max_hist(:,:,iluc).LT.min_stomate .AND. &
+         veget_max_hist(:,:,idis).GT.min_stomate)
+       ! 15. The PFT is established in ispc. atm_to_bm
+       ! should account for the associated fluxes
+       consistency_case(:,:) = 1
+       consistency_check(:,:) = 15
+    ELSEWHERE (veget_max_hist(:,:,igro).LT.min_stomate .AND. &
+         veget_max_hist(:,:,iage).LT.min_stomate .AND. &
+         veget_max_hist(:,:,iluc).LT.min_stomate .AND. &
+         veget_max_hist(:,:,idis).LT.min_stomate)
+       ! 16. The PFT does not exist. There should be no fluxes.
+       ! Case 3 consists of error checking.
+       consistency_case(:,:) = 1 
+       consistency_check(:,:) = 16
+    ELSEWHERE
+       ! Unexpected combination of veget_max_hist
+       consistency_case(:,:) = 999
+    END WHERE
+
+    ! Check whether we encountered unexpected cases. If so
+    ! stop the model as those cases should be developed 
+    ! first before the consistency of nbp can be checked.
+    error_count2(:,:) = zero
+    WHERE(consistency_case(:,:).EQ.999)
+       error_count2(:,:) = un
+    END WHERE
+
+    IF (SUM(SUM(error_count2(:,:),2)).GT.zero) THEN
+       DO ipts = 1, npts
+          DO ivm = 1, nvm
+             IF (error_count2(ipts,ivm).EQ.un) THEN
+                WRITE(numout,*) 'Pixel, nvm, ', ipts, ivm
+                WRITE(numout,*) 'veget_max_hist(:), ', veget_max_hist(ipts,ivm,:)
+                CALL ipslerr_p(3,'unexpected case in calculate_nbp_flux',&
+                     'add this case to the WHERE statements','', '')
+             END IF
+          END DO
+       END DO
+    END IF
+             
+    !! Compute daily CO2 flux diagnostics
+    ! Include atm_to_bm it is a flux that bypasses GPP because of model
+    ! simplifications. The model starts with saplings instead of seeds.
+    ! For forest this is a relatively small flux but for crops the model
+    ! uses this bypass every year at the start of the growing season.
+    ! NOTE: if something is changed to the calculation of nep_daily
+    ! a similar change should be implemented to fco2_flux, and nbp_daily_flux.
+    ! NOTE: before multiplying the fuxes with a veget_max we have to be sure 
+    ! that fluxes and veget_max have not been decoupled in the code. Decoupling 
+    ! could happen when a PFT moves to a different age class, during land cover 
+    ! changes, and species changes. Ensure all fluxes that are used to calculate 
+    ! nep_daily for both carbon and nitrogen have been treated in 
+    ! age_class_distr as well as in mortality_clean. Different treatmenst 
+    ! might be required.
+    ! NOTE: that co2_fire is calculated after age_class_distr and should therefore 
+    ! not be included in age_class_distr.
+    ! NOTE: for nep veget_max_hist(iage) should be used because all growth fluxes
+    ! are calculated within or before that routine. Fluxes are moved in 
+    ! age_class_distr but NOT in sapiens_lcchange (because the latter has orphan 
+    ! fluxes, the former does not).
+    ! NOTE: for C it is well defined what NEP really is (see Chapin et al 2006) for
+    ! N this is not so clear what is nep. For N the ability to cross check is 
+    ! more important than the exact definitions as they are
+    ! not yet asked to be reported by the ipcc. Nep for N was defined in such
+    ! a way that some equations work for both carbon and nitrogen.
+    nep_daily(:,:,:) = zero
+    nep_temp(:,:,:) = zero
+    nbp_daily_flux(:,:) = zero
+    fco2_flux(:,:) = zero
+
+    DO ipts = 1,npts
+
+       DO ivm = 1,nvm
+
+          SELECT CASE (consistency_case(ipts,ivm))
+
+          CASE (1)
+
+             ! veget_max_hist(iage) should be used to calculate the correct fluxes
+             ! irrespective of whether iluc and ispc increases or decreases the
+             ! veget_max of this PFT. Fluxes from establishing new veget_max in
+             ! this PFT are accounted for through atm_to_bm.
+             ! NOTE: nep_temp, nep_daily, and fco2_flux were used to better match the 
+             ! ipcc definition of nep (nep_daily) and the CO2 flux that an eddy
+             ! covariance tower will observe. 
+             nep_temp(ipts,ivm,icarbon) = gpp_daily_hist(ipts,ivm,iage) - &
+                  resp_maint_hist(ipts,ivm,iage) - resp_growth_hist(ipts,ivm,iage) - &
+                  resp_hetero_hist(ipts,ivm,iage) - co2_fire_hist(ipts,ivm,iage)
+             nep_temp(ipts,ivm,initrogen) = &
+                  n_input_daily_hist(ipts,ivm,iage) * dt_sechiba/one_day - &
+                  emission_daily_hist(ipts,ivm,iage) - leaching_daily_hist(ipts,ivm,iage)  - &
+                  SUM(emissions_fire(ipts,ivm,initrogen,:))
+
+             ! Calculate nep_daily and nbp_daily_flux for C and N
+             DO iele = 1,nelements
+
+                ! nep_daily is in gC m-2 day-1. For the ESM we need the absolute flux 
+                ! in gC day-1 and the sign convention of the ESM should be followed.
+                ! This is taken care of in fco2_flux further below.
+                nep_daily(ipts,ivm,iele) = nep_temp(ipts,ivm,iele) + &
+                     SUM(atm_to_bm_hist(ipts,ivm,:,iele))
+
+                ! Error checking
+                IF (err_act.GE.3) THEN
+                   SELECT CASE (consistency_check(ipts,ivm))
+                   CASE (1, 2, 3, 4, 6, 9, 10, 11, 12, 14)
+                      IF (ABS(nep_daily(ipts,ivm,iele)) .GT. min_stomate .AND. &
+                           veget_max_hist(ipts,ivm,iage) .EQ. zero) THEN
+                         CALL history_write(ipts, ivm, iele, atm_to_bm_hist, gpp_daily_hist, &
+                              resp_growth_hist, resp_maint_hist, resp_hetero_hist, co2_fire_hist, &
+                              n_input_daily_hist, emission_daily_hist, leaching_daily_hist, &
+                              veget_max_hist, 'nep check 1')
+                         ! Guillaume M. -- scaffolding: history_write alone does not name the
+                         ! consistency case, and the class-0 conveyor restitution is a
+                         ! re-establishment that may be misclassified (case 7 exists for that).
+                         ! Drop once the case is identified.
+                         WRITE(numout,*) '[NEPCHK1] ipts', ipts, ' ivm', ivm, ' iage', iage, &
+                              ' case', consistency_check(ipts,ivm), &
+                              ' nep_daily', nep_daily(ipts,ivm,iele), &
+                              ' vmh(iage)', veget_max_hist(ipts,ivm,iage), &
+                              ' vmh_sum', SUM(veget_max_hist(ipts,ivm,:))
+                         CALL flush(numout)
+                         CALL ipslerr_p(3,'conflict between nep_temp and veget_max_hist','nep check 1',&
+                              '','')
+                      END IF ! NEP test
+                      CALL atm_bm_write(ipts, ivm, iele, atm_to_bm_hist, &
+                           veget_max_hist, 'atm_to_bm check 1')
+                   CASE (5, 7)
+                   !Previously this case was tested with check 1 above, however,
+                   !since there is re-establishment, nep_daily cannot be zero,
+                   !thus, separate the case.
+                   ! Guillaume M. -- case 5 joins case 7: its own condition has
+                   ! veget_max_hist(iluc) > min_stomate, i.e. the emptied slot is
+                   ! re-established by land cover change, so nep_daily carries the
+                   ! establishment flux. nep_temp excludes it and is the right test.
+                      IF (ABS(nep_temp(ipts,ivm,iele)) .GT. min_stomate .AND. &
+                           veget_max_hist(ipts,ivm,iage) .EQ. zero) THEN
+                         CALL history_write(ipts, ivm, iele, atm_to_bm_hist, gpp_daily_hist, &
+                              resp_growth_hist, resp_maint_hist, resp_hetero_hist, co2_fire_hist, &
+                              n_input_daily_hist, emission_daily_hist, leaching_daily_hist, &
+                              veget_max_hist, 'nep check 2')
+                         ! Guillaume M. -- Scaffolding: confirm the split of nep_daily.
+                         ! Drop once verified.
+                         WRITE(numout,*) '[NEPCHK2] ipts', ipts, ' ivm', ivm, &
+                              ' case', consistency_check(ipts,ivm), &
+                              ' nep_temp', nep_temp(ipts,ivm,iele), &
+                              ' nep_daily', nep_daily(ipts,ivm,iele), &
+                              ' atm_to_bm', SUM(atm_to_bm_hist(ipts,ivm,:,iele))
+                         CALL flush(numout)
+                         CALL ipslerr_p(3,'conflict between nep_temp and veget_max_hist','nep check 1',&
+                              '','')
+                      END IF ! NEP test
+                      CALL atm_bm_write(ipts, ivm, iele, atm_to_bm_hist, &
+                           veget_max_hist, 'atm_to_bm check 2')
+                   CASE(8, 16)
+                      IF (ABS(nep_daily(ipts,ivm,iele)) .GT. min_stomate .AND. &
+                           SUM(veget_max_hist(ipts,ivm,:)).EQ. zero) THEN
+                         CALL history_write(ipts, ivm, iele, atm_to_bm_hist, gpp_daily_hist, &
+                              resp_growth_hist, resp_maint_hist, resp_hetero_hist, co2_fire_hist, &
+                              n_input_daily_hist, emission_daily_hist, leaching_daily_hist, &
+                              veget_max_hist, 'nep check 3')
+                         CALL flush(numout)
+                         CALL ipslerr_p(3,'conflict between nep_temp and veget_max_hist','nep check 2',&
+                              '','')
+                      END IF ! NEP test
+                      CALL atm_bm_write(ipts, ivm, iele, atm_to_bm_hist, &
+                           veget_max_hist, 'atm_to_bm check 2')
+                   CASE(13)
+                      IF (ABS(nep_daily(ipts,ivm,iele)-resp_hetero_hist(ipts,ivm,iluc)) .GT. min_stomate .AND. &
+                           veget_max_hist(ipts,ivm,iluc) .EQ. zero) THEN
+                         CALL history_write(ipts, ivm, iele, atm_to_bm_hist, gpp_daily_hist, &
+                              resp_growth_hist, resp_maint_hist, resp_hetero_hist, co2_fire_hist, &
+                              n_input_daily_hist, emission_daily_hist, leaching_daily_hist, &
+                              veget_max_hist, 'nep check 3a')
+                         CALL flush(numout)
+                         CALL ipslerr_p(3,'conflict between nep_temp and veget_max_hist','nep check 3a',&
+                              '','')
+                      ELSEIF (ABS(resp_hetero_hist(ipts,ivm,iluc)) .GT. min_stomate .AND. &
+                           veget_max_hist(ipts,ivm,iage) .EQ. zero) THEN
+                         CALL history_write(ipts, ivm, icarbon, atm_to_bm_hist, gpp_daily_hist, &
+                              resp_growth_hist, resp_maint_hist, resp_hetero_hist, co2_fire_hist, &
+                              n_input_daily_hist, emission_daily_hist, leaching_daily_hist, &
+                              veget_max_hist, 'nep check 3b')
+                         CALL flush(numout)
+                         CALL ipslerr_p(3,'conflict between nep_temp and veget_max_hist','nep check 3b',&
+                              '','')
+                      END IF ! nep_daily test
+                      CALL atm_bm_write(ipts, ivm, iele, atm_to_bm_hist, &
+                           veget_max_hist, 'atm_to_bm check 3')
+                   CASE(15)
+                      IF (ABS(nep_daily(ipts,ivm,iele)-resp_hetero_hist(ipts,ivm,ispc)) .GT. min_stomate .AND. &
+                           veget_max_hist(ipts,ivm,ispc) .EQ. zero) THEN
+                         CALL history_write(ipts, ivm, iele, atm_to_bm_hist, gpp_daily_hist, &
+                              resp_growth_hist, resp_maint_hist, resp_hetero_hist, co2_fire_hist, &
+                              n_input_daily_hist, emission_daily_hist, leaching_daily_hist, &
+                              veget_max_hist, 'nep check 4a')
+                         CALL flush(numout)
+                         CALL ipslerr_p(3,'conflict between nep_temp and veget_max_hist','nep check 4a',&
+                              '','')
+                      ELSEIF (ABS(resp_hetero_hist(ipts,ivm,iluc)) .GT. min_stomate .AND. &
+                           veget_max_hist(ipts,ivm,iage) .EQ. zero) THEN
+                         CALL history_write(ipts, ivm, icarbon, atm_to_bm_hist, gpp_daily_hist, &
+                              resp_growth_hist, resp_maint_hist, resp_hetero_hist, co2_fire_hist, &
+                              n_input_daily_hist, emission_daily_hist, leaching_daily_hist, &
+                              veget_max_hist, 'nep check 4b')
+                         CALL flush(numout)
+                         CALL ipslerr_p(3,'conflict between nep_temp and veget_max_hist','nep check 4b',&
+                              '','')
+                      END IF ! nep_daily test
+                      CALL atm_bm_write(ipts, ivm, iele, atm_to_bm_hist, &
+                           veget_max_hist, 'atm_to_bm check 4')
+                   CASE DEFAULT
+                      WRITE(numout,*) 'Pixel, ivm, ', ipts, ivm
+                      WRITE(numout,*) 'consistency_check, ', consistency_check(ipts,ivm)
+                      CALL ipslerr_p(3,'no valid value for consistency_check', &
+                           'add this case to the WHERE statements', &
+                           'Do NOT confuse with consistency_case', '')
+                   END SELECT
+                END IF ! err_act.GT.3 
+                !-
+
+                ! Calculate the daily nbp. nbp should account for all fluxes between 
+                ! the land and the atmosphere. Harvest_pool should not be accounted for 
+                ! because in ORCHIDEE the harvest itself does not leave the pixel. In 
+                ! the model the wood products are processed and decomposed in the same 
+                ! pixel as where they were harvested. Decoupling could happen when a PFT moves 
+                ! to a different age class and during land cover changes. Check whether all 
+                ! fluxes that are used to calculate nep_daily for both carbon and nitrogen have 
+                ! been treated in age_class_distr. Note that co2_fire is calculated after 
+                ! age_class_distr and should therefore not be included in age_class_distr.
+                nbp_daily_flux(ipts,iele) = nbp_daily_flux(ipts,iele) + &
+                     nep_temp(ipts,ivm,iele) * veget_max_hist(ipts,ivm,iage) + &
+                     SUM(atm_to_bm_hist(ipts,ivm,:,iele) * veget_max_hist(ipts,ivm,:))
+             
+             END DO ! nelements
+
+             ! Close to what an eddy covariance tower will observe.
+             ! Calculate fco2_flux as (-1)*nep_daily*veget_max. This variable will be 
+             ! used for the coupling to LMDZ for ESM configuration. Basically fco2_flux = 
+             ! - nep_daily * veget_max.
+             fco2_flux(ipts,ivm) = &
+                  - (nep_temp(ipts,ivm,icarbon) * veget_max_hist(ipts,ivm,iage)) - &
+                  SUM(atm_to_bm_hist(ipts,ivm,:,icarbon) * veget_max_hist(ipts,ivm,:))
+                       
+          CASE DEFAULT
+             
+             ! Something basic went wrong with the IF-statements on veget_max
+             WRITE(numout,*) 'Pixel, ivm, ', ipts, ivm
+             WRITE(numout,*) 'consistency_case, ', consistency_case(ipts,ivm)
+             CALL ipslerr_p(3,'no valid value for consistency_case', &
+                  'add this case to the WHERE statements','', '')
+
+          END SELECT
+
+       END DO ! nvm
+
+       ! Now that the nvm loop is finished the fluxes that do not have an
+       ! nvm dimensions can be added. Should only be added once, hence, it
+       ! added outside the nvm-loop.
+       DO iele = 1, nelements
+          nbp_daily_flux(ipts,iele) = nbp_daily_flux(ipts,iele) - &
+               SUM(SUM( (flux_prod_s(ipts,iele,:,:) + flux_prod_m(ipts,iele,:,:) + &
+               flux_prod_l(ipts,iele,:,:) ),2)) 
+       END DO
+
+    END DO ! npts
+
+    ! From a mass balance point of view fco2_flux (including atm_to_bm) is a good
+    ! representation of the nee. If the simulated nee has to be compared against
+    ! eddy covariance observations, it is better to exclude atm_to_bm (because
+    ! in reality the process described by atm_to_bm happens over a longer time
+    ! period then is the case in the model). The difference between nee and nee_ec
+    ! is substantial and especially problematic for croplands. As long as a 
+    ! substantial part of the cropland biomass is simply prescribed at the start 
+    ! of the growing season, the simulated nee will never match or even be close 
+    ! to the observed nee. For forest were this initial biomass is prescribed once 
+    ! every century and is small comapred to the final biomass, this is much less 
+    ! of an issue. If grasslands can survive for several decades the difference 
+    ! between nee and nee_ec should be acceptable. If grasslands die frequently, 
+    ! a similar issues as with croplands will occur.         
+    CALL xios_orchidee_send_field("nee",fco2_flux(:,:)/1.e3/one_day)
+    CALL xios_orchidee_send_field("nee_ec",-nep_temp(:,:,icarbon)/1.e3/one_day)
+
+    ! Write to output and convert the units to kg C m-2 s-1 (one_day = 86400 s).
+    ! Output for stomate and ipcc files
+    DO iele = 1,nelements
+       ! nep for C and N send to ipcc history files. 
+       CALL xios_orchidee_send_field('nep'//TRIM(element_str(iele)), &
+            SUM(nep_daily(:,:,iele)*veget_max_hist(:,:,iage),dim=2)/1e3/one_day)
+    END DO
+
+    IF (printlev_loc>=4) WRITE(numout,*) 'Leaving calculate_nbp_flux'
+
+    END SUBROUTINE calculate_nbp_flux
+
+
+!! ================================================================================================================================
+!! SUBROUTINE   : calculate_nbp_pool
+!!
+!>\BRIEF        Calculate the pool-based nbp
+!!
+!! DESCRIPTION  : Calculate the pool-based nbp for carbon and nitrogen
+!!
+!! RECENT CHANGE(S) : None
+!!
+!! MAIN OUTPUT VARIABLE(S): nbp_pool
+!!
+!! REFERENCE(S) : None
+!!
+!! FLOWCHART    : None
+!! \n
+!_ ================================================================================================================================
+
+  SUBROUTINE calculate_nbp_pool(npts, veget_max, litter, deepSOM_a, deepSOM_s, deepSOM_p, &
+       zf_soil, som, bm_to_litter, turnover, circ_class_biomass, circ_class_n, &
+       harvest_pool_acc, prod_s, prod_m, prod_l, soil_n_min, nbp_pool_end)
+
+
+    !! 0.1 input variables
+    INTEGER(i_std), INTENT(in)                                   :: npts                 !! Domain size (unitless)
+    REAL(r_std), DIMENSION(:,:), INTENT(in)                      :: veget_max            !! "Maximal" coverage fraction of a PFT (LAI 
+                                                                                         !! -> infinity) on ground
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(in)                :: litter               !! Metabolic and structural litter, above 
+                                                                                         !! and below ground 
+                                                                                         !! @tex $(gC m^{-2})$ @endtex 
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(in)                  :: deepSOM_a            !! Soil carbon discretized with depth active (g/m**3) 
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(in)                  :: deepSOM_s            !! Soil carbon discretized with depth slow (g/m**3)      
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(in)                  :: deepSOM_p            !! Soil carbon discretized with depth passive (g/m**3)
+    REAL(r_std), DIMENSION(0:ngrnd), INTENT(in)                  :: zf_soil
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(in)                  :: som                  !! Carbon pool: active, slow, or passive, 
+                                                                                         !! @tex $(gC m^{-2})$ @endtex  
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(in)                  :: bm_to_litter         !! Conversion of biomass to litter 
+                                                                                         !! @tex $(gC m^{-2} dtslow^{-1})$ @endtex 
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(in)                  :: turnover             !! Turnover rates  
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(in)                :: circ_class_biomass   !! Biomass of the componets of the model  
+                                                                                         !! tree within a circumference
+                                                                                         !! class @tex $(gC ind^{-1})$ @endtex  
+    REAL(r_std), DIMENSION(:,:,:), INTENT(in)                    :: circ_class_n         !! Number of individuals in each circ class
+                                                                                         !! @tex $(m^{-2})$ @endtex
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(in)                :: harvest_pool_acc     !! The wood and biomass that have been
+                                                                                         !! havested by humans @tex $(gC)$ @endtex
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(in)                :: prod_s               !! Short-lived product pool after the annual 
+                                                                                         !! release of each compartment (short + 1 : 
+                                                                                         !! input from year of land cover change) 
+                                                                                         !! @tex ($gC$) @endtex    
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(in)                :: prod_m               !! Medium-lived product pool after the annual
+                                                                                         !! release of each compartment (medium + 1 : 
+                                                                                         !! input from year of land cover change) 
+                                                                                         !! @tex ($gC$) @endtex 
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(in)                :: prod_l               !! long-lived product pool after the annual 
+                                                                                         !! release of each compartment (long + 1 : 
+                                                                                         !! input from year of land cover change) 
+                                                                                         !! @tex ($gC$) @endtex
+    REAL(r_std), DIMENSION(:,:,:), INTENT(in)                    :: soil_n_min           !! mineral nitrogen in the soil (gN/m**2)
+
+    !! 0.2 Output variables
+    REAL(r_std),DIMENSION(:,:), INTENT(out)                      :: nbp_pool_end         !! C and N stocks to calculate the pool based nbp (gC.m^-2)
+
+   !! 0.3 Modified variables
+
+    !! 0.4 Local variables
+    INTEGER                                                      :: iele, ilitt, ilev    !! Indices
+    INTEGER                                                      :: icarb, ipar, icir    !! Indices
+    INTEGER                                                      :: igrn, inspec, ipts   !! Indices
+    INTEGER                                                      :: ivm                  !! Indices
+    REAL(r_std), DIMENSION(npts)                                 :: temp                 !! temporary variable for debugging
+    
+!_ ================================================================================================================================
+
+    IF (printlev_loc>=4) WRITE(numout,*) 'Entering calculate_nbp_pool'
+
+    !! Calculate actual C and N pools at time t
+    ! Calculate actual C and N stocks at time t. The actual carbon stocks
+    ! will be used for: (1) a consistency check with nbp_accu_flux
+    ! and (2) calculating nbp_daily_pool which should equal nbp_daily_flux
+    ! This are high-level consistency checks which can only be passed if the
+    ! mass balance is closed in all underlying subroutines. The also give
+    ! confidence that the calculations of nep and nbp are conceptually correct
+    ! in the sense that all pool or fluxes (depending on the approach) have 
+    ! been accouned for.
+    nbp_pool_end(:,:) = zero
+
+    DO iele = 1,nelements
+
+       ! Debug
+       ! Guillaume M. -- these guards compare against min_stomate, not exact zero: a
+       ! floating-point SUM over an emptied slot keeps a rounding residue (~1e-18 gC/m2)
+       ! that an .NE. zero test reads as a leak. Real leaks are ~1e2 gC/m2, so the
+       ! threshold sits 10 orders of magnitude above the noise and 10 below a true leak.
+       IF (err_act.GE.3) THEN
+          DO ipts = 1,npts
+             DO ivm = 1,nvm
+                ! If the variable has a value, veget_max should not be zero.
+                IF (ABS(SUM(SUM(litter(ipts,:,ivm,:,iele),1))) .GT. min_stomate .AND. &
+                     veget_max(ipts,ivm) .EQ. zero) THEN
+                   WRITE(numout,*) 'ipts, ivm, iele, litter, veget_max, ', ipts, ivm, iele, &
+                        SUM(SUM(litter(ipts,:,ivm,:,iele),1)), veget_max(ipts,ivm)
+                   WRITE(numout,*) 'litter, ', SUM(SUM(litter(:,:,ivm,:,iele),3),2)
+                   WRITE(numout,*) 'veget_max, ', veget_max(ipts,ivm)
+                   ! Guillaume M. -- Without this flush the WRITE above is LOST: ipslerr_p(3)
+                   ! triggers MPI_ABORT and the numout buffer is never emptied, so the
+                   ! diagnostic never reaches the disk.
+                   CALL flush(numout)
+                   CALL ipslerr_p(3,'conflict between litter and veget_max','','','')
+                END IF
+                IF (ABS(SUM(som(ipts,:,ivm,iele))) .GT. min_stomate .AND. &
+                     veget_max(ipts,ivm) .EQ. zero) THEN
+                   WRITE(numout,*) 'ipts, ivm, iele, som, veget_max, ', ipts, ivm, iele, &
+                        SUM(som(ipts,:,ivm,iele)), veget_max(ipts,ivm)
+                   ! Guillaume M. -- Without this flush the WRITE above is LOST: ipslerr_p(3)
+                   ! triggers MPI_ABORT and the numout buffer is never emptied, so the
+                   ! diagnostic never reaches the disk.
+                   CALL flush(numout)
+                   CALL ipslerr_p(3,'conflict between som and veget_max','','','')
+                END IF
+                IF (ABS(SUM(bm_to_litter(ipts,ivm,:,iele),1)) .GT. min_stomate .AND. &
+                     veget_max(ipts,ivm) .EQ. zero) THEN
+                   WRITE(numout,*) 'ipts, ivm, iele, bm_to_litter, veget_max, ', ipts, ivm, iele, &
+                        SUM(bm_to_litter(ipts,ivm,:,iele)), veget_max(ipts,ivm)
+                   CALL ipslerr_p(3,'conflict between bm_to_litter and veget_max','','','')
+                END IF
+                IF (ABS(SUM(turnover(ipts,ivm,:,iele))) .GT. min_stomate .AND. &
+                     veget_max(ipts,ivm) .EQ. zero) THEN
+                   WRITE(numout,*) 'ipts, ivm, iele, turnover, veget_max, ', ipts, ivm, iele, &
+                        SUM(turnover(ipts,ivm,:,iele)), veget_max(ipts,ivm)
+                   CALL ipslerr_p(3,'conflict between turnover and veget_max','','','')
+                END IF
+                IF (ABS(SUM(SUM(circ_class_biomass(ipts,ivm,:,:,iele),2) * &
+                     circ_class_n(ipts,ivm,:))) .GT. min_stomate .AND. &
+                     veget_max(ipts,ivm) .EQ. zero) THEN
+                   WRITE(numout,*) 'ipts, ivm, iele, biomass, veget_max, ', ipts, ivm, iele, &
+                        SUM(SUM(circ_class_biomass(ipts,ivm,:,:,iele),2) * &
+                        circ_class_n(ipts,ivm,:)), veget_max(ipts,ivm)
+                   CALL ipslerr_p(3,'conflict between biomass and veget_max','','','')
+                END IF
+             END DO
+          END DO
+          
+          ! Write the pixel-level values
+          IF(printlev_loc.GE.4) THEN
+             WRITE(numout,*) 'pool based nbp, ipts, ', test_grid
+             WRITE(numout,*) 'litter, ', iele, &
+                  SUM(SUM(SUM(litter(test_grid,:,:,:,iele),3),1) * veget_max(test_grid,:))
+             WRITE(numout,*) 'som, ', iele, &
+                  SUM(SUM(som(test_grid,:,:,iele),1) * veget_max(test_grid,:))
+             WRITE(numout,*) 'turnover, ', iele, & 	 	 
+                  SUM((SUM(bm_to_litter(test_grid,:,:,iele),2) + & 	 	 
+                  SUM(turnover(test_grid,:,:,iele),2))*veget_max(test_grid,:))
+             WRITE(numout,*) 'biomass, ', iele, &
+                  SUM(SUM(SUM(circ_class_biomass(test_grid,:,:,:,iele),3) * &
+                  circ_class_n(test_grid,:,:),2) * veget_max(test_grid,:))
+             WRITE(numout,*) 'products, ', iele, &
+                  ( SUM(SUM(SUM(harvest_pool_acc(test_grid,:,:,iele,:),3),2)) + &
+                  SUM(SUM(SUM(prod_l(test_grid,:,iele,:,:),2),2)) + &
+                  SUM(SUM(SUM(prod_m(test_grid,:,iele,:,:),2),2)) + &
+                  SUM(SUM(SUM(prod_s(test_grid,:,iele,:,:),2),2)) ) / &
+                  (area(test_grid) * contfrac(test_grid))
+          END IF ! printlev_loc.GE.4
+       END IF ! err_act.GE.3
+       !-
+
+       ! Litter pool
+       DO ilitt = 1,nlitt
+          DO ilev = 1,nlevs
+             nbp_pool_end(:,iele) = nbp_pool_end(:,iele) + &
+                  SUM(litter(:,ilitt,:,ilev,iele) * veget_max(:,:),2)
+          ENDDO
+       ENDDO
+
+       IF (ok_soil_carbon_discretization) THEN
+          ! Soil carbon
+          DO igrn = 1,ngrnd
+             nbp_pool_end(:,iele) = nbp_pool_end(:,iele) + &
+                  SUM((deepSOM_a(:,igrn,:,iele) + deepSOM_s(:,igrn,:,iele) + &
+                  deepSOM_p(:,igrn,:,iele)) * &
+                  (zf_soil(igrn)-zf_soil(igrn-1)) * veget_max(:,:),2)
+          END DO
+       ELSE
+          ! Soil carbon (gC m-2) *  (m2 m-2)
+          DO icarb = 1,ncarb
+             nbp_pool_end(:,iele) = nbp_pool_end(:,iele) + &
+                  SUM(som(:,icarb,:,iele) * veget_max(:,:),2)
+          ENDDO
+       ENDIF
+
+       DO ipar = 1,nparts
+          ! There is litter being transfered that will only
+          ! be processed in stomate.f90 at the start of the
+          ! next time step. 
+          ! Note: be careful with the time step of bm_to_litter
+          ! and turnover. They are calculated in stomate_lpj and
+          ! thus have a daily time step but in stomate they are
+          ! redistributed to the half hourly time step.
+          nbp_pool_end(:,iele) = nbp_pool_end(:,iele) + &
+               SUM((bm_to_litter(:,:,ipar,iele)  + &
+               turnover(:,:,ipar,iele)) * veget_max(:,:),2)
+       ENDDO
+
+       DO ipar = 1,nparts
+          ! biomass
+          DO icir=1,ncirc
+             nbp_pool_end(:,iele) = nbp_pool_end(:,iele) + &
+                  SUM(circ_class_biomass(:,:,icir,ipar,iele)* &
+                  circ_class_n(:,:,icir) * veget_max(:,:),2)
+          ENDDO
+       ENDDO
+
+       nbp_pool_end(:,iele) = nbp_pool_end(:,iele) + &
+            ( SUM(SUM(SUM(harvest_pool_acc(:,:,:,iele,:),4),3),2) + &
+            SUM(SUM(SUM(prod_l(:,:,iele,:,:),2),2),2) + &
+            SUM(SUM(SUM(prod_m(:,:,iele,:,:),2),2),2) + &
+            SUM(SUM(SUM(prod_s(:,:,iele,:,:),2),2),2) ) / &
+            (area(:) * contfrac(:))
+
+    ENDDO ! # nelements
+
+    ! NOTE: until now bact has been a diagnostic carbon pool. The carbon
+    ! used in this pool is never taken from the litter. Hence it should
+    ! NOT be accounted here. See also sapiens_lcchange for the variable 
+    ! burried for some adjustments that are required because bact is not
+    ! a real pool in ORCHIDEE.
+
+    ! The nitrogen pool in the soil may have changed
+    DO inspec = 1,nnspec
+       nbp_pool_end(:,initrogen) = nbp_pool_end(:,initrogen) + &
+            SUM(soil_n_min(:,:,inspec) * veget_max(:,:),2)
+    ENDDO
+
+
+    IF (printlev_loc>=4) WRITE(numout,*) 'Leaving calculate_nbp_pool'
+
+    END SUBROUTINE calculate_nbp_pool
+
+!! ================================================================================================================================
+!! SUBROUTINE   : history_write
+!!
+!>\BRIEF        Write a set of variables to the out_orchidee file
+!!
+!! DESCRIPTION  : Write a set of variables to the out_orchidee file when
+!!                there is a problem with the NBP calculation or its 
+!!                consistency check.  
+!!
+!! RECENT CHANGE(S) : None
+!!
+!! MAIN OUTPUT VARIABLE(S): None
+!!
+!! REFERENCE(S) : None
+!!
+!! FLOWCHART    : None
+!! \n
+!_ ================================================================================================================================
+  SUBROUTINE history_write(ipts, ivm, iele, atm_to_bm_hist, gpp_daily_hist, &
+       resp_growth_hist, resp_maint_hist, resp_hetero_hist, co2_fire_hist, &
+       n_input_daily_hist, emission_daily_hist, leaching_daily_hist, &
+       veget_max_hist, check_point)
+   
+  !! 0. Variable and parameter description
+
+    !! 0.1 Input variables
+    INTEGER(i_std), INTENT(in)                                  :: ipts                !! Domain size (unitless)
+    INTEGER(i_std), INTENT(in)                                  :: ivm                 !! PFT (unitless)
+    INTEGER(i_std), INTENT(in)                                  :: iele                !! elements: C or N.
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:,:)                 :: atm_to_bm_hist      !! History of atm_to_bm for C and N for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: gpp_daily_hist      !! History of gpp_daily for C for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: resp_growth_hist    !! History of resp_growth for C for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: resp_maint_hist     !! History of resp_maint for C for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: resp_hetero_hist    !! History of resp_hetero for C for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: co2_fire_hist       !! History of co2_fire for C for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: n_input_daily_hist  !! History of n_input_daily for N for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: emission_daily_hist !! History of emission_daily for N for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: leaching_daily_hist !! History of emission_daily for N for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: veget_max_hist      !! History of veget_max for the different subroutines
+    CHARACTER(*),INTENT(in)                                     :: check_point         !! A flag to indicate at which point in the code we're doing
+!_ ================================================================================================================================
+ 
+    ! Error checking before calculating nbp_daily_flux
+    ! The whole idea behind using veget_max_hist is that we should
+    ! never multiply a flux with a an empty veget_max_hist. Given
+    ! that this problem ocurred several times in the past, a test
+    ! was added.
+    WRITE(numout,*) check_point
+    IF (iele.EQ.icarbon) THEN
+       WRITE(numout,*) "Output for carbon"
+       WRITE(numout,*) "step, veget_max, atm_to_bm, gpp, resp_growth, resp_maint and resp_hetero for ipts, ivm:", ipts, ivm 
+       WRITE(numout,*)"IBEG",veget_max_hist(ipts,ivm,ibeg), &
+            atm_to_bm_hist(ipts,ivm,ibeg,1), gpp_daily_hist(ipts,ivm,ibeg), &
+            resp_growth_hist(ipts,ivm,ibeg), resp_maint_hist(ipts,ivm,ibeg), &
+            resp_hetero_hist(ipts,ivm,ibeg)
+       WRITE(numout,*)"IPRE",veget_max_hist(ipts,ivm,ipre),& 
+            atm_to_bm_hist(ipts,ivm,ipre,1), gpp_daily_hist(ipts,ivm,ipre), &
+            resp_growth_hist(ipts,ivm,ipre), resp_maint_hist(ipts,ivm,ipre), &
+            resp_hetero_hist(ipts,ivm,ipre)
+       WRITE(numout,*)"IPHE",veget_max_hist(ipts,ivm,iphe),&
+            atm_to_bm_hist(ipts,ivm,iphe,1), gpp_daily_hist(ipts,ivm,iphe), &
+            resp_growth_hist(ipts,ivm,iphe), resp_maint_hist(ipts,ivm,iphe), &
+            resp_hetero_hist(ipts,ivm,iphe)
+       WRITE(numout,*)"IGRO",veget_max_hist(ipts,ivm,igro),&
+            atm_to_bm_hist(ipts,ivm,igro,1), gpp_daily_hist(ipts,ivm,igro), &
+            resp_growth_hist(ipts,ivm,igro), resp_maint_hist(ipts,ivm,igro), &
+            resp_hetero_hist(ipts,ivm,igro)
+       WRITE(numout,*)"IAGE",veget_max_hist(ipts,ivm,iage),&
+            atm_to_bm_hist(ipts,ivm,iage,1), gpp_daily_hist(ipts,ivm,iage), &
+            resp_growth_hist(ipts,ivm,iage), resp_maint_hist(ipts,ivm,iage), &
+            resp_hetero_hist(ipts,ivm,iage)
+       WRITE(numout,*)"ILUC",veget_max_hist(ipts,ivm,iluc),&
+            atm_to_bm_hist(ipts,ivm,iluc,1), gpp_daily_hist(ipts,ivm,iluc), &
+            resp_growth_hist(ipts,ivm,iluc), resp_maint_hist(ipts,ivm,iluc), &
+            resp_hetero_hist(ipts,ivm,iluc)
+       WRITE(numout,*)"ICLE",veget_max_hist(ipts,ivm,icle),&
+            atm_to_bm_hist(ipts,ivm,icle,1), gpp_daily_hist(ipts,ivm,icle), &
+            resp_growth_hist(ipts,ivm,icle), resp_maint_hist(ipts,ivm,icle), &
+            resp_hetero_hist(ipts,ivm,icle)
+       WRITE(numout,*)"IREC",veget_max_hist(ipts,ivm,irec),&
+            atm_to_bm_hist(ipts,ivm,irec,1), gpp_daily_hist(ipts,ivm,irec), &
+            resp_growth_hist(ipts,ivm,irec), resp_maint_hist(ipts,ivm,irec), &
+            resp_hetero_hist(ipts,ivm,irec)
+       WRITE(numout,*)"ISPC",veget_max_hist(ipts,ivm,ispc),&
+            atm_to_bm_hist(ipts,ivm,ispc,1), gpp_daily_hist(ipts,ivm,ispc), &
+            resp_growth_hist(ipts,ivm,ispc), resp_maint_hist(ipts,ivm,ispc), &
+            resp_hetero_hist(ipts,ivm,ispc)
+       CALL flush(numout)
+    ELSEIF(iele.EQ.initrogen) THEN
+       WRITE(numout,*) "Output for nitrogen"
+       WRITE(numout,*) "step, veget_max, atm_to_bm, n_input, emission, leaching for ipts, ivm:", ipts, ivm 
+       WRITE(numout,*)"IBEG",veget_max_hist(ipts,ivm,ibeg), &
+            atm_to_bm_hist(ipts,ivm,ibeg,1), n_input_daily_hist(ipts,ivm,ibeg), &
+            emission_daily_hist(ipts,ivm,ibeg), leaching_daily_hist(ipts,ivm,ibeg) 
+       WRITE(numout,*)"IPRE",veget_max_hist(ipts,ivm,ipre),& 
+            atm_to_bm_hist(ipts,ivm,ipre,1), n_input_daily_hist(ipts,ivm,ipre), &
+            emission_daily_hist(ipts,ivm,ipre), leaching_daily_hist(ipts,ivm,ipre)
+       WRITE(numout,*)"IPHE",veget_max_hist(ipts,ivm,iphe),&
+            atm_to_bm_hist(ipts,ivm,iphe,1), n_input_daily_hist(ipts,ivm,iphe), &
+            emission_daily_hist(ipts,ivm,iphe), leaching_daily_hist(ipts,ivm,iphe)
+       WRITE(numout,*)"IGRO",veget_max_hist(ipts,ivm,igro),&
+            atm_to_bm_hist(ipts,ivm,igro,1), n_input_daily_hist(ipts,ivm,igro), &
+            emission_daily_hist(ipts,ivm,igro), leaching_daily_hist(ipts,ivm,igro)
+       WRITE(numout,*)"IAGE",veget_max_hist(ipts,ivm,iage),&
+            atm_to_bm_hist(ipts,ivm,iage,1), n_input_daily_hist(ipts,ivm,iage), &
+            emission_daily_hist(ipts,ivm,iage), leaching_daily_hist(ipts,ivm,iage)
+       WRITE(numout,*)"ILUC",veget_max_hist(ipts,ivm,iluc),&
+            atm_to_bm_hist(ipts,ivm,iluc,1), n_input_daily_hist(ipts,ivm,iluc), &
+            emission_daily_hist(ipts,ivm,iluc), leaching_daily_hist(ipts,ivm,iluc)
+       WRITE(numout,*)"ICLE",veget_max_hist(ipts,ivm,icle),&
+            atm_to_bm_hist(ipts,ivm,icle,1), n_input_daily_hist(ipts,ivm,icle), &
+            emission_daily_hist(ipts,ivm,icle), leaching_daily_hist(ipts,ivm,icle)
+       WRITE(numout,*)"IREC",veget_max_hist(ipts,ivm,irec),&
+            atm_to_bm_hist(ipts,ivm,irec,1), n_input_daily_hist(ipts,ivm,irec), &
+            emission_daily_hist(ipts,ivm,irec), leaching_daily_hist(ipts,ivm,irec)
+       WRITE(numout,*)"ISPC",veget_max_hist(ipts,ivm,ispc),&
+            atm_to_bm_hist(ipts,ivm,ispc,1), n_input_daily_hist(ipts,ivm,ispc), &
+            emission_daily_hist(ipts,ivm,ispc), leaching_daily_hist(ipts,ivm,ispc)
+       CALL flush(numout)
+    ELSE
+       CALL ipslerr_p(3,'history_write in stomate_lpj','nbp consistency check',&
+            'element not defined','')
+    END IF
+
+  END SUBROUTINE history_write
+
+
+!! ================================================================================================================================
+!! SUBROUTINE   : atm_bm_write
+!!
+!>\BRIEF        Write a set of variables to the out_orchidee file
+!!
+!! DESCRIPTION  : Write a set of variables to the out_orchidee file when
+!!                there is a problem with the NBP calculation or its 
+!!                consistency check.  
+!!
+!! RECENT CHANGE(S) : None
+!!
+!! MAIN OUTPUT VARIABLE(S): None
+!!
+!! REFERENCE(S) : None
+!!
+!! FLOWCHART    : None
+!! \n
+!_ ================================================================================================================================
+  SUBROUTINE atm_bm_write(ipts, ivm, iele, atm_to_bm_hist, &
+       veget_max_hist, check_point)
+   
+  !! 0. Variable and parameter description
+
+    !! 0.1 Input variables
+    INTEGER(i_std), INTENT(in)                                  :: ipts                !! Domain size (unitless)
+    INTEGER(i_std), INTENT(in)                                  :: ivm                 !! PFT (unitless)
+    INTEGER(i_std), INTENT(in)                                  :: iele                !! Element: C or N (unitless)
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:,:)                 :: atm_to_bm_hist      !! History of atm_to_bm for C and N for the different subroutines
+    REAL(r_std), INTENT(in), DIMENSION(:,:,:)                   :: veget_max_hist      !! History of veget_max in different subroutines
+    CHARACTER(*),INTENT(in)                                     :: check_point         !! A flag to indicate at which point in the code we're doing
+
+    !! 0.4 Local variable
+    INTEGER(i_std)                                              :: iupd                !! Index
+!_ ================================================================================================================================
+ 
+    ! Empty cells of veget_max_hist should not co-exist with filled cells
+    ! for atm_to_bm
+    DO iupd = 1,nupdate1 
+       IF (ABS(atm_to_bm_hist(ipts,ivm,iupd,iele)) .GT. min_stomate .AND. &
+            veget_max_hist(ipts,ivm,iupd) .EQ. zero) THEN
+          WRITE(numout,*) check_point 
+          WRITE(numout,*) 'ipts, ivm, iele, iupd, veget_max, ', ipts, ivm, iele, iupd, &
+               atm_to_bm_hist(ipts,ivm,iupd,iele), veget_max_hist(ipts,ivm,iupd)
+          WRITE(numout,*) 'veget_max_hist, ', veget_max_hist(ipts,ivm,:)
+          CALL flush(numout)
+          CALL ipslerr_p(3,'conflict between atm_to_bm_hist and veget_max_hist','','','')
+       END IF
+    END DO
+    !-
+    END SUBROUTINE atm_bm_write
+
+!! ================================================================================================================================
+!! SUBROUTINE   : debug_write
+!!
+!>\BRIEF        Write a set of variables to the out_orchidee file
+!!
+!! DESCRIPTION  : Write a set of variables to the out_orchidee file after a routine 
+!!                a routine was called.
+!!
+!! RECENT CHANGE(S) : None
+!!
+  SUBROUTINE debug_write(npts, check_point, circ_class_biomass, &
+    circ_class_n, circ_class_kill, plant_status, veget_max_hist, &
+    soil_n_min, forest_managed)
+
+ !! 0. Variable and parameter description
+
+    !! 0.1 Input variables
+    INTEGER(i_std), INTENT(in)                    :: npts               !! Domain size (unitless)
+    REAL(r_std), DIMENSION(:,:), INTENT(in)       :: plant_status       !! Growth and phenological status of the plant
+                                                                        !! istatus = Phases defined in constantes
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(in) :: circ_class_biomass !! Biomass of the componets of the model  
+                                                                        !! tree within a circumference
+                                                                        !! class @tex $(gC ind^{-1})$ @endtex
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(in) :: circ_class_kill    !! Number of trees within a circ class that needs
+                                                                        !! to be killed @tex $(ind m^{-2})$ @endtex
+                                                                        !! IMPORTANT: See the note in constantes.f90
+                                                                        !! regarding the indicies for this variable.
+    REAL(r_std), DIMENSION(:,:,:), INTENT(in)     :: circ_class_n       !! Number of individuals in each circ class
+                                                                        !! @tex $(m^{-2})$ @endtex
+    CHARACTER(*),INTENT(in)                       :: check_point        !! A flag to indicate at which
+                                                                        !! point in the code we're doing
+    REAL(r_std), DIMENSION(:,:,:), INTENT(in)     :: veget_max_hist     !! history of "maximal" coverage fraction of a PFT 
+                                                                        !! (LAI -> infinity) on ground. May sum to
+                                                                        !! less than unity if the pixel has
+                                                                        !! nobio area. (unitless; 0-1)
+    REAL(r_std), DIMENSION(:,:,:), INTENT(in)     :: soil_n_min         !! Mineral nitrogen in the soil (gN/m**2)
+    INTEGER(i_std), DIMENSION (:,:), INTENT(in)   :: forest_managed     !! forest management flag
+
+    !! 0.4 Local variables
+    INTEGER                                       :: icut, ifm, ipts, ivm, icir
+!_ ================================================================================================================================
+
+    ! CHOSE what you want to write to out_orchidee. Don't exagerate the out_orchidee files
+    ! can get pretty long.
+    WRITE(numout,*) check_point
+    WRITE(numout,*) 'veget_max, ', veget_max_hist(test_grid,test_pft,:) 
+    WRITE(numout,*) 'pixel, pft, plant_status, ', test_grid, test_pft, plant_status(test_grid,test_pft)
+    WRITE(numout,*) 'circ_class_biomass - leaf C, ',&
+         SUM(circ_class_biomass(test_grid,test_pft,:,ileaf,icarbon)*&
+         circ_class_n(test_grid,test_pft,:),1)
+    WRITE(numout,*) 'circ_class_biomass - leaf N, ',&
+         SUM(circ_class_biomass(test_grid,test_pft,:,ileaf,initrogen)*&
+         circ_class_n(test_grid,test_pft,:),1)
+    WRITE(numout,*) 'circ_class_n, ', circ_class_n(test_grid,test_pft,:)
+    WRITE(numout,*) 'forest_managed', forest_managed(test_grid,test_pft)
+
+
+  END SUBROUTINE debug_write
+
+
+
+
+
+  ! Guillaume M. -- Temporary tripwire: name the first step of the day that leaves a
+  ! non-finite value in bm_to_litter. isnan misses +-Inf, so test finiteness. The FIRST
+  ! tag printed in the journal is the culprit; every later step trips on the same slot.
+  SUBROUTINE bmnan_probe(bm_to_litter, tag)
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(in) :: bm_to_litter
+    CHARACTER(LEN=*), INTENT(in)                :: tag
+    INTEGER(i_std)                              :: ip, iv
+    DO iv = 1,SIZE(bm_to_litter,2)
+       DO ip = 1,SIZE(bm_to_litter,1)
+          IF ( ANY( .NOT. (bm_to_litter(ip,iv,:,:) .GT. -HUGE(un) .AND. &
+                           bm_to_litter(ip,iv,:,:) .LT. HUGE(un)) ) ) THEN
+             WRITE(numout,*) '[BMNAN] apres ',tag,' ipts',ip,' ipft',iv
+             CALL flush(numout)
+             RETURN
+          ENDIF
+       ENDDO
+    ENDDO
+  END SUBROUTINE bmnan_probe
+
+END MODULE stomate_lpj

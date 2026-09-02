@@ -1,0 +1,4110 @@
+#
+#
+#  WARNING !!! 
+#  DO NOT MODIFY THIS FILE.
+#  THIS FILE IS ONLY PROVIDING INFORMATION ABOUT DEFAULT PARAMETER SETTINGS IN ORCHIDEE. 
+#
+#************************************************************************************************************
+#                    Namelist for ORCHIDEE 
+#************************************************************************************************************
+#
+#  For more details, see : http://forge.ipsl.jussieu.fr/orchidee/wiki/Documentation/OrchideeParameters 
+#
+#  Note : [m] : meters; [K] : Kelvin degrees; [C] : Celsius degrees
+#
+
+#************************************************************************************************************
+#          ORCHIDEE driver parameters (read in Off-line mode only) for orchideedriver 
+#************************************************************************************************************
+
+# GRID_FILE ([FILE] ) :  Name of file containing the forcing data 	{[-]}
+GRID_FILE =  grid_file.nc 
+
+# OK_SORT_LON_LAT ([y/n]) :  Flag to order longitudes and latitudes in increasing order 	{[orchideedriver]}
+OK_SORT_LON_LAT =  n 
+
+# LIMIT_WEST ([Degrees] ) :  Western limit of region 	{[-]}
+LIMIT_WEST =  -180. 
+
+# LIMIT_EAST ([Degrees] ) :  Eastern limit of region 	{[-]}
+LIMIT_EAST =  180. 
+
+# LIMIT_NORTH ([Degrees]) :  Northern limit of region 	{[-]}
+LIMIT_NORTH =  90. 
+
+# LIMIT_SOUTH ([Degrees]) :  Southern limit of region 	{[-]}
+LIMIT_SOUTH =  -90. 
+
+# WEST_EAST ([degrees east] ) :  Longitude interval to use from the forcing data 	{[-]}
+WEST_EAST =  -180, 180 
+
+# SOUTH_NORTH ([degrees north] ) :  Latitude interval to use from the forcing data 	{[-]}
+SOUTH_NORTH =  -90, 90 
+
+# START_DATE ([yyyy-mm-dd hh:0:0]) :  Date at which the simulation starts 	{orchideedriver}
+START_DATE =  NONE 
+
+# CYCLIC_STARTDATE ([yyyy-mm-dd hh:0:0]) :  Date at which the cyclic year is started 	{orchideedriver}
+CYCLIC_STARTDATE =  NONE 
+
+# CYCLIC_ENDDATE ([yyyy-mm-dd hh:0:0]) :  Date at which the cyclic year is ended 	{orchideedriver}
+CYCLIC_ENDDATE =  NONE 
+
+# END_DATE ([yyyy-mm-dd hh:0:0]) :  Date at which the simulation ends 	{orchideedriver}
+END_DATE =  NONE 
+
+# DT_SECHIBA ([seconds]) :  Time step length in seconds for sechiba component 	{orchideedriver}
+DT_SECHIBA =  1800 
+
+# LWDOWN_CONS ([y/n]) :  Conserve the longwave downward radiation of the forcing 	{orchideedriver}
+LWDOWN_CONS =  n 
+
+# FORCING_MEMORY ([-]) :  Number of time steps of the forcing we will store in memory. 	{orchideedriver}
+FORCING_MEMORY =  80 
+
+# SPREAD_PREC ([-]) :  On how long we spread the precipitation, value in number of DT_SECHIBA 	{orchideedriver}
+SPREAD_PREC =  Half of the forcing time step or uniform, depending on dt_force and dt_sechiba 
+
+# SPREAD_PREC_SEC ([seconds]) :  On how long we spread the precipitation, value in seconds 	{orchideedriver, only read if SPREAD_PREC is not set}
+SPREAD_PREC_SEC =  Half of the forcing time step 
+
+# SPREAD_PREC_CONT ([m]) :  Makes the spreading uniform if it still rains at following forcing time step 	{orchideedriver}
+SPREAD_PREC_CONT =  FALSE 
+
+#************************************************************************************************************
+#          ORCHIDEE driver parameters (read in Off-line mode only) for orchidee_ol (obsolete driver)  
+#************************************************************************************************************
+
+# LWDOWN_CONS ([FLAG]) :  Conserve longwave downwelling radiation in the forcing 	{}
+LWDOWN_CONS =  n 
+
+# SWDOWN_CONS ([FLAG]) :  Conserve shortwave downwelling radiation in the forcing 	{}
+SWDOWN_CONS =  LWDOWN_CONS 
+
+# FORCING_FILE ([FILE] ) :  Name of file containing the forcing data 	{[-]}
+FORCING_FILE =  forcing_file.nc 
+
+# DT_SECHIBA ([seconds]) :  Time-step of the SECHIBA component 	{NOT(WEATHERGEN)}
+DT_SECHIBA =  1800. 
+
+# RESTART_FILEIN ([FILE]) :  Name of restart to READ for initial conditions 	{[-]}
+RESTART_FILEIN =  NONE 
+
+# RESTART_FILEOUT ([FILE]) :  Name of restart files to be created by the driver 	{[-]}
+RESTART_FILEOUT =  driver_rest_out.nc 
+
+# DRIVER_reset_time ([FLAG]) :  Overwrite time values from the driver restart file 	{orchidee_ol driver}
+DRIVER_reset_time =  n 
+
+# TIME_SKIP ([seconds, days, months, years]) :  Time in the forcing file at which the model is started. 	{orchidee_ol driver}
+TIME_SKIP =  0 
+
+# TIME_LENGTH ([seconds, days, months, years]) :  Length of the integration in time. 	{orchidee_ol driver}
+TIME_LENGTH =  Full length of the forcing file  
+
+# RELAXATION ([FLAG]) :  method of forcing 	{[-]}
+RELAXATION =  n 
+
+# RELAX_A ([days?]) :  Time constant of the relaxation layer 	{RELAXATION}
+RELAX_A =  1.0 
+
+# SPREAD_PREC ([-]) :  On how long we spread the precipitation, value in nb of dt_sechiba 	{orchidee_ol driver}
+SPREAD_PREC =  Half of the forcing time step or uniform, depending on dt_force and dt_sechiba 
+
+# ATM_CO2 ([ppm]) :  Value to precribe atmosoheric CO2 	{[FORCE_CO2_VEG=y or Offline mode]}
+ATM_CO2 =  350. 
+
+# CO2_varying ([y/n]) :  A flag to specify if CO2 level will vary within the simulation 	{[FORCE_CO2_VEG=y or Offline mode]}
+CO2_varying =  .FALSE. 
+
+# CO2_inc ([-]) :  Relative yearly increase of the CO2 level 	{[FORCE_CO2_VEG=y or Offline mode]}
+CO2_inc =  1. 
+
+# ALLOW_WEATHERGEN ([FLAG]) :  Allow weather generator to create data 	{[-]}
+ALLOW_WEATHERGEN =  n 
+
+# DT_WEATHGEN ([seconds]) :  Calling frequency of weather generator 	{ALLOW_WEATHERGEN}
+DT_WEATHGEN =  1800. 
+
+# LIMIT_WEST ([Degrees] ) :  Western limit of region 	{[-]}
+LIMIT_WEST =  -180. 
+
+# LIMIT_EAST ([Degrees] ) :  Eastern limit of region 	{[-]}
+LIMIT_EAST =  180. 
+
+# LIMIT_NORTH ([Degrees]) :  Northern limit of region 	{[-]}
+LIMIT_NORTH =  90. 
+
+# LIMIT_SOUTH ([Degrees]) :  Southern limit of region 	{[-]}
+LIMIT_SOUTH =  -90. 
+
+# MERID_RES ([Degrees]) :  North-South Resolution 	{ALLOW_WEATHERGEN}
+MERID_RES =  2. 
+
+# ZONAL_RES ([Degrees] ) :  East-West Resolution 	{ALLOW_WEATHERGEN}
+ZONAL_RES =  2. 
+
+# HEIGHT_LEV1 ([m]) :  Height at which T and Q are given 	{offline mode}
+HEIGHT_LEV1 =  2.0 
+
+# HEIGHT_LEVW ([m]) :  Height at which the wind is given 	{offline mode}
+HEIGHT_LEVW =  10.0 
+
+# NBUFF (-) :  Number of time steps of data to buffer between each reading of the forcing file 	{OFF_LINE}
+NBUFF =  1 
+
+# IPPREC ([-] ) :  Use prescribed values 	{ALLOW_WEATHERGEN}
+IPPREC =  0 
+
+# WEATHGEN_PRECIP_EXACT ([FLAG]) :  Exact monthly precipitation 	{ALLOW_WEATHERGEN}
+WEATHGEN_PRECIP_EXACT =  n 
+
+# DUMP_WEATHER ([FLAG]) :  Write weather from generator into a forcing file 	{ALLOW_WEATHERGEN  }
+DUMP_WEATHER =  n 
+
+# DUMP_WEATHER_FILE ([FILE]) :  Name of the file that contains the weather from generator 	{DUMP_WEATHER}
+DUMP_WEATHER_FILE =  weather_dump.nc 
+
+# DUMP_WEATHER_GATHERED ([FLAG]) :  Dump weather data on gathered grid 	{DUMP_WEATHER}
+DUMP_WEATHER_GATHERED =  y 
+
+# HEIGHT_LEV1_DUMP ([m]) :   	{DUMP_WEATHER}
+HEIGHT_LEV1_DUMP =  10. 
+
+#************************************************************************************************************
+#          ORCHIDEE parameters  
+#************************************************************************************************************
+
+# NC_RESTART_COMPRESSION  ([FLAG]) :  Restart netcdf outputs file are written in compression mode  	{}
+NC_RESTART_COMPRESSION  =  n 
+
+# SOILTYPE_CLASSIF ([-]) :  Type of classification used for the map of soil types  	{!IMPOSE_VEG}
+SOILTYPE_CLASSIF =  zobler 
+
+# ENERGY_CONTROL ([FLAG]) :  	{OK_SECHIBA}
+ENERGY_CONTROL =  1 
+
+# OK_HYDROL_ARCH ([FLAG]) :  Activates the hydraulic architecture by Tuzet et al. (2017) 	{OK_SECHIBA}
+OK_HYDROL_ARCH =  y 
+
+# OK_GS_FEEDBACK ([FLAG]) :  Debug option for OK_HYDROL_ARCH   	{OK_SECHIBA, OK_HYDROL_ARCH}
+OK_GS_FEEDBACK =  y 
+
+# OK_MLEB ([FLAG]) :  Activate multi-layer energy budget   	{OK_SECHIBA}
+OK_MLEB =  y 
+
+# OK_IMPOSE_CAN_STRUCTURE ([FLAG]) :  Debug option for OK_MLEB  	{OK_SECHIBA, OK_MLEB}
+OK_IMPOSE_CAN_STRUCTURE =  n 
+
+# MLEB_NETCDF_FLAG ([FLAG]) :  Debug option for OK_MLEB  	{OK_SECHIBA, OK_MLEB}
+MLEB_NETCDF_FLAG =  n 
+
+# OK_BARE_SOIL_NEW ([FLAG]) :  Flag that controls the view on and calculation of bare soil 	{OK_SECHIBA or OK_STOMATE }
+OK_BARE_SOIL_NEW =  FALSE 
+
+# OK_HYDROL_ARCH_STORAGE ([FLAG]) :  Decides if we use the new hydraulic architecture with water storage compartments 	{OK_HYDROL_ARCH}
+OK_HYDROL_ARCH_STORAGE =  n 
+
+# OK_HYDROL_ARCH_DYN_RES ([FLAG]) :  Decides if we use the new hydraulic architecture with dynamic water resistances 	{OK_HYDROL_ARCH }
+OK_HYDROL_ARCH_DYN_RES =  n 
+
+# SPLIT_SOIL_PROPERTIES ([FLAG]) :  Decides if we split the soil properties between the top and inferior layers 	{OK_HYDROL_ARCH}
+SPLIT_SOIL_PROPERTIES =  n 
+
+# OK_HYDROL_ARCH_MUFF ([FLAG]) :  Decides if we use the new hydraulic architecture with the muff root absorption description 	{OK_HYDROL_ARCH}
+OK_HYDROL_ARCH_MUFF =  n 
+
+# OK_TUZET_INDIV ([FLAG]) :  Puts Tuzet at tree scale 	{OK_HYDROL_ARCH}
+OK_TUZET_INDIV =  n 
+
+# OK_NSL_VPD ([FLAG]) :  NSL in Tuzet 	{OK_HYDROL_ARCH}
+OK_NSL_VPD =  n 
+
+# TUZET_INF_LAYER ([FLAG]) :  Base of water potentials is inferior layer 	{OK_HYDROL_ARCH}
+TUZET_INF_LAYER =  n 
+
+# TEST_FUNCTIONAL_ROOTS_TUZET ([FLAG]) :  Replace previously used root profile by functional 	{OK_HYDROL_ARCH}
+TEST_FUNCTIONAL_ROOTS_TUZET =  y 
+
+# NO_G0 ([FLAG]) :  Puts stress function on g0 	{OK_HYDROL_ARCH}
+NO_G0 =  y 
+
+# OK_SAP_FEEDBACK ([FLAG]) :  Activate feedback of vessel mortality on sapwood conductance 	{OK_STOMATE}
+OK_SAP_FEEDBACK =  FALSE 
+
+# OK_LAKE_ENERGY ([FLAG]) :  Activate FLake (the energy model of lake) 	{OK_SECHIBA}
+OK_LAKE_ENERGY =  n 
+
+# OK_SNOW_ICE_LAKE_PAR ([FLAG]) :  Activate FLake snow and ice albedo parametrization 	{OK_LAKE_ENERGY}
+OK_SNOW_ICE_LAKE_PAR =  y 
+
+# OK_BOTSED_LAKE ([FLAG]) :  Activate FLake parametrization of sediment layer 	{OK_LAKE_ENERGY}
+OK_BOTSED_LAKE =  n 
+
+# RIVER_ROUTING ([FLAG]) :  Decides if we route the water or not 	{OK_SECHIBA}
+RIVER_ROUTING =  y 
+
+# ROUTING_METHOD (character string) :  Choice of routing module to be used 	{RIVER_ROUTING=T}
+ROUTING_METHOD =  subgrid_halfdeg 
+
+# WHICH_RT (character string) :  Choice of radiation transfer scheme 	{}
+WHICH_RT =  Matrixial 
+
+# DO_IRRIGATION ([FLAG]) :  Should we compute an irrigation flux  	{RIVER_ROUTING }
+DO_IRRIGATION =  n 
+
+# DO_FLOODPLAINS ([FLAG]  ) :  Should we include floodplains  	{RIVER_ROUTING }
+DO_FLOODPLAINS =  n 
+
+# OK_SOIL_CARBON_DISCRETIZATION ([FLAG]) :  Activate soil carbon vertical discretization 	{OK_STOMATE}
+OK_SOIL_CARBON_DISCRETIZATION =  FALSE 
+
+# OK_ICE_SHEET ([FLAG]) :  Activate ice scheme on ice-sheet area 	{OK_SECHIBA}
+OK_ICE_SHEET =  FALSE 
+
+# USE_THERMO_NEWDISC ([FLAG]) :  Use new subroutines for thermal capacities and conductivities (NewDisC) 	{OK_SOIL_CARBON_DISCRETIZATION or USE_SOILC_INSULATION }
+USE_THERMO_NEWDISC =  FALSE 
+
+# DIAG_QSAT ([FLAG]) :  Catch temperature out of range 	{OK_SECHIBA}
+DIAG_QSAT =  TRUE 
+
+# STOMATE_OK_STOMATE ([FLAG]) :  Activate STOMATE? 	{OK_SECHIBA}
+STOMATE_OK_STOMATE =  y 
+
+# OK_VESSEL_MORTALITY ([FLAG]) :  Activate death and recovery of vegetation following hydraulic failure. 	{OK_STOMATE}
+OK_VESSEL_MORTALITY =  FALSE 
+
+# READ_LAI ([-]) :  Options for LAI calculation without stomate. 0: impose LAI from biomass, 1: impose LAI from phenology and LAI for site-based, 2:read biomass map  	{OK_STOMATE=FALSE}
+READ_LAI =  -1 
+
+# DO_WOOD_HARVEST ([FLAG]) :  Activate Wood Harvest ? 	{OK_STOMATE}
+DO_WOOD_HARVEST =  n 
+
+# STOMATE_OK_NCYCLE  ([FLAG] ) :  Activate dynamic N cycle  	{OK_STOMATE }
+STOMATE_OK_NCYCLE  =  y  
+
+# STOMATE_IMPOSE_CN ([FLAG] ) :  Impose the CN ratio of leaves  	{OK_STOMATE }
+STOMATE_IMPOSE_CN =  n  
+
+# RESET_IMPOSE_CN ([FLAG]  ) :  Reset the CN ratio of leaves  	{OK_STOMATE }
+RESET_IMPOSE_CN =  n  
+
+# STOMATE_READ_CN ([FLAG] ) :  Read the CN ratio of leaves  	{OK_STOMATE }
+STOMATE_READ_CN =  n  
+
+# STOMATE_OK_DGVM ([FLAG]) :  Activate DGVM? 	{OK_STOMATE}
+STOMATE_OK_DGVM =  n 
+
+# CHEMISTRY_BVOC ([FLAG]) :  Activate calculations for BVOC 	{OK_SECHIBA}
+CHEMISTRY_BVOC =  n 
+
+# CHEMISTRY_LEAFAGE ([FLAG]) :  Activate LEAFAGE? 	{CHEMISTRY_BVOC}
+CHEMISTRY_LEAFAGE =  n 
+
+# CANOPY_EXTINCTION  ([FLAG]) :  Use canopy radiative transfer model? 	{CHEMISTRY_BVOC }
+CANOPY_EXTINCTION  =  n 
+
+# CANOPY_MULTILAYER ([FLAG]) :  Use canopy radiative transfer model with multi-layers 	{CANOPY_EXTINCTION }
+CANOPY_MULTILAYER =  n 
+
+# NOx_RAIN_PULSE ([FLAG]) :  Calculate NOx emissions with pulse? 	{CHEMISTRY_BVOC }
+NOx_RAIN_PULSE =  n 
+
+# NOx_BBG_FERTIL ([FLAG]) :  Calculate NOx emissions with bbg fertilizing effect? 	{CHEMISTRY_BVOC }
+NOx_BBG_FERTIL =  n 
+
+# NOx_FERTILIZERS_USE ([FLAG] ) :  Calculate NOx emissions with fertilizers use? 	{CHEMISTRY_BVOC }
+NOx_FERTILIZERS_USE =  n 
+
+# Is CO2 impact on BVOC accounted for using Possell 2005 ? (N/A) :  isoprene  	{N/A}
+Is CO2 impact on BVOC accounted for using Possell 2005 ? =  n  
+
+# Is CO2 impact on BVOC accounted for using Wilkinson 2009 ?  (N/A) :  isoprene  	{N/A}
+Is CO2 impact on BVOC accounted for using Wilkinson 2009 ?  =  FALSE 
+
+# CONSTANT_MORTALITY (N/A) :  Use constant prescribed mortality or calculate as a function of last year's NPP 	{OK_STOMATE}
+CONSTANT_MORTALITY =  TRUE 
+
+# OK_SNAGS ([FLAG]) :  puts a part of woody litter input in a snag litter pool 	{OK_STOMATE}
+OK_SNAGS =  n 
+
+# OK_READ_FM_MAP ([FLAG]) :  Read the forest management strategy from a map   	{OK_STOMATE}
+OK_READ_FM_MAP =  FALSE 
+
+# CONCEPT_SCALE ([FLAG]) :  Conceptual scale of the simulations for scale-dependent processes. 	{OK_STOMATE}
+CONCEPT_SCALE =  global  
+
+# FORCING_RESOLUTION ([FLAG]) :  Spatial and temporal resolution of the climate forcing 	{OK_WINDTHROW, OK_PEST}
+FORCING_RESOLUTION =  2degrees_6hourly  
+
+# OK_READ_SP_CLEARCUT_MAP ([FLAG]) :  Read a map prescribing whether a pixel and PFT gets clearcut during spinup   	{OK_STOMATE}
+OK_READ_SP_CLEARCUT_MAP =  FALSE 
+
+# OK_CHANGE_SPECIES ([FLAG]) :  Change species after a stand replacing disturbance 	{OK_STOMATE}
+OK_CHANGE_SPECIES =  FALSE 
+
+# READ_SPECIES_CHANGE_MAP ([FLAG]) :  Read the new tree species from a species map 	{OK_STOMATE}
+READ_SPECIES_CHANGE_MAP =  FALSE 
+
+# OK_READ_DESIRED_FM_MAP ([FLAG]) :  Read the new FM strategu from a map 	{OK_STOMATE, OK_CHANGE_SPECIES}
+OK_READ_DESIRED_FM_MAP =  FALSE 
+
+# OK_LITTER_RAKING ([FLAG]) :  Activite litter raking 	{OK_STOMATE}
+OK_LITTER_RAKING =  FALSE 
+
+# OK_DIMENSIONAL_PRODUCT_USE ([FLAG]) :  Product pools are based on the dimensions of the harvest 	{OK_STOMATE}
+OK_DIMENSIONAL_PRODUCT_USE =  TRUE 
+
+# FORCED_CLEAR_CUT (year) :  Use to force a clear cut at a specific year during a simulation. 	{OK_STOMATE}
+FORCED_CLEAR_CUT =  FALSE 
+
+# OK_C13 ([FLAG]) :  Calculate C13 fractionation 	{OK_SECHIBA }
+OK_C13 =  FALSE 
+
+# OK_WINDTHROW  ([FLAG] ) :  Activate windthrow  	{OK_STOMATE}
+OK_WINDTHROW  =  FALSE 
+
+# OK_PEST  ([FLAG] ) :  Calculate pest outbreaks. 	{OK_STOMATE}
+OK_PEST  =  FALSE 
+
+# OK_PHENO  ([FLAG]) :  Calculate lai and phenology. 	{OK_STOMATE}
+OK_PHENO  =  TRUE 
+
+# USE_FLUXNET ([FLAG] ) :  Deactivate retrieting wind speed in stomate, gustiness in 	{OK_STOMATE}
+USE_FLUXNET =  FALSE 
+
+# CAL_DEFLECTION ([FLAG] ) :  Calculate deflection load 	{OK_STOMATE}
+CAL_DEFLECTION =  FALSE 
+
+# WIND_CAL_PFT ([FLAG] ) :  Calculate pft level wind speed 	{OK_STOMATE}
+WIND_CAL_PFT =  FALSE 
+
+# TEST_SPACING ([FLAG] ) :  Manipulate spacing in windthrow 	{OK_STOMATE}
+TEST_SPACING =  FALSE 
+
+# NVM ([-]) :  number of PFTs   	{OK_SECHIBA or OK_STOMATE}
+NVM =  13 
+
+# TEST_DYNAMIC_ALPHA_SELF_THIN ([FLAG]) :  Use a dynamic parameter for alpha_self_thin 	{-}
+TEST_DYNAMIC_ALPHA_SELF_THIN =  n 
+
+# TEST_Q10_ON_PLANT_UPTAKE ([FLAG]) :  Use a Q10 function to control the plant uptake 	{-}
+TEST_Q10_ON_PLANT_UPTAKE =  n 
+
+# TEST_ADJUST_RHETERO ([FLAG]) :  Adjust heterotrophic respiration when mineralisation becomes negative 	{N/A}
+TEST_ADJUST_RHETERO =  y 
+
+# TEST_FDI_TYPES ([FLAG]) :  Use different Fire danger index for SPITFIRE 	{-}
+TEST_FDI_TYPES =  n 
+
+# PRINTLEV ([0, 1, 2, 3, 4]) :  Print level for text output 	{}
+PRINTLEV =  2 
+
+# PRINTSTANDOUT ([FLAG]) :  Print to standard output 	{}
+PRINTSTANDOUT =  FALSE 
+
+# DEPTH_MAX_T (m) :  Maximum depth of the soil thermodynamics 	{}
+DEPTH_MAX_T =  90.0 
+
+# DEPTH_MAX_H (m) :  Maximum depth of soil moisture 	{}
+DEPTH_MAX_H =  2.0 
+
+# DEPTH_TOPTHICK (m) :  Thickness of upper most Layer  	{}
+DEPTH_TOPTHICK =  9.77517107e-04 
+
+# DEPTH_CSTTHICK (m) :  Depth at which constant layer thickness start 	{}
+DEPTH_CSTTHICK =  DEPTH_MAX_H  
+
+# REFINEBOTTOM (-) :  Depth at which the hydrology layers will be refined towards the bottom. 	{}
+REFINEBOTTOM =  .FALSE. 
+
+# DEPTH_GEOM (m) :  Depth at which we resume geometrical increases for temperature 	{}
+DEPTH_GEOM =  DEPTH_MAX_H  
+
+# RATIO_GEOM_BELOW (-) :  Ratio of the geometrical series defining the thickness below DEPTH_GEOM 	{}
+RATIO_GEOM_BELOW =  2 
+
+# ALMA_OUTPUT ([FLAG]) :  Should the output follow the ALMA convention 	{OK_SECHIBA}
+ALMA_OUTPUT =  n 
+
+# OUTPUT_FILE ([FILE]) :  Name of file in which the output is going to be written 	{OK_SECHIBA}
+OUTPUT_FILE =  sechiba_history.nc 
+
+# WRITE_STEP ([seconds]) :  Frequency in seconds for sechiba_history.nc file with IOIPSL 	{OK_SECHIBA, NOT XIOS_ORCHIDEE_OK}
+WRITE_STEP =  86400. 
+
+# SECHIBA_HISTLEVEL ([-]) :  SECHIBA history output level (0..10) 	{OK_SECHIBA and HF}
+SECHIBA_HISTLEVEL =  5 
+
+# SECHIBA_HISTFILE2 ([FLAG]) :  Flag to switch on histfile 2 for SECHIBA (hi-frequency ?) 	{OK_SECHIBA}
+SECHIBA_HISTFILE2 =  n 
+
+# WRITE_STEP2 ([seconds]) :  Frequency in seconds at which to WRITE output 	{SECHIBA_HISTFILE2}
+WRITE_STEP2 =  1800.0 
+
+# SECHIBA_OUTPUT_FILE2 ([FILE]) :  Name of file in which the output number 2 is going to be written 	{SECHIBA_HISTFILE2}
+SECHIBA_OUTPUT_FILE2 =  sechiba_out_2.nc 
+
+# SECHIBA_HISTLEVEL2 ([-] ) :  SECHIBA history 2 output level (0..10) 	{SECHIBA_HISTFILE2}
+SECHIBA_HISTLEVEL2 =  1 
+
+# STOMATE_OUTPUT_FILE ([FILE]) :  Name of file in which STOMATE's output is going to be written 	{OK_STOMATE}
+STOMATE_OUTPUT_FILE =  stomate_history.nc 
+
+# STOMATE_HIST_DT ([days]) :  STOMATE history time step 	{OK_STOMATE}
+STOMATE_HIST_DT =  10. 
+
+# STOMATE_IPCC_OUTPUT_FILE ([FILE]) :  Name of file in which STOMATE's output is going to be written 	{OK_STOMATE}
+STOMATE_IPCC_OUTPUT_FILE =  stomate_ipcc_history.nc 
+
+# STOMATE_IPCC_HIST_DT ([days]) :  STOMATE IPCC history time step 	{OK_STOMATE}
+STOMATE_IPCC_HIST_DT =  0. 
+
+# OK_HISTSYNC ([FLAG]) :  Syncronize and write IOIPSL output files at each time step 	{}
+OK_HISTSYNC =  FALSE 
+
+# STOMATE_HISTLEVEL ([-]) :  STOMATE history output level (0..10) 	{OK_STOMATE}
+STOMATE_HISTLEVEL =  10 
+
+# SECHIBA_restart_in ([FILE]) :  Name of restart to READ for initial conditions 	{OK_SECHIBA }
+SECHIBA_restart_in =  NONE 
+
+# SECHIBA_rest_out ([FILE]) :  Name of restart files to be created by SECHIBA 	{OK_SECHIBA}
+SECHIBA_rest_out =  sechiba_rest_out.nc 
+
+# STOMATE_RESTART_FILEIN ([FILE]) :  Name of restart to READ for initial conditions of STOMATE 	{STOMATE_OK_STOMATE}
+STOMATE_RESTART_FILEIN =  NONE 
+
+# STOMATE_RESTART_FILEOUT ([FILE]) :  Name of restart files to be created by STOMATE 	{STOMATE_OK_STOMATE}
+STOMATE_RESTART_FILEOUT =  stomate_rest_out.nc 
+
+# FORCE_CO2_VEG ([FLAG]) :  Flag to force the value of atmospheric CO2 for vegetation. 	{Only in coupled mode}
+FORCE_CO2_VEG =  FALSE 
+
+# TAU_OUTFLOW ([days]) :  Number of days over which the coastal- and riverflow will be distributed 	{Only in coupled mode}
+TAU_OUTFLOW =  0 
+
+# ECCENTRICITY ([-]) :  Use prescribed values 	{ALLOW_WEATHERGEN}
+ECCENTRICITY =  0.016724 
+
+# PERIHELIE ([-]) :  Use prescribed values 	{ALLOW_WEATHERGEN}
+PERIHELIE =  102.04 
+
+# OBLIQUITY ([Degrees]) :  Use prescribed values 	{ALLOW_WEATHERGEN}
+OBLIQUITY =  23.446 
+
+# PFT_TO_MTC ([-]) :  correspondance array linking a PFT to MTC 	{OK_SECHIBA or OK_STOMATE}
+PFT_TO_MTC =  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 
+
+# PFT_NAME ([-]) :  Name of a PFT 	{OK_SECHIBA or OK_STOMATE}
+PFT_NAME =  bare ground, tropical broad-leaved evergreen, tropical broad-leaved raingreen, temperate needleleaf evergreen, temperate broad-leaved evergreen, temperate broad-leaved summergreen,  boreal needleleaf evergreen, boreal broad-leaved summergreen, boreal needleleaf summergreen,  C3 grass, C4 grass, C3 agriculture, C4 agriculture  
+
+# LEAF_TAB ([-] ) :  leaf type : 1 	{OK_STOMATE}
+LEAF_TAB =  4, 1, 1, 2, 1, 1, 2, 1, 2, 3, 3, 3, 3  
+
+# PHENO_MODEL ([-] ) :  which phenology model is used? (tabulated)  	{OK_STOMATE}
+PHENO_MODEL =  none, none, moi, none, none, ncdgdd, none, ncdgdd, ngd, moigdd, moigdd, moigdd, moigdd 
+
+# GDD_THRESHOLD  ([Celcius] ) :  Temperature above which GDD is accounted for 	{OK_STOMATE }
+GDD_THRESHOLD  =  0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 5, 5  
+
+# SECHIBA_LAI ([m^2/m^2]) :  laimax for maximum lai(see also type of lai interpolation) 	{OK_SECHIBA or IMPOSE_VEG}
+SECHIBA_LAI =  0., 8., 8., 4., 4.5, 4.5, 4., 4.5, 4., 2., 2., 2., 2. 
+
+# LLAIMIN ([m^2/m^2]) :  laimin for minimum lai(see also type of lai interpolation) 	{OK_SECHIBA or IMPOSE_VEG}
+LLAIMIN =  0., 8., 0., 4., 4.5, 0., 4., 0., 0., 0., 0., 0., 0. 
+
+# SLOWPROC_HEIGHT ([m] ) :  prescribed height of vegetation  	{OK_SECHIBA}
+SLOWPROC_HEIGHT =  0., 30., 30., 20., 20., 20., 15., 15., 15., .5, .6, 1., 1. 
+
+# Z0_OVER_HEIGHT ([-] ) :  factor to calculate roughness height from height of canopy  	{OK_SECHIBA}
+Z0_OVER_HEIGHT =  0., 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625 
+
+# RATIO_Z0M_Z0H ([-]) :  Ratio between z0m and z0h 	{OK_SECHIBA}
+RATIO_Z0M_Z0H =  10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0  
+
+# TYPE_OF_LAI ([-]) :  Type of behaviour of the LAI evolution algorithm  	{OK_SECHIBA}
+TYPE_OF_LAI =  inter, inter, inter, inter, inter, inter, inter, inter, inter, inter, inter, inter, inter 
+
+# NATURAL ([BOOLEAN]) :  natural?  	{OK_SECHIBA, OK_STOMATE}
+NATURAL =  y, y, y, y, y, y, y, y, y, y, y, n, n  
+
+# IS_TROPICAL ([-]) :  PFT IS TROPICAL  	{OK_STOMATE}
+IS_TROPICAL =  FALSE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE 
+
+# IS_TEMPERATE ([-]) :  PFT IS TEMPERATE  	{OK_STOMATE}
+IS_TEMPERATE =  FALSE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE  
+
+# IS_BOREAL ([-]) :  PFT IS BOREAL  	{OK_STOMATE}
+IS_BOREAL =  FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE  
+
+# OK_PEAT_HYDRO ([BOOLEAN]) :  Activate peatland in sechiba 	{}
+OK_PEAT_HYDRO =  FALSE 
+
+# PEAT_TIDES ([BOOLEAN]) :  Activate peatland in sechiba 	{OK_PEAT_HYDRO}
+PEAT_TIDES =  FALSE 
+
+# IS_PEAT ([BOOLEAN]) :  flag by PFT for peatland 	{}
+IS_PEAT =  FALSE (if not OK_PEAT_HYDRO) 
+
+# IS_CROPPEAT ([BOOLEAN]) :  flag by PFT for peatland agriculture 	{}
+IS_CROPPEAT =  FALSE (if not AGRI_PEAT) 
+
+# IS_C4 ([BOOLEAN]) :  flag for C4 vegetation types 	{OK_SECHIBA or OK_STOMATE}
+IS_C4 =  n, n, n, n, n, n, n, n, n, n, n, y, n, y 
+
+# VCMAX_FIX ([micromol/m^2/s] ) :  values used for vcmax when STOMATE is not activated 	{OK_SECHIBA and NOT(OK_STOMATE)}
+VCMAX_FIX =  0., 40., 50., 30., 35., 40.,30., 40., 35., 60., 60., 70., 70. 
+
+# DOWNREG_CO2 ([-]) :  coefficient for CO2 downregulation (unitless) 	{}
+DOWNREG_CO2 =  0., 0.38, 0.38, 0.28, 0.28, 0.28, 0.22, 0.22, 0.22, 0.26, 0.26, 0.26, 0.26 
+
+# E_KmC ([J mol-1]) :  Energy of activation for KmC 	{}
+E_KmC =  -9999.,  79430., 79430., 79430., 79430., 79430., 79430., 79430., 79430., 79430., 79430., 79430., 79430. 
+
+# E_KmO ([J mol-1]) :  Energy of activation for KmO 	{}
+E_KmO =  -9999., 36380.,  36380.,  36380.,  36380.,  36380., 36380., 36380., 36380., 36380., 36380., 36380., 36380. 
+
+# E_Sco ([J mol-1]) :  Energy of activation for Sco 	{}
+E_Sco =  -9999., -24460., -24460., -24460., -24460., -24460., -24460., -24460., -24460., -24460., -24460., -24460., -24460. 
+
+# E_gamma_star ([J mol-1]) :  Energy of activation for gamma_star 	{}
+E_gamma_star =  -9999., 37830.,  37830.,  37830.,  37830.,  37830., 37830., 37830., 37830., 37830., 37830., 37830., 37830. 
+
+# E_Vcmax ([J mol-1]) :  Energy of activation for Vcmax 	{}
+E_Vcmax =  -9999., 71513., 71513., 71513., 71513., 71513., 71513., 71513., 71513., 71513., 67300., 71513., 67300. 
+
+# E_Jmax ([J mol-1]) :  Energy of activation for Jmax 	{}
+E_Jmax =  -9999., 49884., 49884., 49884., 49884., 49884., 49884., 49884., 49884., 49884., 77900., 49884., 77900.  
+
+# aSV ([J K-1 mol-1]) :  a coefficient of the linear regression (a+bT) defining the Entropy term for Vcmax 	{}
+aSV =  -9999., 668.39, 668.39, 668.39, 668.39, 668.39, 668.39, 668.39, 668.39, 668.39, 641.64, 668.39, 641.64  
+
+# bSV ([J K-1 mol-1 °C-1]) :  b coefficient of the linear regression (a+bT) defining the Entropy term for Vcmax 	{}
+bSV =  -9999., -1.07, -1.07, -1.07, -1.07, -1.07, -1.07, -1.07, -1.07, -1.07, 0., -1.07, 0.  
+
+# TPHOTO_MIN ([-]) :  minimum photosynthesis temperature (deg C) 	{OK_STOMATE}
+TPHOTO_MIN =  -9999.,  -4., -4., -4., -4.,-4.,-4., -4., -4., -4., -4., -4., -4. 
+
+# TPHOTO_MAX ([-]) :  maximum photosynthesis temperature (deg C) 	{OK_STOMATE}
+TPHOTO_MAX =  -9999., 55., 55., 55., 55., 55., 55., 55., 55., 55., 55., 55., 55. 
+
+# aSJ ([J K-1 mol-1]) :  a coefficient of the linear regression (a+bT) defining the Entropy term for Jmax 	{}
+aSJ =  -9999., 659.70, 659.70, 659.70, 659.70, 659.70, 659.70, 659.70, 659.70, 659.70, 630., 659.70, 630.  
+
+# bSJ ([J K-1 mol-1 °C-1]) :  b coefficient of the linear regression (a+bT) defining the Entropy term for Jmax 	{}
+bSJ =  -9999., -0.75, -0.75, -0.75, -0.75, -0.75, -0.75, -0.75, -0.75, -0.75, 0., -0.75, 0.  
+
+# D_Vcmax ([J mol-1]) :  Energy of deactivation for Vcmax 	{}
+D_Vcmax =  -9999., 200000., 200000., 200000., 200000., 200000., 200000., 200000., 200000., 200000., 192000., 200000., 192000. 
+
+# D_Jmax ([J mol-1]) :  Energy of deactivation for Jmax 	{}
+D_Jmax =  -9999., 200000., 200000., 200000., 200000., 200000., 200000., 200000., 200000., 200000., 192000., 200000., 192000. 
+
+# E_gm  ([J mol-1] ) :  Energy of activation for gm  	{ }
+E_gm  =  -9999., 49600., 49600., 49600., 49600., 49600., 49600., 49600., 49600., 49600., -9999., 49600., -9999.  
+
+# S_gm  ([J K-1 mol-1] ) :  Entropy term for gm  	{ }
+S_gm  =  -9999., 1400., 1400., 1400., 1400., 1400., 1400., 1400., 1400., 1400., -9999., 1400., -9999.  
+
+# D_gm  ([J mol-1] ) :  Energy of deactivation for gm  	{ }
+D_gm  =  -9999., 437400., 437400., 437400., 437400., 437400., 437400., 437400., 437400., 437400., -9999., 437400., -9999.  
+
+# E_Rd ([J mol-1]) :  Energy of activation for Rd 	{}
+E_Rd =  -9999., 46390., 46390., 46390., 46390., 46390., 46390., 46390., 46390., 46390., 46390., 46390., 46390. 
+
+# VCMAX25 ([micromol/m^2/s]) :  Maximum rate of Rubisco activity-limited carboxylation at 25°C 	{OK_STOMATE}
+VCMAX25 =  -9999., 45.0, 45.0, 35.0, 40.0, 50.0, 45.0, 35.0, 35.0, 50.0, 50.0, 60.0, 60.0 
+
+# ARJV ([mu mol e- (mu mol CO2)-1]) :  a coefficient of the linear regression (a+bT) defining the Jmax25/Vcmax25 ratio  	{OK_STOMATE}
+ARJV =  -9999., 2.59, 2.59, 2.59, 2.59, 2.59, 2.59, 2.59, 2.59, 2.59, 1.715, 2.59, 1.715 
+
+# BRJV ([(mu mol e- (mu mol CO2)-1) (°C)-1]) :  b coefficient of the linear regression (a+bT) defining the Jmax25/Vcmax25 ratio  	{OK_STOMATE}
+BRJV =  -9999., -0.035, -0.035, -0.035, -0.035, -0.035, -0.035, -0.035, -0.035, -0.035, 0., -0.035, 0. 
+
+# KmC25 ([ubar]) :  Michaelis–Menten constant of Rubisco for CO2 at 25°C 	{}
+KmC25 =  -9999., 404.9, 404.9, 404.9, 404.9, 404.9, 404.9, 404.9, 404.9, 404.9, 650., 404.9, 650. 
+
+# KmO25 ([ubar]) :  Michaelis–Menten constant of Rubisco for O2 at 25°C 	{}
+KmO25 =  -9999., 278400., 278400., 278400., 278400., 278400., 278400., 278400., 278400., 278400., 450000., 278400., 450000. 
+
+# Sco25 ([bar bar-1]) :  Relative CO2 /O2 specificity factor for Rubisco at 25Â°C 	{}
+Sco25 =  -9999., 2800., 2800., 2800., 2800., 2800., 2800., 2800., 2800., 2800., 2590., 2800., 2590. 
+
+# gm25  ([mol m-2 s-1 bar-1] ) :  Mesophyll diffusion conductance at 25ÃÂ°C  	{ }
+gm25  =  -9999., 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, -9999., 0.4, -9999.  
+
+# gamma_star25 ([ubar]) :  Ci-based CO2 compensation point in the absence of Rd at 25°C (ubar) 	{}
+gamma_star25 =  -9999., 42.75, 42.75, 42.75, 42.75, 42.75, 42.75, 42.75, 42.75, 42.75, 42.75, 42.75, 42.75 
+
+# a1 ([-]) :  Empirical factor involved in the calculation of fvpd 	{}
+a1 =  -9999., 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.72, 0.85, 0.72 
+
+# b1 ([-]) :  Empirical factor involved in the calculation of fvpd 	{}
+b1 =  -9999., 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.20, 0.14, 0.20 
+
+# a_fpsi ([-]) :  Empirical factor involved in the calculation of fpsi 	{}
+a_fpsi =  1. / ( 1. / a1 - 1 ) 
+
+# sf ([-]) :  Sensibility parameter involved in the calculation of fpsi 	{}
+sf =  -9999., 4.3, 4.3, 4.3, 4.3, 4.3, 4.3, 4.3, 4.3, 4.3, 4.3, 4.3, 4.3 
+
+# Rroot_sup ([-]) :  Superficial roots water resistance involved in the calculation of psi_leaf 	{}
+Rroot_sup =  -9999., 500000, 500000, 500000, 500000, 500000, 500000, 500000, 500000, 500000, 500000, 500000, 500000 
+
+# Rroot_inf ([-]) :  Inferior roots water resistance involved in the calculation of psi_leaf 	{}
+Rroot_inf =  -9999., 2000000, 2000000, 2000000, 2000000, 2000000, 2000000, 2000000, 2000000, 2000000, 2000000, 2000000, 2000000 
+
+# Rleaf ([-]) :  Leaf water resistance involved in the calculation of psi_leaf 	{}
+Rleaf =  -9999., 500000, 500000, 500000, 500000, 500000, 500000, 500000, 500000, 500000, 500000, 500000, 500000 
+
+# Rxylem ([-]) :  Xylem water resistance involved in the calculation of psi_leaf 	{}
+Rxylem =  -9999., 2500000, 2500000, 2500000, 2500000, 2500000, 2500000, 2500000, 2500000, 2500000, 2500000, 2500000, 2500000 
+
+# Rroot_soil ([-]) :  Soil to roots water resistance involved in the calculation of psi_leaf 	{}
+Rroot_soil =  -9999., 150, 150, 150, 150, 150, 150, 150, 150, 150, 150, 150, 150 
+
+# Rsto_leaf ([-]) :  Leaf water storage resistance involved in the calculation of psi_leaf 	{}
+Rsto_leaf =  -9999., 1000000, 1000000, 1000000, 1000000, 1000000, 1000000, 1000000, 1000000, 1000000, 1000000, 1000000, 1000000 
+
+# Rsto_wood ([-]) :  Wood water storage resistance involved in the calculation of psi_leaf 	{}
+Rsto_wood =  -9999., 60000000, 60000000, 60000000, 60000000, 60000000, 60000000, 60000000, 60000000, 60000000, 60000000, 60000000, 60000000 
+
+# psi_ref_g0 ([-]) :  Reference Potential involved in the calculation of fpsi in the calculation of stomatal conductance 	{}
+psi_ref_g0 =  -9999., -1.6, -1.6, -1.6, -1.6, -1.6, -1.6, -1.6, -1.6, -1.6, -1.6, -1.6, -1.6 
+
+# psi_ref_sto_leaf ([-]) :  Reference Potential involved in the calculation of leaf water storage potential 	{}
+psi_ref_sto_leaf =  -9999., -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0 
+
+# psi_ref_sto_wood ([-]) :  Reference Potential involved in the calculation of wood water storage potential 	{}
+psi_ref_sto_wood =  -9999., -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4 
+
+# psi_min ([-]) :  It is used to avoid numerical problems with resistances and potentials 	{}
+psi_min =  -20. 
+
+# psi_50_res_leaf ([-]) :  Reference Potential involved in the calculation of leaf water resistance 	{}
+psi_50_res_leaf =  -9999., -1.1, -1.1, -1.1, -1.1, -1.1, -1.1, -1.1, -1.1, -1.1, -1.1, -1.1, -1.1 
+
+# psi_50_res_wood ([-]) :  Reference Potential involved in the calculation of wood water resistance 	{}
+psi_50_res_wood =  -9999., -1.3, -1.3, -1.3, -1.3, -1.3, -1.3, -1.3, -1.3, -1.3, -1.3, -1.3, -1.3 
+
+# psi_50_res_root ([-]) :  Reference Potential involved in the calculation of root water resistance 	{}
+psi_50_res_root =  -9999., -1.1, -1.1, -1.1, -1.1, -1.1, -1.1, -1.1, -1.1, -1.1, -1.1, -1.1, -1.1 
+
+# a_leaf ([-]) :  Parameter involved in the calculation of leaf water resistance 	{}
+a_leaf =  -9999., -2.5, -2.5, -2.5, -2.5, -2.5, -2.5, -2.5, -2.5, -2.5, -2.5, -2.5, -2.5 
+
+# a_wood ([-]) :  Parameter involved in the calculation of wood water resistance 	{}
+a_wood =  -9999., -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0 
+
+# a_root ([-]) :  Parameter involved in the calculation of root water resistance 	{}
+a_root =  -9999., -2.3, -2.3, -2.3, -2.3, -2.3, -2.3, -2.3, -2.3, -2.3, -2.3, -2.3, -2.3 
+
+# k_leaf_max ([-]) :  Maximum leaf water conductance involved in the calculation of leaf water resistance 	{}
+k_leaf_max =  -9999., 0.000000525, 0.000000525, 0.000000525, 0.000000525, 0.000000525, 0.000000525, 0.000000525, 0.000000525, 0.000000525, 0.000000525, 0.000000525, 0.000000525 
+
+# sapwood_density ([-]) :  Maximum sapwood water conductivity 	{}
+sapwood_density =   -9999.,    -9999.,  -9999.,  -9999./ 
+
+# ks_max ([-]) :  Maximum sapwood water conductivity 	{}
+ks_max =  0.00030, -9999.,    -9999.,    -9999.,    -9999. 
+
+# k_wood_max ([-]) :  Maximum wood water conductance involved in the calculation of wood water resistance 	{}
+k_wood_max =  -9999., 0.000000175, 0.000000175, 0.000000175, 0.000000175, 0.000000175, 0.000000175, 0.000000175, 0.000000175, 0.000000175, 0.000000175, 0.000000175, 0.000000175 
+
+# k_root_max ([-]) :  Maximum root water conductance involved in the calculation of root water resistance 	{}
+k_root_max =  -9999., 0.000000175, 0.000000175, 0.000000175, 0.000000175, 0.000000175, 0.000000175, 0.000000175, 0.000000175, 0.000000175, 0.000000175, 0.000000175, 0.000000175 
+
+# lambda_leaf ([-]) :  Parameter involved in the calculation of leaf water storage potential 	{}
+lambda_leaf =  -9999., 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3 
+
+# lambda_wood ([-]) :  Parameter involved in the calculation of wood water storage potential 	{}
+lambda_wood =  -9999., 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9 
+
+# d_l ([kPa]) :  Parameter for stomatal conductance sensitivity to VPD (kPa)  	{}
+d_l =  -9999., 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5 
+
+# g0 ([mol m−2 s−1 bar−1]) :  Residual stomatal conductance when irradiance approaches zero  	{}
+g0 =  -9999., 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.01875, 0.00625, 0.01875 
+
+# h_protons ([mol mol-1]) :  Number of protons required to produce one ATP 	{}
+h_protons =  -9999., 4., 4., 4., 4., 4., 4., 4., 4., 4., 4., 4., 4.  
+
+# fpsir ([-]) :  Fraction of PSII e− transport rate partitioned to the C4 cycle 	{}
+fpsir =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 0.4, -9999., 0.4  
+
+# fQ ([-]) :  Fraction of electrons at reduced plastoquinone that follow the Q-cycle 	{}
+fQ =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 1., -9999., 1. 
+
+# fpseudo ([-]) :  Fraction of electrons at PSI that follow pseudocyclic transport  	{}
+fpseudo =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 0.1, -9999., 0.1 
+
+# kp ([mol m−2 s−1 bar−1]) :  Initial carboxylation efficiency of the PEP carboxylase 	{}
+kp =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 0.7, -9999., 0.7 
+
+# alpha ([-]) :  Fraction of PSII activity in the bundle sheath 	{}
+alpha =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 0.1, -9999., 0.1 
+
+# gbs ([mol m−2 s−1 bar−1]) :  Bundle-sheath conductance 	{}
+gbs =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 0.003, -9999., 0.003 
+
+# theta ([−]) :  Convexity factor for response of J to irradiance 	{}
+theta =  -9999., 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7 
+
+# alpha_LL ([mol e− (mol photon)−1]) :  Conversion efficiency of absorbed light into J at strictly limiting light 	{}
+alpha_LL =  -9999., 0.372, 0.372, 0.372, 0.372, 0.372, 0.372, 0.372, 0.372, 0.372, 0.372, 0.372, 0.372 
+
+# STRESS_VCMAX ([-]) :  Stress on vcmax 	{OK_SECHIBA or OK_STOMATE}
+STRESS_VCMAX =  1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1. 
+
+# STRESS_GS ([-]) :  Stress on gs 	{OK_SECHIBA or OK_STOMATE}
+STRESS_GS =  1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1. 
+
+# STRESS_GM ([-]) :  Stress on gm 	{OK_SECHIBA or OK_STOMATE}
+STRESS_GM =  1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1. 
+
+# EXT_COEFF ([-]) :  extinction coefficient of the Monsi&Seaki relationship (1953) 	{OK_SECHIBA or OK_STOMATE}
+EXT_COEFF =  .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5 
+
+# EXT_COEFF_VEGETFRAC ([-]) :  extinction coefficient used for the calculation of the bare soil fraction  	{OK_SECHIBA or OK_STOMATE}
+EXT_COEFF_VEGETFRAC =  1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1. 
+
+# HYDROL_HUMCSTE ([-]) :  Parameter to describe the shape of the structural root profile 	{OK_SECHIBA}
+HYDROL_HUMCSTE =  humcste_ref2m or humcste_ref4m depending on zmaxh 
+
+# MAX_ROOT_DEPTH ([m]) :  Maximum depth of the root profile 	{OK_SECHIBA}
+MAX_ROOT_DEPTH =  Maximum depth of the root profile irrespective of the active layer thickness 
+
+# PREF_SOIL_VEG ([-]        ) :  The soil tile number for each vegetation 	{OK_SECHIBA or OK_STOMATE}
+PREF_SOIL_VEG =  1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3 
+
+# MAINT_RESP_SLOPE_C  ([-] ) :  slope of maintenance respiration coefficient (1/K), constant c of aT^2+bT+c , tabulated  	{OK_STOMATE }
+MAINT_RESP_SLOPE_C  =  -9999., 0.44, 0.6, 0.2, 0.6, 0.3, 0.3, 0.4, 0.4, 0.5, 0.5, 0.5, 0.7 
+
+# MAINT_RESP_SLOPE_B  ([-] ) :  slope of maintenance respiration coefficient (1/K), constant b of aT^2+bT+c , tabulated  	{OK_STOMATE }
+MAINT_RESP_SLOPE_B  =  -9999., -0.01, -0.01, -0.04, -0.02, -0.02, -0.01, -0.01, -0.01, -0.01, -0.0, -0.0, -0.01 
+
+# MAINT_RESP_SLOPE_A  ([-] ) :  slope of maintenance respiration coefficient (1/K), constant a of aT^2+bT+c , tabulated  	{OK_STOMATE }
+MAINT_RESP_SLOPE_A  =  -9999., .0, .0, .0, .0, .0, .0, .0, .0, .0, .0, .0, .0      
+
+# NVMAP ([-]  ) :  The number of PFTs if we ignore age classes.   	{OK_SECHIBA or OK_STOMATE}
+NVMAP =  nvm 
+
+# AGEC_GROUP ([-]   ) :  The species group that each PFT belongs to.   	{OK_SECHIBA or OK_STOMATE}
+AGEC_GROUP =  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 
+
+# RSTRUCT_CONST ([s/m]) :  Structural resistance  	{OK_SECHIBA}
+RSTRUCT_CONST =  0.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0,  2.5,  2.0,  2.0,  2.0 
+
+# KZERO ([kg/m^2/s]) :  A vegetation dependent constant used in the calculation of the surface resistance. 	{OK_SECHIBA}
+KZERO =  0.0, 12.E-5, 12.E-5, 12.e-5, 12.e-5, 25.e-5, 12.e-5,25.e-5, 25.e-5, 30.e-5, 30.e-5, 30.e-5, 30.e-5  
+
+# ALPHA_WATSTRESS_PFT ([kg/m^2/s]) :  PFT dependent parameter to decide exponential function  	{OK_SECHIBA}
+ALPHA_WATSTRESS_PFT =  1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 
+
+# RVEG_PFT ([-]) :  Artificial parameter to increase or decrease canopy resistance. 	{OK_SECHIBA}
+RVEG_PFT =  1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1. 
+
+# WMAX_VEG ([kg/m^3]) :  Maximum field capacity for each of the vegetations (Temporary): max quantity of water 	{OK_SECHIBA}
+WMAX_VEG =  150., 150., 150., 150., 150., 150., 150.,150., 150., 150., 150., 150., 150. 
+
+# PERCENT_THROUGHFALL_PFT ([%]) :  Percent by PFT of precip that is not intercepted by the canopy. Default value depend on run mode. 	{OK_SECHIBA}
+PERCENT_THROUGHFALL_PFT =  Case offline [0. 0. 0....] else [30. 30. 30.....] 
+
+# RSOIL_SCALE ([-]) :  Applay a sclaing factor to the soil resistance to evaporate, value per PFT 	{}
+RSOIL_SCALE =   1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 
+
+# SNOWA_AGED_VIS ([-]) :  Minimum snow albedo value for each vegetation type after aging (dirty old snow), visible albedo 	{OK_SECHIBA}
+SNOWA_AGED_VIS =  0.74, 0.0, 0.0, 0.08, 0.24, 0.07, 0.18, 0.18, 0.33, 0.57, 0.57, 0.57, 0.57 
+
+# SNOWA_AGED_NIR ([-]) :  Minimum snow albedo value for each vegetation type after aging (dirty old snow), near infrared albedo 	{OK_SECHIBA}
+SNOWA_AGED_NIR =  0.50, 0.0, 0.0, 0.10, 0.37, 0.08, 0.16, 0.17, 0.27, 0.44, 0.44, 0.44, 0.44   
+
+# SNOWA_DEC_VIS ([-]) :  Decay rate of snow albedo value for each vegetation type as it will be used in condveg_snow, visible albedo 	{OK_SECHIBA}
+SNOWA_DEC_VIS =  0.21, 0.0, 0.0, 0.14, 0.08, 0.17, 0.05, 0.06, 0.09, 0.15, 0.15, 0.15, 0.15  
+
+# SNOWA_DEC_NIR ([-]) :  Decay rate of snow albedo value for each vegetation type as it will be used in condveg_snow, near infrared albedo 	{OK_SECHIBA}
+SNOWA_DEC_NIR =  0.13, 0.0, 0.0, 0.10, 0.10, 0.16, 0.04, 0.07, 0.08, 0.12, 0.12, 0.12, 0.12 
+
+# ALB_LEAF_VIS ([-]) :  leaf albedo of vegetation type, visible albedo 	{OK_SECHIBA}
+ALB_LEAF_VIS =  0.00, 0.04, 0.04, 0.04, 0.04, 0.03, 0.03, 0.03, 0.03, 0.06, 0.06, 0.06, 0.06 
+
+# ALB_LEAF_NIR ([-]) :  leaf albedo of vegetation type, near infrared albedo 	{OK_SECHIBA}
+ALB_LEAF_NIR =  0.00, 0.23, 0.18, 0.18, 0.20, 0.24, 0.15, 0.26, 0.20, 0.24, 0.27, 0.28, 0.26 
+
+# LEAF_SSA_VIS ([-]) :  Leaf_single_scattering_albedo_vis values 	{ALBEDO_TYPE is Pinty}
+LEAF_SSA_VIS =  0.17192, 0.12560, 0.16230, 0.13838, 0.13202, 0.14720, 0.14680, 0.14415, 0.15485, 0.17544, 0.17384, 0.17302, 0.17116  
+
+# LEAF_SSA_NIR ([-]) :  Leaf_single_scattering_albedo_nir values 	{ALBEDO_TYPE is Pinty}
+LEAF_SSA_NIR =  0.70253, 0.68189, 0.69684, 0.68778, 0.68356, 0.69533, 0.69520, 0.69195, 0.69180, 0.71236, 0.71904, 0.71220, 0.71190 
+
+# LEAF_PSD_VIS ([-]) :  Preferred scattering direction values in the visibile spectra 	{ALBEDO_TYPE is Pinty}
+LEAF_PSD_VIS =  1.00170, 0.96776, 0.99250, 0.97170, 0.97119, 0.98077, 0.97672, 0.97810, 0.98605, 1.00490, 1.00360, 1.00320, 1.00130 
+
+# LEAF_PSD_NIR ([-]) :   Preferred scattering direction values in the near infrared spectra 	{ALBEDO_TYPE is Pinty}
+LEAF_PSD_NIR =  2.00520, 1.95120, 1.98990, 1.97020, 1.95900, 1.98190, 1.98890, 1.97400, 1.97780, 2.02430, 2.03350, 2.02070, 2.02150 
+
+# BGRD_REF_VIS ([-]) :  Background reflectance values in the visibile spectra 	{ALBEDO_TYPE is Pinty}
+BGRD_REF_VIS =  0.2300000,   0.0866667,   0.0800000,   0.0533333,   0.0700000,   0.0933333,   0.0533333, 0.0833333,   0.0633333,   0.1033330,   0.1566670,   0.1166670,   0.1200000 
+
+# BGRD_REF_NIR ([-]) :  Background reflectance values in the near infrared spectra 	{ALBEDO_TYPE is Pinty}
+BGRD_REF_NIR =  0.4200000,   0.1500000,   0.1300000,   0.0916667,   0.1066670,   0.1650000,   0.0900000, 0.1483330,   0.1066670,   0.1900000,   0.3183330,   0.2200000,   0.2183330 
+
+# LEAF_TO_SHOOT_CLUMPING ([-]) :  The leaf-to-shoot clumping factor 	{ALBEDO_TYPE is Pinty}
+LEAF_TO_SHOOT_CLUMPING =  un, un, un, un, un, un, un, un, un, un, un, un, un 
+
+# LAI_CORRECTION_FACTOR ([-] ) :  The correction factor for the LAI for grasslands  	{ALBEDO_TYPE is Pinty}
+LAI_CORRECTION_FACTOR =  un, un, un, un, un, un, un, un, un, un, un, un, un 
+
+# MIN_LEVEL_SEP ([m]) :  The minimum level thickness we use for photosynthesis  	{ALBEDO_TYPE is Pinty}
+MIN_LEVEL_SEP =  un, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 
+
+# LAI_TOP ([m2 m2]) :  Definition, in terms of LAI of the top layer  	{OK_SECHIBA}
+LAI_TOP =  un, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 
+
+# K_ROOT ([m^{3} kg^{-1} s^{-1} MPa^{-1}] ) :  Fine root specific conductivity 	{OK_STOMATE}
+K_ROOT =  (-9999., 7.02, 7.02, 7.02, 7.02, 7.02, 7.02, 7.02, 7.02, 7.02, 7.02, 7.02, 7.02)*1.e-4  
+
+# K_BELOWGROUND ([m^{3} kg^{-1} s^{-1} MPa^{-1}] ) :  Belowground (roots + soil) specific conductivity used in allocation  	{OK_STOMATE}
+K_BELOWGROUND =  (-9999., 7., 7., 7., 7., 7., 7., 7., 7., 42., 42., 42., 42.)*1.e-7  
+
+# K_SAP ([m^{2} s^{-1} MPa^{-1}] ) :  Sapwood specific conductivity 	{OK_STOMATE}
+K_SAP =  (-9999., 50., 10., 8., 5., 30., 8., 20., 8., -9999., -9999., -9999., -9999.)*1.e-4 
+
+# PSI_LEAF_MIN ([MPa] ) :  Minimal leaf potential 	{OK_STOMATE, 11-LAYERS, FUNCTIONAL ALLOCATION}
+PSI_LEAF_MIN =  -9999., -2.2, -2.2, -2.2, -3.5, -2.2, -2.2, -2.2, -2.2, -2.2, -2.2, -2.2, -2.2 
+
+# SRL ([m g^(-1)] ) :  Specific root length 	{}
+SRL =  -9999., 10, 10, 9.2, 9.2, 14, 18.3, 18.3, 18.3, -9999., -9999., -9999., -9999.  
+
+# R_FROOT ([m] ) :  Fine root radius  	{}
+R_FROOT =  -9999.,  0.29E-3, 0.29E-3,  0.29E-3,  0.29E-3, 0.29E-3,  0.24E-3, 0.21E-3,  0.21E-3, -9999., -9999.,  -9999.,  -9999.  
+
+# PSI_ROOT_MIN ([MPa] ) :  Minimum root water potential  	{}
+PSI_ROOT_MIN =  -9999., -4, -4, -4, -4, -4, -4, -4, -4, -9999., -9999., -9999., -9999.  
+
+# CROWN_TO_HEIGHT ([-]  ) :  Ratio between tree height and the vertical crown diameter. 	{OK_STOMATE }
+CROWN_TO_HEIGHT =  -9999., 0.6, 0.6, 0.6, 0.6, 0.6, 0.8, 0.8, 0.8, 0., 0., 0., 
+
+# CROWN_VERTOHOR_DIA ([-]  ) :  Ratio between the vertical and horizontal crown diameter height. 	{OK_STOMATE }
+CROWN_VERTOHOR_DIA =  -9999., 1.0, 1.0, 0.66, 1.0, 1.0, 0.66, 1.0, 1.0, 1.0, 1.0, 1.0, 
+
+# PIPE_DENSITY  () :   	{}
+PIPE_DENSITY  =  -9999., 3.e5, 3.e5, 2.e5, 3.e5, 3.e5, 2.e5, 3.e5, 2.e5, 2.e5, 2.e5, 2.e5, 2.e5 
+
+# TREE_FF ([-]  ) :  Tree form factor reducing the volume of a cylinder 	{OK_STOMATE }
+TREE_FF =  -9999., 0.6, 0.6, 0.6, 0.6, 0.6, 0.8, 0.8, 0.8, 0., 0., 0., 0. 
+
+# MIN_PIPE_TUNE2 ([m]) :  Initial value when PIPE_TUNE2 is calculated as a function of precipitation 	{OK_STOMATE, HACK_DYNAMIC_HEIGHT }
+MIN_PIPE_TUNE2 =  -9999., 7, 7, 7, 7, 7, 7, 7, 7, 0., 0., 0., 0.    
+
+# PIPE_TUNE3 ([-]    ) :  height 	{OK_STOMATE }
+PIPE_TUNE3 =  -9999., 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0., 0., 0., 0.    
+
+# PIPE_TUNE4 ([-]  ) :  needed for stem diameter 	{OK_STOMATE }
+PIPE_TUNE4 =  -9999., 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0., 0., 0., 0. 
+
+# PIPE_K1  ([-]   ) :   	{OK_STOMATE }
+PIPE_K1  =  -9999., 8.e3, 8.e3, 8.e3, 8.e3, 8.e3, 8.e3, 8.e3, 8.e3, 0., 0., 0., 0.  
+
+# SLA ([m^2/gC]) :  specif leaf area  	{OK_STOMATE}
+SLA =  1.5E-2, 1.53E-2, 2.6E-2, 9.26E-3, 2E-2, 2.6E-2, 9.26E-3, 2.6E-2, 1.9E-2, 2.6E-2, 2.6E-2, 2.6E-2, 2.6E-2 
+
+# SLAINIT ([m^2/gC]) :  initial specif leaf area at (ie at bottom of canopy eq. lai 	{OK_STOMATE}
+SLAINIT =  2.6E-2, 2.6E-2, 4.4E-2, 1.4E-2, 3.0E-2, 3.9E-2, 1.3E-2, 3.7E-2, 2.4E-2, 3.1E-2, 3.1E-2, 3.9E-2, 3.9E-2 
+
+# LAI_TO_HEIGHT ([m m2 m-2] ) :  Convertion factor from lai to vegetation height for grasses and crops 	{OK_STOMATE}
+LAI_TO_HEIGHT =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 0.2, 0.5, 0.2, 0.5 
+
+# ISO_ACTIVITY ([-]) :  Biogenic activity for each age class : isoprene 	{CHEMISTRY_BVOC}
+ISO_ACTIVITY =  0.5, 1.5, 1.5, 0.5 
+
+# METHANOL_ACTIVITY ([-]) :  Isoprene emission factor for each age class : methanol 	{CHEMISTRY_BVOC}
+METHANOL_ACTIVITY =  1., 1., 0.5, 0.5 
+
+# EM_FACTOR_ISOPRENE ([ugC/g/h] ) :  Isoprene emission factor 	{CHEMISTRY_BVOC}
+EM_FACTOR_ISOPRENE =  0., 24., 24., 8., 16., 45., 8., 18., 0.5, 12., 18., 5., 5. 
+
+# EM_FACTOR_MONOTERPENE ([ugC/g/h] ) :  Monoterpene emission factor  	{CHEMISTRY_BVOC }
+EM_FACTOR_MONOTERPENE =  0., 2.0, 2.0, 1.8, 1.4, 1.6, 1.8, 1.4, 1.8, 0.8, 0.8,  0.22, 0.22 
+
+# C_LDF_MONO  ([]) :  Monoterpenes fraction dependancy to light 	{CHEMISTRY_BVOC}
+C_LDF_MONO  =  0.6 
+
+# C_LDF_SESQ  ([]) :  Sesquiterpenes fraction dependancy to light 	{CHEMISTRY_BVOC}
+C_LDF_SESQ  =  0.5 
+
+# C_LDF_METH  ([]) :  Methanol fraction dependancy to light 	{CHEMISTRY_BVOC}
+C_LDF_METH  =  0.8 
+
+# C_LDF_ACET  ([]) :  Acetone fraction dependancy to light 	{CHEMISTRY_BVOC}
+C_LDF_ACET  =  0.2 
+
+# EM_FACTOR_APINENE  ([ugC/g/h] ) :  Alfa pinene  emission factor  	{CHEMISTRY_BVOC }
+EM_FACTOR_APINENE  =  0., 1.35, 1.35, 0.85, 0.95, 0.75, 0.85, 0.60, 1.98, 0.30, 0.30, 0.09, 0.09 
+
+# EM_FACTOR_BPINENE ([ugC/g/h] ) :  Beta pinene  emission factor 	{CHEMISTRY_BVOC }
+EM_FACTOR_BPINENE =  0., 0.30, 0.30, 0.35, 0.25, 0.20, 0.35, 0.12, 0.45, 0.16, 0.12, 0.05, 0.05 
+
+# EM_FACTOR_LIMONENE ([ugC/g/h] ) :  Limonene  emission factor 	{CHEMISTRY_BVOC}
+EM_FACTOR_LIMONENE =  0., 0.25, 0.25, 0.20, 0.25, 0.14, 0.20, 0.135, 0.11, 0.19, 0.42, 0.03, 0.03 
+
+# EM_FACTOR_MYRCENE ([ugC/g/h] ) :  Myrcene  emission factor 	{CHEMISTRY_BVOC}
+EM_FACTOR_MYRCENE =  0., 0.20, 0.20, 0.12, 0.11, 0.065, 0.12, 0.036, 0.075, 0.08,  0.085, 0.015, 0.015 
+
+# EM_FACTOR_SABINENE ([ugC/g/h] ) :  Sabinene  emission factor 	{CHEMISTRY_BVOC}
+EM_FACTOR_SABINENE =  0., 0.20, 0.20, 0.12, 0.17, 0.70, 0.12, 0.50, 0.09, 0.085, 0.075, 0.02, 0.02 
+
+# EM_FACTOR_CAMPHENE  ([ugC/g/h] ) :  Camphene  emission factor  	{CHEMISTRY_BVOC}
+EM_FACTOR_CAMPHENE  =  0., 0.15, 0.15, 0.10, 0.10, 0.01, 0.10, 0.01, 0.07, 0.07, 0.08, 0.01, 0.01 
+
+# EM_FACTOR_3CARENE  ([ugC/g/h] ) :  3-Carene  emission factor 	{CHEMISTRY_BVOC}
+EM_FACTOR_3CARENE  =  0., 0.13, 0.13, 0.42, 0.02, 0.055, 0.42,0.025, 0.125, 0.085, 0.085, 0.065, 0.065 
+
+# EM_FACTOR_TBOCIMENE ([ugC/g/h] ) :  T-beta-ocimene  emission factor 	{CHEMISTRY_BVOC}
+EM_FACTOR_TBOCIMENE =  0., 0.25, 0.25, 0.13, 0.09, 0.26, 0.13, 0.20, 0.085, 0.18, 0.18, 0.01, 0.01 
+
+# EM_FACTOR_OTHERMONOT ([ugC/g/h] ) :  Other monoterpenes  emission factor 	{CHEMISTRY_BVOC}
+EM_FACTOR_OTHERMONOT =  0., 0.17, 0.17, 0.11, 0.11, 0.125, 0.11, 0.274, 0.01, 0.15, 0.155, 0.035, 0.035 
+
+# EM_FACTOR_SESQUITERP  ([ugC/g/h] ) :  Sesquiterpenes  emission factor  	{CHEMISTRY_BVOC}
+EM_FACTOR_SESQUITERP  =  0., 0.45, 0.45, 0.13, 0.3, 0.36, 0.15, 0.3, 0.25, 0.6, 0.6, 0.08, 0.08 
+
+# C_BETA_MONO  ([]) :  Monoterpenes temperature dependency coefficient 	{CHEMISTRY_BVOC}
+C_BETA_MONO  =  0.1 
+
+# C_BETA_SESQ  ([]) :  Sesquiterpenes temperature dependency coefficient 	{CHEMISTRY_BVOC}
+C_BETA_SESQ  =  0.17 
+
+# C_BETA_METH  ([]) :  Methanol temperature dependency coefficient 	{CHEMISTRY_BVOC}
+C_BETA_METH  =  0.08 
+
+# C_BETA_ACET  ([]) :  Acetone temperature dependency coefficient 	{CHEMISTRY_BVOC}
+C_BETA_ACET  =  0.1 
+
+# C_BETA_OXYVOC  ([]) :  Other oxygenated BVOC temperature dependency coefficient 	{CHEMISTRY_BVOC}
+C_BETA_OXYVOC  =  0.13 
+
+# EM_FACTOR_ORVOC ([ugC/g/h]  ) :  ORVOC emissions factor  	{CHEMISTRY_BVOC }
+EM_FACTOR_ORVOC =  0., 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5 
+
+# EM_FACTOR_OVOC ([ugC/g/h]        ) :  OVOC emissions factor 	{CHEMISTRY_BVOC}
+EM_FACTOR_OVOC =  0., 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5 
+
+# EM_FACTOR_MBO ([ugC/g/h]  ) :  MBO emissions factor  	{CHEMISTRY_BVOC }
+EM_FACTOR_MBO =  0., 2.e-5, 2.e-5, 1.4, 2.e-5, 2.e-5, 0.14, 2.e-5, 2.e-5, 2.e-5, 2.e-5, 2.e-5, 2.e-5 
+
+# EM_FACTOR_METHANOL ([ugC/g/h]  ) :  Methanol emissions factor  	{CHEMISTRY_BVOC }
+EM_FACTOR_METHANOL =  0., 0.8, 0.8, 1.8, 0.9, 1.9, 1.8, 1.8, 1.8, 0.7, 0.9, 2., 2. 
+
+# EM_FACTOR_ACETONE ([ugC/g/h]     ) :  Acetone emissions factor 	{CHEMISTRY_BVOC }
+EM_FACTOR_ACETONE =  0., 0.25, 0.25, 0.3, 0.2, 0.33, 0.3, 0.25, 0.25, 0.2, 0.2, 0.08, 0.08 
+
+# EM_FACTOR_ACETAL ([ugC/g/h]  ) :  Acetaldehyde emissions factor  	{CHEMISTRY_BVOC}
+EM_FACTOR_ACETAL =  0., 0.2, 0.2, 0.2, 0.2, 0.25, 0.25, 0.16, 0.16, 0.12, 0.12, 0.035, 0.02 
+
+# EM_FACTOR_FORMAL ([ugC/g/h]  ) :  Formaldehyde emissions factor 	{CHEMISTRY_BVOC }
+EM_FACTOR_FORMAL =  0., 0.04, 0.04, 0.08, 0.04, 0.04, 0.04, 0.04, 0.04, 0.025, 0.025, 0.013, 0.013 
+
+# EM_FACTOR_ACETIC ([ugC/g/h]  ) :  Acetic Acid emissions factor 	{CHEMISTRY_BVOC }
+EM_FACTOR_ACETIC =  0., 0.025, 0.025,0.025,0.022,0.08,0.025,0.022,0.013,0.012,0.012,0.008,0.008 
+
+# EM_FACTOR_FORMIC ([ugC/g/h]  ) :  Formic Acid emissions factor 	{CHEMISTRY_BVOC}
+EM_FACTOR_FORMIC =  0., 0.015, 0.015, 0.02, 0.02, 0.025, 0.025, 0.015, 0.015,0.010,0.010,0.008,0.008 
+
+# EM_FACTOR_DMS ([ug/g/h]) :  DMS emissions factor 	{CHEMISTRY_BVOC}
+EM_FACTOR_DMS =  0., 0.037, 0.037, 0.027, 0.027, 0.027, 0.027, 0.027, 0.027, 0.027, 0.027, 0.027, 0.027 
+
+# EM_FACTOR_H2S ([ug/g/h]) :  H2S emissions factor 	{CHEMISTRY_BVOC}
+EM_FACTOR_H2S =  0., 0.0095, 0.0095, 0.0064, 0.0064, 0.0064, 0.0064, 0.0064, 0.0064, 0.0064, 0.0064, 0.0064, 0.0064 
+
+# EM_FACTOR_NO_WET ([ngN/m^2/s]) :  NOx emissions factor wet soil emissions and exponential dependancy factor  	{CHEMISTRY_BVOC}
+EM_FACTOR_NO_WET =  0., 2.6, 0.06, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.36, 0.36, 0.36, 0.36 
+
+# EM_FACTOR_NO_DRY ([ngN/m^2/s] ) :  NOx emissions factor dry soil emissions and exponential dependancy factor  	{CHEMISTRY_BVOC}
+EM_FACTOR_NO_DRY =  0., 8.60, 0.40, 0.22, 0.22, 0.22, 0.22, 0.22, 0.22, 2.65, 2.65, 2.65, 2.65 
+
+# LARCH ([-]  ) :  Larcher 1991 SAI/LAI ratio 	{CHEMISTRY_BVOC }
+LARCH =  0., 0.015, 0.015, 0.003, 0.005, 0.005, 0.003, 0.005, 0.003, 0.005, 0.005, 0.008, 0.008 
+
+# NUE_OPT ([(mumol[CO2] s-1) (gN[leaf])-1]) :  Nitrogen use efficiency of Vcmax  	{OK_STOMATE}
+NUE_OPT =  -9999.,  14.,  30., 20., 33.,  38., 15., 38., 22.,  45.,  45.,  60.,  60.   
+
+# VMAX_UPTAKE_NH4 (umol (g DryWeight_root)-1 h-1) :  Vmax of ammonium uptake by plant roots 	{OK_STOMATE}
+VMAX_UPTAKE_NH4 =  -9999.,  9., 9., 9., 9., 9., 9., 9., 9., 9., 9., 9., 9.   
+
+# VMAX_UPTAKE_NO3 (umol (g DryWeight_root)-1 h-1) :  Vmax of nitrate uptake by plant roots 	{OK_STOMATE}
+VMAX_UPTAKE_NO3 =  -9999.,  9., 9., 9., 9., 9., 9., 9., 9., 9., 9., 9., 9.   
+
+# CN_LEAF_MIN ([gC/gN] ) :  minimum CN ratio of leaves   	{OK_STOMATE}
+CN_LEAF_MIN =  -9999., 16., 16., 28., 16., 16., 28., 16., 16., 16., 16., 16., 16.  
+
+# CN_LEAF_MAX ([gC/gN] ) :  maximum CN ratio of leaves   	{OK_STOMATE}
+CN_LEAF_MAX =  -9999., 45., 45., 75., 45., 45., 75., 45., 45., 45., 45., 45., 45.  
+
+# CN_LEAF_INIT () :   	{}
+CN_LEAF_INIT =  -9999., 25.,  25.,  41.7,  25.,  25.,  43., 25.,  25.,  25.,  25.,  25.,  25. 
+
+# EXT_COEFF_N ([(m2[ground]) (m-2[leaf])]) :  Extinction coefficient of the leaf N content profile within the canopy 	{OK_STOMATE}
+EXT_COEFF_N =   0.15, 0.15, 0.15,0.15,0.15, 0.15,0.15,0.15,0.15, 0.15, 0.15, 0.15, 0.15 
+
+# MOSS_FRAC ([0-1]) :  Moss fraction for each PFT 	{OK_MOSS}
+MOSS_FRAC =  0., 0., 0., 0.,  0.,  0.,  1., 1.,  1.,  0.,  0.,  0., 0. 
+
+# DIA_THRESH_INV ([m]) :  Diameter below which trees are not measured in a forest inventory 	{OK_STOMATE}
+DIA_THRESH_INV =  -9999., 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, -9999., -9999., -9999.,-9999. 
+
+# SENESCENCE_TYPE ([-]) :  type of senescence, tabulated 	{OK_STOMATE}
+SENESCENCE_TYPE =  none, none, dry, none, none, cold, none, cold, cold, mixed, mixed, crop, crop  
+
+# LONGEVITY_SAP ([days]) :  sapwood -> heartwood conversion time 	{OK_STOMATE}
+LONGEVITY_SAP =  -9999., 730., 730., 730., 730., 730., 730., 730., 730., -9999., -9999., -9999., -9999. 
+
+# LONGEVITY_ROOT ([days]) :  root longevity 	{OK_STOMATE}
+LONGEVITY_ROOT =  -9999., 256., 256., 256., 256., 256., 256., 256., 256., 256., 256., 256., 256. 
+
+# K_LATOSA_MAX ([-] ) :  Maximum leaf-to-sapwood area ratio 	{OK_STOMATE}
+K_LATOSA_MAX =  (-9999., 5., 5., 5., 3., 5., 5., 5., 5., -9999., -9999., -9999., -9999.)*1.e3 
+
+# K_LATOSA_MIN ([-] ) :  Minimum leaf-to-sapwood area ratio 	{OK_STOMATE}
+K_LATOSA_MIN =  (-9999., 5., 5., 5., 3., 5., 5., 5., 5., -9999., -9999., -9999., -9999.)*1.e3 
+
+# AVAILABILITY_FACT  ([-]   ) :  Calculate dynamic mortality in lpj_gap, pft dependent parameter 	{OK_STOMATE }
+AVAILABILITY_FACT  =  -9999., 0.14, 0.14, 0.10, 0.10, 0.10, 0.05, 0.05, 0.05, -9999., -9999., -9999., -9999.  
+
+# FRAC_GROWTHRESP ([-]) :  fraction of GPP which is lost as growth respiration 	{OK_STOMATE}
+FRAC_GROWTHRESP =  -9999., 0.35, 0.35, 0.28, 0.28, 0.28, 0.35, 0.35, 0.35, 0.28, 0.28, 0.28, 0.28 
+
+# COEFF_MAINT_INIT ([gC/gN/day]) :  maintenance respiration coefficient at 10 deg C 	{OK_STOMATE}
+COEFF_MAINT_INIT =  -9999., 3.06E-2, 3.06E-2, 6.46E-2, 6.46E-2, 6.46E-2, 6.46E-2, 6.46E-2, 6.46E-2, 6.46E-2, 6.46E-2, 6.46E-2, 6.46E-2 
+
+# TREF_MAINT_RESP ([degC]) :  maintenance respiration Temperature coefficient 	{OK_STOMATE}
+TREF_MAINT_RESP =    &  -9999., 56.02, 56.02, 56.02, 56.02, 56.02, 56.02, 56.02, 56.02, 56.02, 56.02, 56.02, 56.02    
+
+# TMIN_MAINT_RESP ([degC]) :  maintenance respiration Temperature coefficient 	{OK_STOMATE}
+TMIN_MAINT_RESP =   -9999., 46.02, 46.02, 46.02, 46.02, 46.02, 46.02, 46.02, 46.02, 46.02, 46.02, 46.02, 46.02    
+
+# E0_MAINT_RESP ([-]) :  maintenance respiration Temperature coefficient 	{OK_STOMATE}
+E0_MAINT_RESP =  -9999., 308.56, 308.56, 308.56, 308.56, 308.56, 308.56, 308.56, 308.56, 308.56, 308.56, 308.56, 308.56    
+
+# TREF_LABILE ([degC]) :  Growth from labile pool - temperature at which all labile Cmaintenance respiration Temperature coefficient 	{OK_STOMATE}
+TREF_LABILE =  -9999., 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5     
+
+# TMIN_LABILE ([degC]) :  Growth from labile pool  - temperature above which labile will be allocated to growth 	{OK_STOMATE}
+TMIN_LABILE =  -9999., -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2 
+
+# E0_LABILE ([-]) :  Growth temperature coefficient - tuned see stomate_growth_fun_all.f90 	{OK_STOMATE}
+E0_LABILE =  -9999., 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15 
+
+# ALWAYS_LABILE ([-]) :  share of the labile pool that will remain in the labile pool 	{OK_STOMATE}
+ALWAYS_LABILE =  -9999., 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01 
+
+# COEFF_LCCHANGE_s ([-]) :  Coeff of biomass export for the year 	{OK_STOMATE}
+COEFF_LCCHANGE_s =  -9999., 0.897, 0.897, 0.597, 0.597, 0.597, 0.597, 0.597, 0.597, 0.597, 0.597, 0.597, 0.597  
+
+# COEFF_LCCHANGE_m ([-]) :  Coeff of biomass export for the decade 	{OK_STOMATE}
+COEFF_LCCHANGE_m =  -9999., 0.103, 0.103, 0.299, 0.299, 0.299, 0.299, 0.299, 0.299, 0.299, 0.403, 0.299, 0.403 
+
+# COEFF_LCCHANGE_l ([-]) :  Coeff of biomass export for the century 	{OK_STOMATE}
+COEFF_LCCHANGE_l =  -9999., 0., 0., 0.104, 0.104, 0.104, 0.104, 0.104, 0.104, 0.104, 0., 0.104, 0. 
+
+# LAI_MAX_TO_HAPPY ([-]) :  threshold of LAI below which plant uses carbohydrate reserves 	{OK_STOMATE}
+LAI_MAX_TO_HAPPY =  -9999., .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5  
+
+# LAI_MAX ([m^2/m^2]) :  maximum LAI, PFT-specific 	{OK_STOMATE}
+LAI_MAX =  -9999., 7.0, 5.0, 5.0, 4.0, 5.0, 3.5, 4.0, 3.0, 2.5, 2.0, 5.0, 5.0 
+
+# PHENO_TYPE ([-]) :  type of phenology, 0 	{OK_STOMATE}
+PHENO_TYPE =  0, 1, 3, 1, 1, 2, 1, 2, 2, 4, 4, 2, 3 
+
+# FORCE_PHENO ([days]) :  Offset from mean doy at which phenology will be forced 	{OK_STOMATE}
+FORCE_PHENO =  -9999., -9999., 42, -9999., -9999., 42, -9999., 28, 28, 35, 35, 28, 28 
+
+# PHENO_GDD_CRIT_C ([-]) :  critical gdd, tabulated (C), constant c of aT^2+bT+c 	{OK_STOMATE}
+PHENO_GDD_CRIT_C =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 640., 400., 400., 450. 
+
+# PHENO_GDD_CRIT_B ([-]) :  critical gdd, tabulated (C), constant b of aT^2+bT+c 	{OK_STOMATE}
+PHENO_GDD_CRIT_B =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 32., 0., 6.25, 0. 
+
+# PHENO_GDD_CRIT_A ([-]) :  critical gdd, tabulated (C), constant a of aT^2+bT+c 	{OK_STOMATE}
+PHENO_GDD_CRIT_A =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 0.03125,  0., 0., 0. 
+
+# PHENO_MOIGDD_T_CRIT ([C]) :  Average temperature threashold for C4 grass used in pheno_moigdd 	{OK_STOMATE}
+PHENO_MOIGDD_T_CRIT =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 22.0, -9999., -9999. 
+
+# NGD_CRIT ([days]) :  critical ngd, tabulated. Threshold -5 degrees 	{OK_STOMATE}
+NGD_CRIT =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., 23.9, -9999., -9999., -9999., -9999., -9999. 
+
+# NCDGDD_TEMP ([C] ) :  critical temperature for the ncd vs. gdd function in phenology 	{OK_STOMATE}
+NCDGDD_TEMP =  -9999., -9999., -9999., -9999., -9999., 5., -9999., 0., -9999., -9999., -9999., -9999., -9999. 
+
+# HUM_FRAC ([%]) :  critical humidity (relative to min/max) for phenology 	{OK_STOMATE}
+HUM_FRAC =  -9999., -9999., .5, -9999., -9999., -9999., -9999., -9999.,  -9999., .5, .5, .5,.5      
+
+# HUM_MIN_TIME ([days]) :  minimum time elapsed since moisture minimum 	{OK_STOMATE}
+HUM_MIN_TIME =  -9999., -9999., 50., -9999., -9999., -9999., -9999., -9999., -9999., 35., 35., 75., 75. 
+
+# RELSOILMOIST_ALWAYS ([-]   ) :  relative soil moisture availability above which moisture tendency doesn't matter  	{OK_STOMATE }
+RELSOILMOIST_ALWAYS =  -9999., 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.98, 0.6, 0.6, 0.6  
+
+# T_ALWAYS ([K]    ) :  monthly temp. above which temp. tendency doesn't matter  	{OK_STOMATE }
+T_ALWAYS =  -9999., 283.15, 283.15, 283.15, 283.15, 283.15, 283.15, 283.15, 283.15, 280., 283.15, 283.15, 283.15  
+
+# HARVEST_TIME_A ([day]    ) :  Parameter to calculate harvest time of crops 	{OK_STOMATE }
+HARVEST_TIME_A =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 160, 160 
+
+# HARVEST_TIME_B ([K]    ) :  Parameter to calculate harvest time of crops 	{OK_STOMATE }
+HARVEST_TIME_B =  -9999.,  
+
+# LEAF_AGE_CRIT_TREF ([degrees C]) :  Reference temperature 	{OK_STOMATE}
+LEAF_AGE_CRIT_TREF =  -9999., 25., 25., 15., 20., 15., 5., 5., 5., 15., 20., 15., 20. 
+
+# LEAF_AGE_CRIT_COEFF1 ([-]) :  Coeff1 (unitless) to link leaf_age_crit to leaf_age_crit_tref 	{OK_STOMATE}
+LEAF_AGE_CRIT_COEFF1 =  -9999., 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5 
+
+# LEAF_AGE_CRIT_COEFF2 ([-]) :  Coeff1 (unitless) to link leaf_age_crit to leaf_age_crit_tref 	{OK_STOMATE}
+LEAF_AGE_CRIT_COEFF2 =  -9999., 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75 
+
+# LEAF_AGE_CRIT_COEFF3 ([-]) :  Coeff1 (unitless) to link leaf_age_crit to leaf_age_crit_tref 	{OK_STOMATE}
+LEAF_AGE_CRIT_COEFF3 =  -9999., 10., 10., 10., 10., 10., 10., 10., 10., 10., 10., 10., 10. 
+
+# LONGEVITY_FRUIT ([days]) :  fruit lifetime 	{OK_STOMATE}
+LONGEVITY_FRUIT =  -9999., 90., 90., 90., 90., 90., 90., 90., 90., -9999., -9999., -9999., -9999. 
+
+# LONGEVITY_LEAF ([days]) :  leaf longevity 	{OK_STOMATE}
+LONGEVITY_LEAF =  -9999., 730., 180., 910., 730., 180., 910., 180., 180., 120., 120., 90., 90.  
+
+# ECUREUIL ([-]) :  fraction of primary leaf and root allocation put into reserve 	{OK_STOMATE}
+ECUREUIL =  -9999., .0, 1., .0, .0, 1., .0, 1., 1., 1., 1., 1., 1. 
+
+# ALLOC_MIN ([-]) :  minimum allocation above/below  	{OK_STOMATE}
+ALLOC_MIN =  -9999., 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, -9999., -9999., -9999., -9999.  
+
+# ALLOC_MAX ([-]) :  maximum allocation above/below  	{OK_STOMATE}
+ALLOC_MAX =  -9999., 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, -9999., -9999., -9999., -9999. 
+
+# DEMI_ALLOC  ([-]) :  mean allocation above/below  	{OK_STOMATE}
+DEMI_ALLOC  =  -9999., 5., 5., 5., 5., 5., 5., 5., 5., -9999., -9999., -9999., -9999. 
+
+# LC_leaf  ([-]   ) :  Lignine/C ratio of leaf pool 	{OK_STOMATE }
+LC_leaf  =  -9999., 0.18, 0.18, 0.24, 0.18, 0.18, 0.24, 0.18, 0.24, 0.09, 0.09, 0.09, 0.09 
+
+# LC_sapabove  ([-]   ) :  Lignine/C ratio of sapabove pool 	{OK_STOMATE }
+LC_sapabove  =  -9999., 0.23, 0.23, 0.29, 0.23, 0.23, 0.29, 0.23, 0.29, 0.09, 0.09, 0.09, 0.09 
+
+# LC_sapbelow  ([-]   ) :  Lignine/C ratio of sapbelow pool 	{OK_STOMATE }
+LC_sapbelow  =  -9999., 0.23, 0.23, 0.29, 0.23, 0.23, 0.29, 0.23, 0.29, 0.09, 0.09, 0.09, 0.09 
+
+# LC_heartabove  ([-]   ) :  Lignine/C ratio of heartabove pool 	{OK_STOMATE }
+LC_heartabove  =  -9999., 0.23, 0.23, 0.29, 0.23, 0.23, 0.29, 0.23, 0.29, 0.09, 0.09, 0.09, 0.09 
+
+# LC_heartbelow  ([-]   ) :  Lignine/C ratio of heartbelow pool 	{OK_STOMATE }
+LC_heartbelow  =  -9999., 0.23, 0.23, 0.29, 0.23, 0.23, 0.29, 0.23, 0.29, 0.09, 0.09, 0.09, 0.09 
+
+# LC_fruit ([-]   ) :  Lignine/C ratio of fruit pool 	{OK_STOMATE }
+LC_fruit =  -9999., 0.09, 0.09, 0.09, 0.09, 0.09, 0.09, 0.09, 0.09, 0.09, 0.09, 0.09, 0.09 
+
+# LC_root ([-]   ) :  Lignine/C ratio of fruit pool 	{OK_STOMATE }
+LC_root =  -9999., 0.22, 0.22, 0.22, 0.22, 0.22, 0.22, 0.22, 0.22, 0.22, 0.22, 0.22, 0.22 
+
+# LC_carbres ([-]   ) :  Lignine/C ratio of carbres pool 	{OK_STOMATE }
+LC_carbres =  -9999., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0. 
+
+# LC_labile ([-]   ) :  Lignine/C ratio of labile pool 	{OK_STOMATE }
+LC_labile =  -9999., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0. 
+
+# DECOMP_FACTOR  () :  Multpliactive factor modifying the standard decomposition factor for each SOM pool  	{}
+DECOMP_FACTOR  =  -9999., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.2, 1.4  
+
+# MASS_RATIO_HEART_SAP  ([-]   ) :  mass ratio (heartwood+sapwood)/heartwood  	{OK_STOMATE }
+MASS_RATIO_HEART_SAP  =  -9999., 3., 3., 3., 3., 3., 3., 3., 3., 0., 0., 0., 0.   
+
+# CANOPY_COVER ([-] ) :  Test values for canopy cover 	{OK_STOMATE}
+CANOPY_COVER =  -9999., 0.9, 0.9, 0.7, 0.7, 0.7, 0.6, 0.5, 0.5, 0.9, 0.9, 0.9, 0.9 
+
+# NMAXPLANTS ([trees ha-1]) :  number of grasses and crops planted at the start of a rotation 	{OK_STOMATE }
+NMAXPLANTS =  (-9999., 15, 15, 15, 15, 15, 15, 15, 15, 10., 10., 10., 10.)*1.e3 
+
+# HEIGHT_INIT ([m]) :  height of a newly established vegetation 	{OK_STOMATE}
+HEIGHT_INIT =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 0.3, 0.3, 0.3, 0.3 
+
+# BIOMASS_INIT ([g]) :  biomass of newly established vegetation 	{OK_STOMATE}
+BIOMASS_INIT =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 20, 30, 70, 80 
+
+# QMD_INIT ([m]) :  minimum diameter of a newly established forest stand 	{OK_STOMATE}
+QMD_INIT =  -9999., 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, -9999., -9999., -9999., -9999. 
+
+# BETA_SELF_THINNING ([-]) :  beta coefficient of the self thinning relationship 	{OK_STOMATE }
+BETA_SELF_THINNING =  -9999., -0.57, -0.57, -0.55, -0.61, -0.58, -0.55, -0.56, -0.56, -9999., -9999., -9999., -9999. 
+
+# REF_ALPHA_SELF_THIN ([-]) :  Basic change rate of the alpha self thinning parameter over time 	{TEST_DYNAMIC_ALPHA_SELF_THIN, OK_STOMATE}
+REF_ALPHA_SELF_THIN =  -9999., 2827, 3700, 1348, 1220, 2000, 2827, 800, 800, -9999., -9999., -9999., -9999. 
+
+# INIT_PRE_INDUST_REF_GPP ([gC m-2 day-1]) :  Reference pre-industrial gpp. 	{TEST_DYNAMIC_ALPHA_SELF_THIN, OK_STOMATE}
+INIT_PRE_INDUST_REF_GPP =  -9999., 8.21, 8.21, 4.11, 3.40, 4.11, 2.74, 2.47, 2.47, -9999., -9999., -9999., -9999. 
+
+# FUELWOOD_DIAMETER ([m]) :  Diameter below which harvest will be used as fuelwood 	{OK_STOMATE, DIMENSIONAL WOOD PRODUCTS}
+FUELWOOD_DIAMETER =  -9999., 0.3, 0.3, 0.2, 0.3, 0.3, 0.2, 0.2, 0.2, -9999., -9999., -9999., -9999. 
+
+# COPPICE_KILL_BE_WOOD ([m]) :  The fraction of belowground wood killed during coppicing 	{FOREST_MANAGED equals to 3 (Coppice)}
+COPPICE_KILL_BE_WOOD =  -9999., 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -9999., -9999., -9999., -9999. 
+
+# DELEUZE_A ([-]) :  intercept of the intra-tree competition within a stand 	{OK_STOMATE, NCIRC>6}
+DELEUZE_A =  -9999., 0.23, 0.23, 0.23, 0.23, 0.23, 0.23, 0.23, 0.23, 0.23, -9999., -9999., -9999., -9999. 
+
+# DELEUZE_B ([-]) :  slope of the intra-tree competition within a stand 	{OK_STOMATE, NCIRC>6}
+DELEUZE_B =  -9999., 0.58, 0.58, 0.58, 0.58, 0.58, 0.58, 0.58, 0.58, 0.58, -9999., -9999., -9999., -9999. 
+
+# DELEUZE_P_ALL ([0-1]) :  Percentile of the circumferences that receives photosynthates 	{OK_STOMATE, NCIRC>1 AND NCIRC<6}
+DELEUZE_P_ALL =  -9999., 0.5, 0.5, 0.99, 0.99, 0.99, 0.99, 0.99, 0.99, 0.99, -9999., -9999., -9999., -9999. 
+
+# DELEUZE_P_COPPICE ([0-1]) :  Percentile of the circumferences that receives photosynthates 	{OK_STOMATE, functional allocation  }
+DELEUZE_P_COPPICE =  -9999., 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, -9999., -9999., -9999., -9999. 
+
+# DELEUZE_POWER_A ([-]) :  Slope parameter for intra-specific competition 	{OK_STOMATE}
+DELEUZE_POWER_A =  -9999., 0, 0, 0, 0, 0, 0, 0, 0, 0, -9999., -9999., -9999., -9999. 
+
+# M_DV ([-]) :  Relaxation factor of deleuze relationship 	{OK_STOMATE, NCIRC>1 }
+M_DV =  -9999., 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, -9999., -9999., -9999., -9999. 
+
+# FOREST_MANAGED_FORCED ([-]) :  Prescribe forest management 	{OK_STOMATE}
+FOREST_MANAGED_FORCED =  -9999., 1, 1, 1, 1, 1, 1, 1, 1, -9999., -9999., -9999., -9999. 
+
+# LARGEST_TREE_DIA ([m]) :  Maximum tree diameter of a stand 	{OK_STOMATE}
+LARGEST_TREE_DIA =  0.0, .45, .60, .45, .45, .60, .45, .60, .45, 0.0, 0.0, 0.0, 0.0 
+
+# THINSTRAT ([-]) :  Thinnig management style (from below or from above) 	{FOREST_MANAGEMENT }
+THINSTRAT =  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0 
+
+# TAUMIN ([-]) :  Minimum probability that a tree get thinned 	{FOREST_MANAGEMENT }
+TAUMIN =  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 
+
+# TAUMAX ([-]) :  Maximum probability that a tree get thinned 	{FOREST_MANAGEMENT }
+TAUMAX =  0.0, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.0, 0.0, 0.0, 0.0 
+
+# RDI_DIA_REF ([-]) :  RDI at a reference tree diameter used to shape the end of 	{OK_STOMATE }
+RDI_DIA_REF =  -9999., 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, -9999., -9999., -9999., -9999. 
+
+# THIN_INTENSITY ([-]) :  Intensity of a thinnig event when a forest reach the upper 	{OK_STOMATE }
+THIN_INTENSITY =  -9999., 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.é5, 0.25, -9999., -9999., -9999., -9999. 
+
+# RDI_START ([-]) :  The rdi value at the start of a forest rotation, use 	{OK_STOMATE }
+RDI_START =  -9999., 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, -9999., -9999., -9999., -9999. 
+
+# FINAL_DIA_NONE ([-]) :  The maximum Diameter before the decline in RDI 	{OK_STOMATE}
+FINAL_DIA_NONE =  -9999., 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, -9999., -9999., -9999., -9999. 
+
+# FINAL_DIA_THIN ([-]) :  The maximum Diameter before the decline in RD 	{OK_STOMATE}
+FINAL_DIA_THIN =  -9999., 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, -9999., -9999., -9999., -9999. 
+
+# FINAL_DIA_UNEVEN ([-]) :  The maximum Diameter before the decline in RD 	{OK_STOMATE}
+FINAL_DIA_UNEVEN =  -9999., 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, -9999., -9999., -9999., -9999. 
+
+# FINAL_DIA_COP ([-]) :  The maximum Diameter before the decline in RD 	{OK_STOMATE}
+FINAL_DIA_COP =  -9999., 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -9999., -9999., -9999., -9999. 
+
+# FINAL_DIA_SRC ([-]) :  The maximum Diameter before the decline in RD 	{OK_STOMATE}
+FINAL_DIA_SRC =  -9999., 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -9999., -9999., -9999., -9999. 
+
+# RDI_MAX_NONE ([-]) :  The maximum RDI that a forest will reach during the rotation 	{OK_STOMATE }
+RDI_MAX_NONE =  -9999., 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, -9999., -9999., -9999., -9999. 
+
+# RDI_MAX_THIN ([-]) :  The maximum RDI that a forest will reach during the rotation 	{OK_STOMATE }
+RDI_MAX_THIN =  -9999., 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, -9999., -9999., 
+
+# RDI_MAX_UNEVEN ([-]) :  The maximum RDI that a forest will reach during the rotation 	{OK_STOMATE }
+RDI_MAX_UNEVEN =  -9999., 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, -9999., -9999., 
+
+# RDI_MAX_COP ([-]) :  The maximum RDI that a forest will reach during the rotation 	{OK_STOMATE }
+RDI_MAX_COP =  -9999., 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -9999., -9999., 
+
+# RDI_MAX_SRC ([-]) :  The maximum RDI that a forest will reach during the rotation 	{OK_STOMATE }
+RDI_MAX_SRC =  -9999., 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -9999., -9999., 
+
+# DENS_TARGET_NONE ([-]) :  Minimal density. Below this density the forest will be clearcut (trees.ha-1) 	{OK_STOMATE}
+DENS_TARGET_NONE =  -9999., 200, 200, 200, 200, 200, 200, 200, 200, -9999., -9999., -9999., -9999. 
+
+# DENS_TARGET_THIN ([-]) :  Minimal density. Below this density the forest will be clearcut (trees.ha-1) 	{OK_STOMATE}
+DENS_TARGET_THIN =  -9999., 200, 200, 200, 200, 200, 200, 200, 200, -9999., -9999., -9999., -9999. 
+
+# DENS_TARGET_UNEVEN ([-]) :  Minimal density. Below this density the forest will be clearcut (trees.ha-1) 	{OK_STOMATE}
+DENS_TARGET_UNEVEN =  -9999., 200, 200, 200, 200, 200, 200, 200, 200, -9999., -9999., -9999., -9999. 
+
+# DENS_TARGET_COP ([-]) :  Minimal density. Below this density the forest will be clearcut (trees.ha-1) 	{OK_STOMATE}
+DENS_TARGET_COP =  -9999., 200, 200, 200, 200, 200, 200, 200, 200, -9999., -9999., -9999., -9999. 
+
+# DENS_TARGET_SRC ([-]) :  Minimal density. Below this density the forest will be clearcut (trees.ha-1) 	{OK_STOMATE}
+DENS_TARGET_SRC =  -9999., 200, 200, 200, 200, 200, 200, 200, 200, -9999., -9999., -9999., -9999. 
+
+# DIA_BOOST_END ([-]) :  Diameter at which the model stop maintaining a low rdi 	{OK_STOMATE }
+DIA_BOOST_END =  -9999., 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, -9999., -9999., -9999., -9999. 
+
+# CIRC_DIST_SHAPE_NONE  ([-]) :  Shape parameter of the unmanaged forest circular distance distribution 	{FOREST_MANAGEMENT}
+CIRC_DIST_SHAPE_NONE  =  -9999., 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, -9999., -9999., -9999., -9999. 
+
+# CIRC_DIST_SHAPE_THIN ([-]) :  Shape parameter of the managed forest circ class distribution 	{FOREST_MANAGEMENT}
+CIRC_DIST_SHAPE_THIN =  -9999., -0.09, -0.09, -0.09, -0.09, -0.09, -0.09, -0.09, -0.09, -9999., -9999., -9999., -9999. 
+
+# CIRC_DIST_SHAPE_COP ([-]) :  Shape parameter of the coppice forest circ class distribution 	{FOREST_MANAGEMENT}
+CIRC_DIST_SHAPE_COP =  -9999., 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, -9999., -9999., -9999., -9999. 
+
+# CIRC_DIST_SHAPE_SRC ([-]) :  Shape parameter of short rotation cycle for the circ class distribution 	{FOREST_MANAGEMENT}
+CIRC_DIST_SHAPE_SRC =  -9999., 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, -9999., -9999., -9999., -9999. 
+
+# CIRC_DIST_SHAPE_UNEVEN ([-]) :  Shape parameter of Uneven-age forest for the circ class distribution 	{FOREST_MANAGEMENT}
+CIRC_DIST_SHAPE_UNEVEN =  -9999., 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, -9999., -9999., -9999., -9999. 
+
+# BRANCH_HARVEST_NONE ([-]) :  The fraction of branches which are harvested from unmanaged forests 	{FOREST_MANAGEMENT }
+BRANCH_HARVEST_NONE =  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0   
+
+# BRANCH_HARVEST_THIN ([-]) :  The fraction of branches which are harvested from thin and fell forests 	{FOREST_MANAGEMENT }
+BRANCH_HARVEST_THIN =  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0   
+
+# BRANCH_HARVEST_UNEVEN ([-]) :  The fraction of branches which are harvested from uneven-aged managed forests 	{FOREST_MANAGEMENT }
+BRANCH_HARVEST_UNEVEN =  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0   
+
+# BRANCH_HARVEST_COP ([-]) :  The fraction of branches which are harvested from coppice forests 	{FOREST_MANAGEMENT }
+BRANCH_HARVEST_COP =  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0   
+
+# BRANCH_HARVEST_SRC ([-]) :  The fraction of branches which are harvested from unmanaged forests 	{FOREST_MANAGEMENT }
+BRANCH_HARVEST_SRC =  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0   
+
+# CLEARCUT_RESIDUE_NONE ([-]) :  The fraction of wood which are harvested during thinning and felling rest are left on site) 	{FOREST_MANAGEMENT }
+CLEARCUT_RESIDUE_NONE =  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0   
+
+# CLEARCUT_RESIDUE_THIN ([-]) :  The fraction of wood which are harvested during thin and fell (the rest are left on site) 	{FOREST_MANAGEMENT }
+CLEARCUT_RESIDUE_THIN =  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0   
+
+# CLEARCUT_RESIDUE_UNEVEN ([-]) :  The fraction of wood which are harvested during uneven-aged forestry (the rest are left on site) 	{FOREST_MANAGEMENT }
+CLEARCUT_RESIDUE_UNEVEN =  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0   
+
+# CLEARCUT_RESIDUE_COP ([-]) :  The fraction of wood which are harvested during coppicing (the rest are left on site) 	{FOREST_MANAGEMENT }
+CLEARCUT_RESIDUE_COP =  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0   
+
+# CLEARCUT_RESIDUE_SRC ([-]) :  The fraction of wood which are harvested during src (the rest are left on site) 	{FOREST_MANAGEMENT }
+CLEARCUT_RESIDUE_SRC =  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0   
+
+# SALVAGE_DIST_NONE ([-]) :  The fraction of dead wood that is remove after disturbance (the rest are left on site) 	{FOREST_MANAGEMENT }
+SALVAGE_DIST_NONE =  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0   
+
+# SALVAGE_DIST_THIN ([-]) :  The fraction of dead wood that is remove after disturbance (the rest are left on site) 	{FOREST_MANAGEMENT }
+SALVAGE_DIST_THIN =  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0   
+
+# SALVAGE_DIST_UNEVEN ([-]) :  The fraction of dead wood that is remove after disturbance (the rest are left on site) 	{FOREST_MANAGEMENT }
+SALVAGE_DIST_UNEVEN =  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0   
+
+# SALVAGE_DIST_COP ([-]) :  The fraction of dead wood that is remove after disturbance (the rest are left on site) 	{FOREST_MANAGEMENT }
+SALVAGE_DIST_COP =  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0   
+
+# SALVAGE_DIST_SRC ([-]) :  The fraction of dead wood that is remove after disturbance (the rest are left on site) 	{FOREST_MANAGEMENT }
+SALVAGE_DIST_SRC =  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0   
+
+# COPPICE_DIAMETER ([m]) :  The trunk diameter at which a coppice will be cut 	{FOREST_MANAGEMENT }
+COPPICE_DIAMETER =  -9999., 0.2, 0.2, 0.2, 0.2, 0.1, 0.2, 0.2, 0.2, -9999., -9999., -9999., -9999. 
+
+# SHOOTS_PER_STOOL ([shoots.stool-1]) :  The number of shoots that will regrow per stool after the first coppice cut 	{FOREST_MANAGEMENT }
+SHOOTS_PER_STOOL =  -9999., 6, 6, 6, 6, 6, 6, 6, 6, -9999., -9999., -9999., -9999. 
+
+# SRC_ROT_LENGTH ([years]) :  The number of years between cuttings for short rotation coppices 	{FOREST_MANAGEMENT }
+SRC_ROT_LENGTH =  -9999., 3, 3, 3, 3, 3, 3, 3, 3, -9999., -9999., -9999., -9999. 
+
+# SRC_NROTS ([-]) :  Number of rotations before  afinal cut 	{FOREST_MANAGEMENT }
+SRC_NROTS =  -9999., 10, 10, 10, 10, 10, 10, 10, 10, -9999., -9999., -9999., -9999. 
+
+# FRUIT_ALLOC ([-] ) :  Fraction of allocatable carbon that will go to fruit production 	{OK_STOMATE}
+FRUIT_ALLOC =  (-9999., 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.2, 0.2) 
+
+# LABILE_RESERVE  ([-]) :  Determines labile reserve pool  	{OK_STOMATE}
+LABILE_RESERVE  =  -9999., 60, 30, 60, 60, 30, 60, 10, 10, 2, 2, 2, 2  
+
+# EVERGREEN_RESERVE ([-]  ) :  Fraction of sapwood mass stored in the reserve pool of evergreen trees 	{OK_STOMATE}
+EVERGREEN_RESERVE =  -9999., 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05  
+
+# DECIDUOUS_RESERVE ([-]  ) :  Fraction of sapwood mass stored in the reserve pool 	{OK_STOMATE}
+DECIDUOUS_RESERVE =  -9999., 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12 
+
+# SENESCENSE_RESERVE ([-]  ) :  Fraction of sapwood mass stored in the reserve pool of  	{OK_STOMATE}
+SENESCENSE_RESERVE =  -9999., 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15  
+
+# ROOT_RESERVE ([-]  ) :  Fraction of max root biomass which are covered by the carbon reserve 	{OK_STOMATE}
+ROOT_RESERVE =  -9999., 0.3, 1., 0.3, 0.3, 1., 0.3, 1.,  1., 1., 1., 1., 1.  
+
+# FCN_WOOD ([-] ) :  CN of wood for allocation, relative to leaf CN  	{OK_STOMATE}
+FCN_WOOD =  -9999., .087, .087, .087, .087, .087, .087, .087, .087, .087, .087, .087 
+
+# FCN_ROOT ([-] ) :  CN roots for allocation, relative to leaf CN  	{OK_STOMATE}
+FCN_ROOT =  -9999., 0.86, 0.86, 0.86, 0.86, 0.86, 0.86, 0.86, 0.86, 0.86, 0.86, 0.86 
+
+# BRANCH_RATIO ([-]) :  Share of the sapwood and heartwood that is used for branches 	{FOREST_MANAGEMENT }
+BRANCH_RATIO =  0.0, 0.38, 0.38, 0.25, 0.38, 0.38, 0.25, 0.38, 0.25, 0.0, 0.0, 0.0, 0.0   
+
+# RECRUITMENT_PFT   ([FLAG]  ) :  Logical recruitment flag for each pft 	{OK_STOMATE  }
+RECRUITMENT_PFT   =  FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE   
+
+# RECRUITMENT_HEIGHT   ([m]  ) :  Prescribed height for tree recruits (m)    	{OK_STOMATE  }
+RECRUITMENT_HEIGHT   =  -9999., 1, 1, 1, 1, 1, 1, 1, 1, 1, -9999., -9999., -9999.   
+
+# RECRUITMENT_ALPHA   ([-]  ) :  Intercept of power model relating light and recruitment numbers   	{OK_STOMATE  }
+RECRUITMENT_ALPHA   =  -9999., -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -9999., -9999., -9999., -9999.   
+
+# RECRUITMENT_BETA   ([-]  ) :  Slope of power model relating light and recruitment numbers   	{OK_STOMATE  }
+RECRUITMENT_BETA   =  -9999., 0.8, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -9999., -9999., -9999., -9999.   
+
+# DEATH_DISTRIBUTION_FACTOR ([-] ) :  Shape parameter for tree mortality 	{OK_STOMATE, FUNCTIONAL ALLOCATION}
+DEATH_DISTRIBUTION_FACTOR =  -9999., 100., 100., 100., 100., 100., 100., 100., 100., -9999., -9999., -9999., -9999.   
+
+# NPP_RESET_VALUE ([gC m-2 y-1] ) :  The value longterm NPP is reset to npp_reset_value after a non-tree stand dies.  	{OK_STOMATE, FUNCTIONAL ALLOCATION}
+NPP_RESET_VALUE =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 500., 500., 500., 500.   
+
+# NDYING_YEAR ([year] ) :  Number of year for a forest to die 	{OK_STOMATE}
+NDYING_YEAR =  -9999., 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 
+
+# BEETLE_PFT   ([FLAG]  ) :  Logical bark beetle mortality flag for each pft 	{OK_STOMATE  }
+BEETLE_PFT   =  FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, 
+
+# S_ACTIVITY ([-] ) :  beetles population fraction that remain on the stand 	{OK_STOMATE, OK_PEST}
+S_ACTIVITY =  -9999., -9999., -9999., 0.5, -9999., -9999., 0.5, -9999., 
+
+# ACT_LIMIT ([-] ) :  parameter wich control the feedback of the previous 	{OK_STOMATE, OK_PEST}
+ACT_LIMIT =  -9999., -9999., -9999., 0.75, -9999., -9999., 0.75, -9999., 
+
+# S_COMPETITION ([-] ) :  a parameter for the relationship between rdi and 	{OK_STOMATE, OK_PEST}
+S_COMPETITION =  -9999., -9999., -9999., 15.5, -9999., -9999., 15.5, -9999., 
+
+# RDI_LIMIT ([-]) :  b parameter for the relationship between rdi and 	{OK_STOMATE, OK_PEST}
+RDI_LIMIT =  -9999., -9999., -9999., 0.6, -9999., -9999., 
+
+# S_WEAKNESS ([-]) :  target susceptibility when we come back to endemic 	{OK_STOMATE, OK_PEST}
+S_WEAKNESS =  -9999., -9999., -9999., -5.0, -9999., -9999., 
+
+# RDI_WEAKNESS ([-]) :  target susceptibility when we come back to endemic 	{OK_STOMATE, OK_PEST}
+RDI_WEAKNESS =  -9999., -9999., -9999., 0.6, -9999., -9999., 
+
+# S_SHARE ([-] ) :  a parameter for the relationship between share and 	{OK_STOMATE, OK_PEST}
+S_SHARE =  -9999., -9999., -9999., 1.5, -9999., -9999., 15.5, -9999., 
+
+# SH_LIMIT ([-]) :  b parameter for the relationship between share and 	{OK_STOMATE, OK_PEST}
+SH_LIMIT =  -9999., -9999., -9999., 0.6, -9999., -9999., 
+
+# S_DEFENCE ([-]) :  a parameter for the relationship between drought and beetle susceptibility 	{OK_STOMATE, OK_PEST}
+S_DEFENCE =  -9999., -9999., -9999., -9.5, -9999., -9999., -9.5, -9999., -9999., -9999., -9999., -9999., -9999. 
+
+# PWS_LIMIT ([-]) :  b parameter for the relationship between drought and beetle susceptibility 	{OK_STOMATE, OK_PEST}
+PWS_LIMIT =  -9999., -9999., -9999., 0.4, -9999., -9999., 0.4, -9999., -9999., -9999., -9999., -9999., -9999. 
+
+# MAX_NWOOD ([-]) :  tune parameter for the relationship between woodleftover and beetle susceptibility 	{OK_STOMATE, OK_PEST}
+MAX_NWOOD =  -9999., -9999., -9999., 1.0, -9999., -9999., 0.5, -9999., -9999., -9999., -9999., -9999., -9999. 
+
+# BEETLE_GENERATION_A ([-] ) :  a parameter for the calculation of the number of beetle generation per year 	{OK_STOMATE}
+BEETLE_GENERATION_A =  -9999., -9999., -9999., 3.307963, -9999., -9999., 3.307963, -9999., -9999., -9999., -9999., -9999., -9999. 
+
+# BEETLE_GENERATION_B ([degrees day] ) :  b parameter for the calculation of the number of beetle generation per year 	{OK_STOMATE}
+BEETLE_GENERATION_B =  -9999., -9999., -9999., 557.0, -9999., -9999., 557.0, -9999., -9999., -9999., -9999., -9999., -9999. 
+
+# BEETLE_GENERATION_C ([-] ) :  c parameter for the calculation of the number of beetle generation per year 	{OK_STOMATE}
+BEETLE_GENERATION_C =  -9999., -9999., -9999., 1.980938, -9999., -9999., 1.980938, -9999., -9999., -9999., -9999., -9999., -9999. 
+
+# MIN_TEMP_BEETLE ([degree celcius] ) :  temperature threshold below which Teff is not calculated 	{OK_STOMATE}
+MIN_TEMP_BEETLE =  -9999., -9999., -9999., 38.4, -9999., -9999., 38.4, -9999., -9999., -9999., -9999., -9999., -9999.  
+
+# MAX_TEMP_BEETLE ([ degree celcius] ) :  temperature threshold above which Teff is not calculated 	{OK_STOMATE}
+MAX_TEMP_BEETLE =  -9999., -9999., -9999., 38.4, -9999., -9999., 38.4, -9999., -9999., -9999., -9999., -9999., -9999. 
+
+# OPT_TEMP_BEETLE ([-] ) :  a parameter for the calculation of the effective temperature used in beetle phenology 	{OK_STOMATE}
+OPT_TEMP_BEETLE =  -9999., -9999., -9999., 30.3, -9999., -9999., 30.3, -9999., -9999., -9999., -9999., -9999., -9999. 
+
+# EFF_TEMP_BEETLE_A ([-] ) :  a parameter for the calculation of the effective temperature used in beetle phenology 	{OK_STOMATE}
+EFF_TEMP_BEETLE_A =  -9999., -9999., -9999., 0.02876507, -9999., -9999., 0.02876507, -9999., -9999., -9999., -9999., -9999., -9999. 
+
+# EFF_TEMP_BEETLE_B ([-] ) :  b parameter for the calculation of the effective temperature used in beetle phenology 	{OK_STOMATE}
+EFF_TEMP_BEETLE_B =  -9999., -9999., -9999., 40.9958913, -9999., -9999., 40.9958913, -9999., -9999., -9999., -9999., -9999., -9999. 
+
+# EFF_TEMP_BEETLE_C ([-] ) :  c parameter for the calculation of the effective temperature used in beetle phenology 	{OK_STOMATE}
+EFF_TEMP_BEETLE_C =  -9999., -9999., -9999., 3.5922336, -9999., -9999., 3.5922336, -9999., -9999., -9999., -9999., -9999., -9999. 
+
+# EFF_TEMP_BEETLE_D ([-] ) :  d parameter for the calculation of the effective temperature used in beetle phenology 	{OK_STOMATE}
+EFF_TEMP_BEETLE_D =  -9999., -9999., -9999., 1.24657367, -9999., -9999., 1.24657367, -9999., -9999., -9999., -9999., -9999., -9999. 
+
+# DIAPAUSE_THRES_DAYLENGTH ([hour] ) :  daylength in hour above which bark beetle start diapause 	{OK_STOMATE}
+DIAPAUSE_THRES_DAYLENGTH =  -9999., -9999., -9999., 14.5, -9999., -9999., 14.5, -9999., -9999., -9999., -9999., -9999., -9999.  
+
+# S_MASSATTACK ([-] ) :  "" 	{OK_STOMATE}
+S_MASSATTACK =  -9999., -9999., -9999., 15.5, -9999., -9999., 15.5, -9999., 
+
+# BP_LIMIT ([-] ) :  "" 	{OK_STOMATE}
+BP_LIMIT =  -9999., -9999., -9999., 0.5, -9999., -9999., 0.5, -9999., 
+
+# STREAMLINING_C_LEAF ([-] ) :  streamlining parameter for crown with leaves 	{OK_STOMATE, OK_WINDTHROW}
+STREAMLINING_C_LEAF =  -9999., 2.34, 2.34, 2.70, 2.66, 2.34, 2.71, 2.15, 3.07, -9999., -9999., -9999., -9999. 
+
+# STREAMLINING_C_LEAFLESS ([-]) :  streamlining parameter for crown without leaves 	{OK_STOMATE, OK_WINDTHROW}
+STREAMLINING_C_LEAFLESS =  -9999., 2.34, 2.34, 2.70, 2.66, 2.34, 2.71, 2.15, 3.07, -9999., -9999., -9999., -9999. 
+
+# STREAMLINING_N_LEAF ([-]) :  streamlining parameter for crown with leaves 	{OK_STOMATE, OK_WINDTHROW}
+STREAMLINING_N_LEAF =  -9999., 0.88, 0.88, 0.64, 0.85, 0.88, 0.63, 0.88, 0.75, -9999., -9999., -9999., -9999. 
+
+# STREAMLINING_N_LEAFLESS ([-]) :  streamlining parameter for crown without leaves 	{OK_STOMATE, OK_WINDTHROW}
+STREAMLINING_N_LEAFLESS =  -9999., 0.88, 0.88, 0.64, 0.85, 0.88, 0.63, 0.88, 0.75, -9999., -9999., -9999., -9999. 
+
+# MODULUS_RUPTURE ([Pa]) :  Modulus of rupture 	{OK_STOMATE, OK_WINDTHROW}
+MODULUS_RUPTURE =  -9999., 6.23E7, 6.23E7, 4.13E7, 5.90E7, 6.23E7, 4.10E7, 6.27E7, 5.30E7, -9999., -9999., -9999., -9999. 
+
+# F_KNOT ([unitless]) :  Knot factor  	{OK_STOMATE, OK_WINDTHROW}
+F_KNOT =  -9999., 1.0, 1.0, 0.87, 1.0, 1.0, 0.88, 1.0, 0.85, -9999., -9999., -9999., -9999. 
+
+# GREEN_DENSITY ([kg.m-3]) :  Green density of the tree 	{OK_STOMATE, OK_WINDTHROW}
+GREEN_DENSITY =  -9999., 1007, 1007, 985, 1060, 1007, 990, 968, 900, -9999., -9999., -9999., -9999. 
+
+# OV_FD_SHALLOW  ([Nm/kg]) :  Regression coefficient for overturning in free draining and shallow soil type 	{OK_STOMATE, OK_WINDTHROW}
+OV_FD_SHALLOW  =  -9999., 175.3, 175.3, 134.7, 198.5, 175.3, 132.6, 152.0, 145.2, -9999., -9999., -9999., -9999.  
+
+# OV_FD_SHALLOW_LESS ([Nm/Kg]) :  Regression coefficient for overturning in free draining and shallow soil type leafless 	{OK_STOMATE, OK_WINDTHROW}
+OV_FD_SHALLOW_LESS =  -9999., 175.3, 175.3, 134.7, 198.5, 175.3, 132.6, 152.0, 145.2, -9999., -9999., -9999., -9999. 
+
+# OV_FD_DEEP ([Nm/Kg]) :  Regression coefficient for overturning in free draining and deep soil type 	{OK_STOMATE, OK_WINDTHROW}
+OV_FD_DEEP =  -9999., 203.8, 203.8, 157.2, 230.8, 230.8, 154.8, 176.7, 169.4, -9999., -9999., -9999., -9999.  
+
+# OV_FD_DEEP_LESS ([Nm/Kg]) :  Regression coefficient for overturning in free draining and deep soil type leafless 	{OK_STOMATE, OK_WINDTHROW}
+OV_FD_DEEP_LESS =  -9999., 203.8, 203.8, 157.2, 230.8, 230.8, 154.8, 176.7, 169.4, -9999., -9999., -9999., -9999.   
+
+# OV_FD_AVERAGE ([Nm/Kg]) :  Regression coefficient for overturning in free draining and medium soil type   	{OK_STOMATE, OK_WINDTHROW}
+OV_FD_AVERAGE =  -9999., 178.7, 178.7, 137.8, 202.4, 178.7, 135.7, 155.0, 148.6, -9999., -9999., -9999., -9999.   
+
+# OV_FD_AVERAGE_LESS  ([Nm/Kg]) :  Regression coefficient for overturning in free draining and medium soil type leafless  	{OK_STOMATE, OK_WINDTHROW}
+OV_FD_AVERAGE_LESS  =  -9999., 178.7, 178.7, 137.8, 202.4, 178.7, 135.7, 155.0, 148.6, -9999., -9999., -9999., -9999.  
+
+# OV_GLEYED_SHALLOW ([Nm/Kg]) :  Regression coefficient for overturning in gleyed and shallow soil type 	{OK_STOMATE, OK_WINDTHROW}
+OV_GLEYED_SHALLOW =  -9999., 155.4, 155.4, 119.4, 176.0, 155.4, 117.6, 134.8, 128.7, -9999., -9999., -9999., -9999.  
+
+# OV_GLEYED_SHALLOW_LESS ([Nm/Kg]) :  Regression coefficient for overturning in gleyed and shallow soil type leafless 	{OK_STOMATE, OK_WINDTHROW}
+OV_GLEYED_SHALLOW_LESS =  -9999., 155.4, 155.4, 119.4, 176.0, 155.4, 117.6, 134.8, 128.7, -9999., -9999., -9999., -9999.   
+
+# OV_GLEYED_DEEP ([Nm/Kg) :  Regression coefficient for overturning in gleyed and deep soil type 	{OK_STOMATE, OK_WINDTHROW}
+OV_GLEYED_DEEP =  -9999., 180.6, 180.6, 139.3, 204.6, 180.6, 137.2, 156.7, 150.2, -9999., -9999., -9999., -9999.  
+
+# OV_GLEYED_DEEP_LESS  ([Nm/Kg]) :  Regression coefficient for overturning in gleyed and deep soil type leafless 	{OK_STOMATE, OK_WINDTHROW}
+OV_GLEYED_DEEP_LESS  =  -9999., 180.6, 180.6, 139.3, 204.6, 180.6, 137.2, 156.7, 150.2, -9999., -9999., -9999., -9999.   
+
+# OV_GLEYED_AVERAGE ([Nm/Kg]) :  Regression coefficient for overturning in gleyed and medium soil type 	{OK_STOMATE, OK_WINDTHROW}
+OV_GLEYED_AVERAGE =  -9999., 158.5, 158.5, 122.2, 179.5, 158.5, 120.3, 137.4, 131.7, -9999., -9999., -9999., -9999.   
+
+# OV_GLEYED_AVERAGE_LESS ([Nm/Kg]) :  Regression coefficient for overturning in gleyed and medium soil type leafless 	{OK_STOMATE, OK_WINDTHROW}
+OV_GLEYED_AVERAGE_LESS =  -9999., 158.5, 158.5, 122.2, 179.5, 158.5, 120.3, 137.4, 131.7, -9999., -9999., -9999., -9999.   
+
+# OV_PEATY_SHALLOW ([Nm/Kg]) :  Regression coefficient for overturning in peaty and shallow soil type 	{OK_STOMATE, OK_WINDTHROW}
+OV_PEATY_SHALLOW =  -9999., 169.7, 169.7, 130.4, 192.2, 169.7, 128.4, 147.2, 140.6, -9999., -9999., -9999., -9999.   
+
+# OV_PEATY_SHALLOW_LESS ([Nm/Kg]) :  Regression coefficient for overturning in peaty and shallow soil type leafless 	{OK_STOMATE, OK_WINDTHROW}
+OV_PEATY_SHALLOW_LESS =  -9999., 169.7, 169.7, 130.4, 192.2, 169.7, 128.4, 147.2, 140.6, -9999., -9999., -9999., -9999.   
+
+# OV_PEATY_DEEP ([Nm/Kg]) :  Regression coefficient for overturning in peaty and deep soil type 	{OK_STOMATE, OK_WINDTHROW}
+OV_PEATY_DEEP =  -9999., 191.4, 191.4, 152.1, 223.5, 191.4, 141.9, 159.2, 164.0, -9999., -9999., -9999., -9999.    
+
+# OV_PEATY_DEEP_LESS ([Nm/Kg]) :  Regression coefficient for overturning in peaty and deep soil type leafless   	{OK_STOMATE, OK_WINDTHROW}
+OV_PEATY_DEEP_LESS =  -9999., 191.4, 191.4, 152.1, 223.5, 191.4, 141.9, 159.2, 164.0, -9999., -9999., -9999., -9999.   
+
+# OV_PEATY_AVERAGE ([Nm/Kg]) :  Regression coefficient for overturning in peaty and medium soil type  	{OK_STOMATE, OK_WINDTHROW}
+OV_PEATY_AVERAGE =  -9999., 178.9, 178.9, 133.4, 195.9, 178.9, 131.4, 162.0, 143.8, -9999., -9999., -9999., -9999.  
+
+# OV_PEATY_AVERAGE_LESS ([Nm/Kg]) :  Regression coefficient for overturning in peaty and medium soil type leafless  	{OK_STOMATE, OK_WINDTHROW}
+OV_PEATY_AVERAGE_LESS =  -9999., 178.9, 178.9, 133.4, 195.9, 178.9, 131.4, 162.0, 143.8, -9999., -9999., -9999., -9999.    
+
+# OV_PEAT_SHALLOW ([Nm/Kg]) :  Regression coefficient for overturning in shallow peat soil type 	{OK_STOMATE, OK_WINDTHROW}
+OV_PEAT_SHALLOW =  -9999., 193.0, 193.0, 148.3, 218.6, 193.0, 146.0, 167.4, 159.9, -9999., -9999., -9999., -9999.   
+
+# OV_PEAT_SHALLOW_LESS ([Nm/Kg]) :  Regression coefficient for overturning in shallow peat soil leafless 	{OK_STOMATE, OK_WINDTHROW}
+OV_PEAT_SHALLOW_LESS =  -9999., 193.0, 193.0, 148.3, 218.6, 193.0, 146.0, 167.4, 159.9, -9999., -9999., -9999., -9999.  
+
+# OV_PEAT_DEEP ([Nm/Kg]) :  Regression coefficient for overturning in deep peat soil 	{OK_STOMATE, OK_WINDTHROW}
+OV_PEAT_DEEP =  -9999., 224.4, 224.4, 173.1, 254.2, 224.4, 170.4, 194.7, 186.6, -9999., -9999., -9999., -9999. 
+
+# OV_PEAT_DEEP_LESS ([Nm/Kg]) :  Regression coefficient for overturning in deep peat soil leafless 	{OK_STOMATE, OK_WINDTHROW}
+OV_PEAT_DEEP_LESS =  -9999., 224.4, 224.4, 173.1, 254.2, 224.4, 170.4, 194.7, 186.6, -9999., -9999., -9999., -9999. 
+
+# OV_PEAT_AVERAGE ([Nm/Kg]) :  Regression coefficient for overturning in medium peat soil 	{OK_STOMATE, OK_WINDTHROW}
+OV_PEAT_AVERAGE =  -9999., 196.9, 196.9, 151.8, 223.0, 196.9, 149.4, 170.8, 163.6, -9999., -9999., -9999., -9999.   
+
+# OV_PEAT_AVERAGE_LESS ([Nm/Kg]) :  Regression coefficient for overturning in medium peat soil leafless 	{OK_STOMATE, OK_WINDTHROW}
+OV_PEAT_AVERAGE_LESS =  -9999., 196.9, 196.9, 151.8, 223.0, 196.9, 149.4, 170.8, 163.6, -9999., -9999., -9999., -9999.  
+
+# MDF ([unitless]) :  Maximum damage rate away from the forest edge 	{OK_STOMATE, OK_WINDTHROW}
+MDF =  -9999., 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8  
+
+# MDC ([unitless]) :  Maximum damage rate nearby the forest edge 	{OK_STOMATE, OK_WINDTHROW}
+MDC =  -9999., 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8  
+
+# SFF ([unitless]) :  Scaling factor for maximum damage rate away from the forest edge  	{OK_STOMATE, OK_WINDTHROW}
+SFF =  -9999., 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8  
+
+# SFC ([unitless]) :  Scaling factor for maximum damage rate nearby the forest edge 	{OK_STOMATE, OK_WINDTHROW}
+SFC =  -9999., 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8  
+
+# LEAFFALL ([days]) :  length of death of leaves, tabulated  	{OK_STOMATE}
+LEAFFALL =  -9999., -9999., 10., -9999., -9999., 10., -9999., 10., 10., 10., 10., 10., 10.  
+
+# PRESENESCENCE_RATIO ([0-1, unitless]) :  The ratio of maintenance respiration to gpp beyond which presenescence  	{OK_STOMATE}
+PRESENESCENCE_RATIO =  -9999., -9999., .6, -9999., -9999., .6, -9999., .6, .6, .6, .6, .6, .6 
+
+# SENESCENCE_RATIO ([0-1, unitless]) :  The ratio of maintenance respiration to gpp beyond which senescence  	{OK_STOMATE}
+SENESCENCE_RATIO =  -9999., -9999., 1, -9999., -9999., 1, -9999., 0.87, 0.89, 0.75, 1, 1, 1  
+
+# SENESCENCE_HUM ([-] ) :  critical relative moisture availability for senescence 	{OK_STOMATE}
+SENESCENCE_HUM =  -9999., -9999., .3, -9999., -9999., -9999., -9999., -9999., -9999., .2, .2, .3, .2  
+
+# NOSENESCENCE_HUM ([-]) :  relative moisture availability above which there is no humidity-related senescence 	{OK_STOMATE}
+NOSENESCENCE_HUM =  -9999., -9999., .8, -9999., -9999., -9999., -9999., -9999., -9999., .3, .3, .3, .3  
+
+# MAX_TURNOVER_TIME ([days]) :  maximum turnover time for grasse 	{OK_STOMATE}
+MAX_TURNOVER_TIME =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999.,  80.,  80., 80., 80.  
+
+# MIN_TURNOVER_TIME ([days]) :  minimum turnover time for grasse  	{OK_STOMATE}
+MIN_TURNOVER_TIME =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 10., 10., 10., 10.  
+
+# RECYCLE_LEAF ([-]) :  Fraction of N leaf that is recycled when leaves are senescent  	{OK_STOMATE}
+RECYCLE_LEAF =  -9999., 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5  
+
+# RECYCLE_ROOT ([-]) :  Fraction of N root that is recycled when roots are senescent  	{OK_STOMATE}
+RECYCLE_ROOT =  -9999., 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2  
+
+# MIN_LEAF_AGE_FOR_SENESCENCE ([days] ) :  minimum leaf age to allow senescence g 	{OK_STOMATE}
+MIN_LEAF_AGE_FOR_SENESCENCE =  -9999., -9999., 90., -9999., -9999., 90., -9999., 60., 60., 30., 30., 30., 30. 
+
+# SENESCENCE_TEMP_C ([-]) :  critical temperature for senescence (C), constant c of aT^2+bT+c, tabulated 	{OK_STOMATE}
+SENESCENCE_TEMP_C =  -9999., -9999., -9999., -9999., -9999., 16., -9999., 14., 13., 5, 5., 12., 13. 
+
+# SENESCENCE_TEMP_B ([-]) :  critical temperature for senescence (C), constant b of aT^2+bT+c ,tabulated 	{OK_STOMATE }
+SENESCENCE_TEMP_B =  -9999., -9999., -9999., -9999., -9999., 0., -9999., 0., 0., .1, 0., 0., 0. 
+
+# SENESCENCE_TEMP_A ([-] ) :  critical temperature for senescence (C), constant a of aT^2+bT+c , tabulated 	{OK_STOMATE}
+SENESCENCE_TEMP_A =  -9999., -9999., -9999., -9999., -9999., 0., -9999., 0., 0.,.00375, 0., 0., 0.  
+
+# GDD_SENESCENCE ([days] ) :  minimum gdd to allow senescence of crops   	{OK_STOMATE}
+GDD_SENESCENCE =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 950., 4000. 
+
+# PRE_GDD ([days] ) :  minimum gdd to allow senescence of crops   	{OK_STOMATE}
+PRE_GDD =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 
+
+# PRE_HARV ([days] ) :  minimum gdd to allow senescence of crops   	{OK_STOMATE}
+PRE_HARV =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 
+
+# GR_GT ([days] ) :  minimum gdd to allow senescence of crops   	{OK_STOMATE}
+GR_GT =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 
+
+# ALWAYS_INIT ([BOOLEAN]) :  Take carbon from atmosphere if carbohydrate reserve too small 	{OK_STOMATE}
+ALWAYS_INIT =  y, y, y, y, y, y, y, y, y, y, n, y, y 
+
+# MAX_SOIL_N_BNF ([gN/m**2] ) :  Value of total N (NH4+NO3) above which we stop adding N via BNF (gN/m**2)   	{OK_STOMATE}
+MAX_SOIL_N_BNF =  0.0, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 2., 2., 2., 2. 
+
+# MANURE_PFTWEIGHT ([gC/gN] ) :  Weight of the distribution of manure over the PFT surface 	{OK_STOMATE}
+MANURE_PFTWEIGHT =  0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 1., 1., 1.  
+
+# HARVEST_RATIO ([unitless] ) :  Share of biomass that is harvested 	{OK_STOMATE}
+HARVEST_RATIO =  -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., -9999., 0.5, 0.5 
+
+# RESIDENCE_TIME ([years]) :  residence time of trees 	{OK_DGVM and NOT(LPJ_GAP_CONST_MORT)}
+RESIDENCE_TIME =  -9999., 30.0, 30.0, 40.0, 40.0, 40.0, 80.0, 80.0, 80.0, 0.0, 0.0, 0.0, 0.0  
+
+# TMIN_CRIT ([C]) :  critical tmin, tabulated 	{OK_STOMATE}
+TMIN_CRIT =  -9999.,  0.0, 0.0, -30.0, -14.0, -30.0, -45.0, -45.0, -9999., -9999., -9999., -9999., -9999. 
+
+# TCM_CRIT ([C]) :  critical tcm, tabulated  	{OK_STOMATE}
+TCM_CRIT =  -9999., -9999., -9999., 5.0, 15.5, 15.5, -8.0, -8.0, -8.0, -9999., -9999., -9999., -9999. 
+
+# SOM_TURN_IPASSIVE ([year-1] ) :  Turnover of the passive pool (year-1)  	{OK_STOMATE}
+SOM_TURN_IPASSIVE =  .0025, .0025, .0025, .0025, .0025, .0025, .0025, .0025, .0025, .0025, .0025, .0025, .0025 
+
+# HERBIVORES ([FLAG]) :  herbivores allowed? 	{OK_STOMATE }
+HERBIVORES =  n 
+
+# TREAT_EXPANSION ([FLAG]) :  treat expansion of PFTs across a grid cell? 	{OK_STOMATE }
+TREAT_EXPANSION =  n 
+
+# SLA_DYN ([FLAG]) :  Account for a dynamic SLA 	{OK_STOMATE}
+SLA_DYN =  n 
+
+# LPJ_GAP_CONST_MORT ([FLAG]) :  Constant mortality 	{OK_STOMATE AND NOT OK_DGVM}
+LPJ_GAP_CONST_MORT =  y/n depending on OK_DGVM 
+
+# HARVEST_AGRI ([FLAG]) :  Harvest model for agricultural PFTs. 	{OK_STOMATE }
+HARVEST_AGRI =  y 
+
+# OK_SPITFIRE ([FLAG]) :  Activate fire using SPITFIRE 	{OK_STOMATE }
+OK_SPITFIRE =  n 
+
+# OK_LIGHTNINGFIRE ([FLAG]) :  Activate lightning fire using SPITFIRE 	{OK_SPITFIRE}
+OK_LIGHTNINGFIRE =  y 
+
+# SPINUP_ANALYTIC (BOOLEAN) :  Activation of the analytic resolution of the spinup. 	{OK_STOMATE}
+SPINUP_ANALYTIC =  n 
+
+# CALCULATE_GPP_PREIND (BOOLEAN) :  Calculate preindustial longterm GPP 	{OK_STOMATE}
+CALCULATE_GPP_PREIND =  y if SPINUP_ANALYTIC else n 
+
+# OK_DYN_GRASS_DEN (BOOLEAN) :  Use continuous dynamic grassland density 	{OK_STOMATE}
+OK_DYN_GRASS_DEN =  n 
+
+# HACK_ENERBIL_HYDROL ([FLAG]) :  Flag to skip a particular block of code in mleb.f90  	{-}
+HACK_ENERBIL_HYDROL =  n 
+
+# REFILLING_CAPA (unitless) :  defines which fraction of embolism is considered to kill sapwood 	{-}
+REFILLING_CAPA =  1.0 
+
+# RAIN_FAC (unitless) :  remove rain or lower, or increase 	{-}
+RAIN_FAC =  1 
+
+# HACK_VESSEL_LOSS (unitless) :  constant vessel_loss in hydraulic_architecture 	{OK_VESSEL_MORTALITY}
+HACK_VESSEL_LOSS =  -9999 
+
+# HACK_KB_M1 ([FLAG]) :  Use higher threshold for small lai in the calculation of kB_m1 in condveg 	{-}
+HACK_KB_M1 =  n 
+
+# TRUSTING_HACK_AGE_CLASS ([FLAG]) :  Skip the calculation of redistributing biomass between age classes 	{-}
+TRUSTING_HACK_AGE_CLASS =  n 
+
+# HACK_PGAP ([FLAG]) :  Flag to use Lambert Beer instead of Pgap  	{-}
+HACK_PGAP =  n 
+
+# HACK_VEGET_MAX_NEW ([FLAG]) :  Prescribe VEGET_MAX_NEW rather than reading from a map  	{-}
+HACK_VEGET_MAX_NEW =  n 
+
+# AGRICULTURE ([FLAG]) :  agriculture allowed? 	{OK_SECHIBA or OK_STOMATE}
+AGRICULTURE =  y 
+
+# IMPOSE_VEG ([FLAG]) :  Should the vegetation be prescribed ? 	{OK_SECHIBA or OK_STOMATE}
+IMPOSE_VEG =  n 
+
+# IMPOSE_SOILT ([FLAG]) :  Should the soil type be prescribed ? 	{}
+IMPOSE_SOILT =  n 
+
+# IMPOSE_SLOPE ([FLAG]) :  Should reinf_slope be prescribed ? 	{}
+IMPOSE_SLOPE =  n 
+
+# IMPOSE_NINPUT_DEP ([FLAG]) :  Should the N inputs from atmospheric deposition be prescribed ? 	{NOT IMPOSE_CN}
+IMPOSE_NINPUT_DEP =  n 
+
+# IMPOSE_NINPUT_FERT ([FLAG]) :  Should the N inputs from fertilizer be prescribed ? 	{-}
+IMPOSE_NINPUT_FERT =  n 
+
+# IMPOSE_NINPUT_MANURE ([FLAG]) :  Should the N inputs from manure be prescribed ? 	{-}
+IMPOSE_NINPUT_MANURE =  n 
+
+# IMPOSE_NINPUT_BNF ([FLAG]) :  Should the N inputs from biological nitrogen fixation (BNF) be prescribed ? 	{-}
+IMPOSE_NINPUT_BNF =  n 
+
+# TEST_GRID ([-]) :  grid cell for which extra output is written to the out_execution file 	{OK_STOMATE}
+TEST_GRID =  1 
+
+# TEST_PFT ([-]) :  pft for which extra output is written to the out_execution file 	{OK_STOMATE}
+TEST_PFT =  6 
+
+# MIN_CANOPY_HEIGHT_PRESCRIBED ([-]) :  Starting height of the canopy 	{READ_LAI=1}
+MIN_CANOPY_HEIGHT_PRESCRIBED =  10 
+
+# MAX_CANOPY_HEIGHT_PRESCRIBED ([-]) :  Ending height of the canopy 	{READ_LAI=1}
+MAX_CANOPY_HEIGHT_PRESCRIBED =  50 
+
+# CANOPY_DENSITY_PRESCRIBED ([-]) :  Prescribeddensity of the canopy in ind/m^2 	{READ_LAI=1}
+CANOPY_DENSITY_PRESCRIBED =  0.15 
+
+# MAXIMUM_LAI ([-]) :  Maximum LAI over the year 	{READ_LAI=1}
+MAXIMUM_LAI =  5 
+
+# MINIMUM_LAI ([-]) :  Minimum LAI over the year 	{READ_LAI=1}
+MINIMUM_LAI =  0 
+
+# PHENOLOGY_DOY_START ([-]) :  Starting day of the growing of the leaves 	{READ_LAI=1}
+PHENOLOGY_DOY_START =  1 
+
+# MOIGDD_ORCHIDEE_2_0 ([-]) :  MOIGDD from ORCHIDEE 2.0 	{OK_STOMATE}
+MOIGDD_ORCHIDEE_2_0 =  .TRUE. 
+
+# SENESCENCE_DOY_END ([-]) :  Ending day of the dying of the leaves 	{READ_LAI=1}
+SENESCENCE_DOY_END =  365 
+
+# PHENOLOGY_DELTA ([-]) :  Delta of doy between start and end of phenology 	{READ_LAI=1}
+PHENOLOGY_DELTA =  30 
+
+# SENESCENCE_DELTA ([-]) :  Delta of doy between start and end of senescence 	{READ_LAI=1}
+SENESCENCE_DELTA =  30 
+
+# NLAI ([-]) :  Number of photosyntheis canopy levels  	{OK_SECHIBA}
+NLAI =  10 
+
+# LVLLAI_PRESCRIBED ([-]) :  LAI per level 	{READ_LAI=1}
+LVLLAI_PRESCRIBED =  0.0 
+
+# VEGET_UPDATE ([years]) :  Update vegetation frequency: 0Y or 1Y 	{}
+VEGET_UPDATE =  0Y 
+
+# VEGETMAP_RESET ([FLAG]) :  Flag to change vegetation map without activating LAND USE change for carbon fluxes. At the same time carbon related variables are reset to zero. 	{}
+VEGETMAP_RESET =  n 
+
+# NINPUT_REINIT ([FLAG]) :  booleen to indicate that a new N INPUT file will be used. 	{-}
+NINPUT_REINIT =  y 
+
+# NINPUT_YEAR ([FLAG]) :  Year of the N input map to be read 	{-}
+NINPUT_YEAR =  1 
+
+# NINPUT_SUFFIX_YEAR ([FLAG]) :  Do the Ninput dataset have a 'year' suffix 	{-}
+NINPUT_SUFFIX_YEAR =  false 
+
+# OK_PEAT_NODISCRETISATION ([FLAG]) :  Activate an ancien module for peatland carbon accumus  	{-}
+OK_PEAT_NODISCRETISATION =  false 
+
+# PERMA_PEAT ([FLAG]) :  Activate the carbon computation in peatland 	{-}
+PERMA_PEAT =  false 
+
+# FRAC1 ([]) :  Fractional parameter useful for soil carbon computation on peatland 	{PERMA_PEAT}
+FRAC1 =  0.95 
+
+# FRAC2 ([]) :  Fractional parameter useful for soil carbon computation on peatland 	{PERMA_PEAT}
+FRAC2 =  0.05  
+
+# AGRI_PEAT ([FLAG]) :  Activate the flag to allow having agrigculture on peatland 	{-}
+AGRI_PEAT =  false 
+
+# AGRI_PEAT_PROP ([FLAG]) :  To activate different way of agri_peat 	{AGRI_PEAT}
+AGRI_PEAT_PROP =  false 
+
+# AGRI_PEAT_MINCROP ([FLAG]) :  To activate different way of agri_peat 	{AGRI_PEAT}
+AGRI_PEAT_MINCROP =  false 
+
+# AGRI_PEAT_MAXCROP ([FLAG]) :  To activate different way of agri_peat 	{AGRI_PEAT}
+AGRI_PEAT_MAXCROP =  false 
+
+# NSNOW ([-]) :  The number of snow levels: 3 or 12 	{OK_SECHIBA}
+NSNOW =  3 
+
+# NICE ([-]) :  The number of ice levels 	{OK_ICE_SHEET}
+NICE =  8 
+
+# FRAC_MIN_ICE ([-]) :  Limit of fraction of ice in the grid cell where the ice mask is considered as 1 	{OK_ICE_SHEET AND .NOT. READ_ICE_SHEET_MASK}
+FRAC_MIN_ICE =  0.70 
+
+# READ_ICE_SHEET_MASK ([-]) :  Read the ice sheet mask from file instead for using frac_nobio 	{OK_ICE_SHEET}
+READ_ICE_SHEET_MASK =  n 
+
+# MAXMASS_SNOW ([kg/m^2]) :  The maximum mass of a snow 	{OK_SECHIBA}
+MAXMASS_SNOW =  3000. 
+
+# SNOWCRI ([kg/m^2]) :  Sets the amount above which only sublimation occures  	{OK_SECHIBA}
+SNOWCRI =  1.5 
+
+# MIN_WIND ([m/s]) :  Minimum wind speed 	{OK_SECHIBA}
+MIN_WIND =  0.1 
+
+# MIN_QC () :  Minimum qc 	{OK_SECHIBA}
+MIN_QC =  1.e-4 
+
+# MAX_SNOW_AGE ([days?]) :  Maximum period of snow aging  	{OK_SECHIBA}
+MAX_SNOW_AGE =  50. 
+
+# SNOW_TRANS ([m]) :  Transformation time constant for snow 	{OK_SECHIBA}
+SNOW_TRANS =  0.2 
+
+# SNOW_TRANS_NOBIO ([m]) :  Transformation time constant for snow on nobio 	{OK_SECHIBA}
+SNOW_TRANS_NOBIO =  1. 
+
+# SNOWA_AGED_NOBIO_VIS ([-]) :  Minimum snow albedo value for nobio type after aging (dirty old snow), visible albedo 	{OK_SECHIBA}
+SNOWA_AGED_NOBIO_VIS =  0.58 
+
+# SNOWA_AGED_NOBIO_NIR ([-]) :  Minimum snow albedo value for nobio type after aging (dirty old snow), near infrared albedo 	{OK_SECHIBA}
+SNOWA_AGED_NOBIO_NIR =  0.35 
+
+# SNOWA_DEC_NOBIO_VIS ([-]) :  Decay rate of snow albedo value for nobio type, visible albedo 	{OK_SECHIBA}
+SNOWA_DEC_NOBIO_VIS =  0.28 
+
+# SNOWA_DEC_NOBIO_NIR ([-]) :  Decay rate of snow albedo value for nobio type, near infrared albedo 	{OK_SECHIBA}
+SNOWA_DEC_NOBIO_NIR =  0.45 
+
+# OMG1 ([-]) :  Tuning constant for snow ageing on nobio areas 	{OK_SECHIBA}
+OMG1 =  7. 
+
+# OMG2 ([-]) :  Tuning constant for snow ageing on nobio areas 	{OK_SECHIBA}
+OMG2 =  4. 
+
+# XRHOSMIN (kg.m-3) :  Fresh snow density 	{N/A}
+XRHOSMIN =  50. 
+
+# OK_NUDGE_MC ([FLAG]) :  Activate nudging of soil moisture 	{}
+OK_NUDGE_MC =  n 
+
+# NUDGE_TAU_MC ([-]) :  Relaxation time for nudging of soil moisture expressed in fraction of the day 	{OK_NUDGE_MC}
+NUDGE_TAU_MC =  1 
+
+# OK_NUDGE_SNOW ([FLAG]) :  Activate nudging of snow variables 	{}
+OK_NUDGE_SNOW =  n 
+
+# NUDGE_TAU_SNOW ([-]) :  Relaxation time for nudging of snow variables 	{OK_NUDGE_SNOW}
+NUDGE_TAU_SNOW =  1 
+
+# NUDGE_INTERPOL_WITH_XIOS ([FLAG]) :  Activate reading and interpolation with XIOS for nudging fields 	{OK_NUDGE_MC or OK_NUDGE_SNOW}
+NUDGE_INTERPOL_WITH_XIOS =  n 
+
+# HEIGHT_DISPLACEMENT ([m]) :  Magic number which relates the height to the displacement height. 	{OK_SECHIBA }
+HEIGHT_DISPLACEMENT =  0.75 
+
+# Z0_BARE ([m]) :  bare soil roughness length 	{OK_SECHIBA }
+Z0_BARE =  0.01  
+
+# Z0_ICE ([m]) :  ice roughness length 	{OK_SECHIBA }
+Z0_ICE =  0.001 
+
+# TCST_SNOWA ([days]) :  Time constant of the albedo decay of snow 	{OK_SECHIBA }
+TCST_SNOWA =  15.0  
+
+# TCST_SNOWA_NOBIO ([days]) :  Time constant of the albedo decay of snow for nobio 	{OK_SECHIBA }
+TCST_SNOWA_NOBIO =  2.0  
+
+# SNOWCRI_ALB ([cm]) :  Critical value for computation of snow albedo 	{OK_SECHIBA}
+SNOWCRI_ALB =  2.  
+
+# VIS_DRY ([-]) :  The correspondance table for the soil color numbers and their albedo  	{OK_SECHIBA }
+VIS_DRY =  0.24, 0.22, 0.20, 0.18, 0.16, 0.14, 0.12, 0.10, 0.27 
+
+# NIR_DRY ([-]) :  The correspondance table for the soil color numbers and their albedo  	{OK_SECHIBA }
+NIR_DRY =  0.48, 0.44, 0.40, 0.36, 0.32, 0.28, 0.24, 0.20, 0.55 
+
+# VIS_WET  ([-]) :  The correspondance table for the soil color numbers and their albedo 	{OK_SECHIBA  }
+VIS_WET  =  0.12, 0.11, 0.10, 0.09, 0.08, 0.07, 0.06, 0.05, 0.15 
+
+# NIR_WET ([-]) :  The correspondance table for the soil color numbers and their albedo  	{OK_SECHIBA }
+NIR_WET =  0.24, 0.22, 0.20, 0.18, 0.16, 0.14, 0.12, 0.10, 0.31 
+
+# ALBSOIL_VIS ([-]) :   	{OK_SECHIBA }
+ALBSOIL_VIS =  0.18, 0.16, 0.16, 0.15, 0.12, 0.105, 0.09, 0.075, 0.25 
+
+# ALBSOIL_NIR  ([-]) :   	{OK_SECHIBA }
+ALBSOIL_NIR  =  0.36, 0.34, 0.34, 0.33, 0.30, 0.25, 0.20, 0.15, 0.45 
+
+# ALB_DEADLEAF  ([-]) :  albedo of dead leaves, VIS+NIR  	{OK_SECHIBA }
+ALB_DEADLEAF  =  0.12, 0.35 
+
+# ALB_ICE ([-]) :  albedo of ice, VIS+NIR 	{OK_SECHIBA}
+ALB_ICE =  0.60, 0.20 
+
+# ZSICOEF1 ([m]) :  Thickness of ice levels 	{OK_ICE_SHEET}
+ZSICOEF1 =  0.01, 0.05, 0.15, 0.5, 1., 5., 10., 50. 
+
+# CONDVEG_SNOWA ([-]) :  The snow albedo used by SECHIBA 	{OK_SECHIBA}
+CONDVEG_SNOWA =  1.E+20 
+
+# ALB_BARE_MODEL ([FLAG]) :  Switch bare soil albedo dependent (if TRUE) on soil wetness 	{OK_SECHIBA}
+ALB_BARE_MODEL =  n 
+
+# ALB_BG_MODIS ([FLAG]) :  Read bare soil albedo from file with background MODIS data only if not found in restart file 	{OK_SECHIBA}
+ALB_BG_MODIS =  n 
+
+# ALB_BG_MODIS_REINIT ([FLAG]) :  Impose reading of bare soil albedo from file even if it is in the restart file 	{ALB_BG_MODIS}
+ALB_BG_MODIS_REINIT =  n 
+
+# IMPOSE_AZE ([FLAG]) :  Should the surface parameters be prescribed 	{OK_SECHIBA}
+IMPOSE_AZE =  n 
+
+# CONDVEG_Z0 ([m]) :  Surface roughness 	{IMPOSE_AZE}
+CONDVEG_Z0 =  0.15 
+
+# ROUGHHEIGHT ([m]) :  Height to be added to the height of the first level 	{IMPOSE_AZE}
+ROUGHHEIGHT =  0.0 
+
+# CONDVEG_ALBVIS ([-]) :  SW visible albedo for the surface 	{IMPOSE_AZE}
+CONDVEG_ALBVIS =  0.25 
+
+# CONDVEG_ALBNIR ([-]) :  SW near infrared albedo for the surface 	{IMPOSE_AZE}
+CONDVEG_ALBNIR =  0.25 
+
+# CONDVEG_EMIS ([-]) :  Emissivity of the surface for LW radiation 	{IMPOSE_AZE}
+CONDVEG_EMIS =  1.0 
+
+# ROUGH_DYN ([FLAG]) :  Account for a dynamic roughness height 	{OK_SECHIBA}
+ROUGH_DYN =  y 
+
+# USE_RATIO_Z0M_Z0H ([-]) :  To impose a constant ratio as in ROUGH_DYN 	{ROUGH_DYN}
+USE_RATIO_Z0M_Z0H =  TRUE 
+
+# C1 ([-]) :  Constant used in the formulation of the ratio of  	{ROUGH_DYN}
+C1 =  0.32 
+
+# C2 ([-]) :  Constant used in the formulation of the ratio of  	{ROUGH_DYN}
+C2 =  0.264 
+
+# C3 ([-]) :  Constant used in the formulation of the ratio of  	{ROUGH_DYN}
+C3 =  15.1 
+
+# Cdrag_foliage ([-]) :  Drag coefficient of the foliage 	{ROUGH_DYN}
+Cdrag_foliage =  0.2 
+
+# Ct ([-]) :  Heat transfer coefficient of the leaf 	{ROUGH_DYN}
+Ct =  0.01 
+
+# Prandtl ([-]) :  Prandtl number used in the calculation of Ct* 	{ROUGH_DYN}
+Prandtl =  0.71 
+
+# xansmax  ([-]) :  maximum snow albedo 	{OK_SECHIBA}
+xansmax  =  0.85 
+
+# xansmin  ([-]) :  minimum snow albedo 	{OK_SECHIBA}
+xansmin  =  0.50 
+
+# xans_todry  ([S-1]) :  albedo decay rate for the dry snow  	{OK_SECHIBA}
+xans_todry  =  0.008 
+
+# xans_t  ([S-1]) :  albedo decay rate for the wet snow  	{OK_SECHIBA}
+xans_t  =  0.24 
+
+# xrhosmax  ([kg m-3]) :  maximum snow density  	{OK_SECHIBA}
+xrhosmax  =  750 
+
+# xrhosmin ([kg m-3]) :  minimum snow density  	{OK_SECHIBA}
+xrhosmin =  50 
+
+# xwsnowholdmax1 ([-]) :  snow holding capacity 1 	{OK_SECHIBA}
+xwsnowholdmax1 =  0.03 
+
+# xwsnowholdmax2 ([-]) :  snow holding capacity 2 	{OK_SECHIBA}
+xwsnowholdmax2 =  0.10 
+
+# xsnowrhohold  ([kg/m3]) :  snow density  	{OK_SECHIBA}
+xsnowrhohold  =  200.0 
+
+# ZSNOWTHRMCOND1 ([W/m/K]) :  Thermal conductivity Coef 1 	{OK_SECHIBA}
+ZSNOWTHRMCOND1 =  0.02  
+
+# ZSNOWTHRMCOND2 ([W m5/(kg2 K)]) :  Thermal conductivity Coef 2 	{OK_SECHIBA}
+ZSNOWTHRMCOND2 =  2.5E-6 
+
+# ZSNOWTHRMCOND_AVAP ([W/m/K]) :  Thermal conductivity Coef 1 water vapor 	{OK_SECHIBA}
+ZSNOWTHRMCOND_AVAP =  -0.06023 
+
+# ZSNOWTHRMCOND_BVAP ([W/m]) :  Thermal conductivity Coef 2 water vapor 	{OK_SECHIBA}
+ZSNOWTHRMCOND_BVAP =  -2.5425 
+
+# ZSNOWTHRMCOND_CVAP ([K]) :  Thermal conductivity Coef 3 water vapor 	{OK_SECHIBA}
+ZSNOWTHRMCOND_CVAP =  -289.99 
+
+# ZSNOWCMPCT_RHOD ([kg/m3]) :  Snow compaction coefficent 	{OK_SECHIBA}
+ZSNOWCMPCT_RHOD =  150.0 
+
+# ZSNOWCMPCT_ACM ([1/s]) :  Coefficent for the thermal conductivity 	{OK_SECHIBA}
+ZSNOWCMPCT_ACM =  2.8e-6 
+
+# ZSNOWCMPCT_BCM ([1/K]) :  Coefficent for the thermal conductivity 	{OK_SECHIBA}
+ZSNOWCMPCT_BCM =  0.04 
+
+# ZSNOWCMPCT_CCM ([m3/kg]) :  Coefficent for the thermal conductivity 	{OK_SECHIBA}
+ZSNOWCMPCT_CCM =  460. 
+
+# eta_0 ([Pa/s]) :  eta_0 	{OK_SECHIBA}
+eta_0 =  7.62237e6 
+
+# c_eta ([kg.m-3]) :  c_eta vionnet viscosity 	{OK_SECHIBA}
+c_eta =  358. 
+
+# a_eta () :  a_eta Anderson/Vionnet viscosity 	{OK_SECHIBA}
+a_eta =  0.1 
+
+# b_eta () :  b_eta Anderson/Vionnet viscosity 	{OK_SECHIBA}
+b_eta =  0.023 
+
+# gs_vionnet () :  gs_vionnet 	{OK_SECHIBA}
+gs_vionnet =  0.1 
+
+# RHOS_WS ([-]) :  FLAG rhos wind formula 	{OK_SECHIBA}
+RHOS_WS =  .FALSE. 
+
+# INIT_SNOWPACK ([-]) :  FLAG init snowpack 	{OK_SECHIBA}
+INIT_SNOWPACK =  .FALSE. 
+
+# SURFDENSITY_XRHOSMIN ([-]) :  FLAG init surfdensity 	{OK_SECHIBA}
+SURFDENSITY_XRHOSMIN =  .FALSE. 
+
+# ZSNOWCMPCT_V0 ([Pa/s]) :  Vapor coefficent for the thermal conductivity 	{OK_SECHIBA}
+ZSNOWCMPCT_V0 =  3.7e7 
+
+# ZSNOWCMPCT_VT ([1/K]) :  Vapor coefficent for the thermal conductivity 	{OK_SECHIBA}
+ZSNOWCMPCT_VT =  0.081 
+
+# ZSNOWCMPCT_VR ([m3/kg]) :  Vapor coefficent for the thermal conductivity 	{OK_SECHIBA}
+ZSNOWCMPCT_VR =  0.018 
+
+# ZMAX ([m]) :  Snow grid parameter : max thickness of each layer 	{OK_SECHIBA}
+ZMAX =  (/0.01, 0.05, 0.15, 0.5, 1., 0., 0., 0., 1., 0.5, 0.1, 0.02/) 
+
+# xrhosref ([kg/m3]) :  Reference density used in the viscosity calculation 	{OK_SECHIBA}
+xrhosref =  250 
+
+# COMPACT_SNOW_METHOD ([-]) :  Flag to choose the way to calculate snow compaction 	{OK_SECHIBA}
+COMPACT_SNOW_METHOD =  1 
+
+# VISCOSITY_METHOD ([-]) :  Flag to choose the way to calculate snow viscosity 	{OK_SECHIBA}
+VISCOSITY_METHOD =  1 
+
+# xrhosmob ([kg/m3]) :  Reference density for the calculation of the mobility index 	{OK_SECHIBA}
+xrhosmob =  295 
+
+# xrhoswind ([kg/m3]) :  Density threshold for wind-driven compaction  	{OK_SECHIBA}
+xrhoswind =  350 
+
+# ZSNOWCMPCT_X0 ([Pa/s]) :  Viscosity coefficient  	{OK_SECHIBA}
+ZSNOWCMPCT_X0 =  7.82237e6 
+
+# ZSNOWCMPCT_XT ([1/K]) :  Viscosity coefficient  	{OK_SECHIBA}
+ZSNOWCMPCT_XT =  0.1 
+
+# ZSNOWCMPCT_XR ([m3/kg]) :  Viscosity coefficient  	{OK_SECHIBA}
+ZSNOWCMPCT_XR =  0.023 
+
+# DTref ([K]) :  temperature reference used for the viscosity calculation  	{OK_SECHIBA}
+DTref =  5.0 
+
+# ACMPCT ([-]) :  Coefficient used for the calculatio of the wind-driven compaction index  	{OK_SECHIBA}
+ACMPCT =  2.868 
+
+# BCMPCT ([s/m]) :  Coefficient used for the calculatio of the wind-driven compaction index  	{OK_SECHIBA}
+BCMPCT =  0.085 
+
+# KCMPCT ([-]) :  Coefficient used for the calculatio of the wind-driven compaction index  	{OK_SECHIBA}
+KCMPCT =  1.25 
+
+# a_tau ([-]) :  Coefficient used for the calculatio of the compaction rate 	{OK_SECHIBA}
+a_tau =  10 
+
+# b_tau ([-]) :  Coefficient used for the calculatio of the compaction rate 	{OK_SECHIBA}
+b_tau =  3.25 
+
+# Amob ([-]) :  Coefficient used for the calculatio of the mobility index 	{OK_SECHIBA}
+Amob =  1.25 
+
+# ZICETHRMCOND1 ([W/m/K]) :  Ice Thermal conductivity Coef 1 	{OK_SECHIBA}
+ZICETHRMCOND1 =  6.727 
+
+# ZICETHRMCOND2 ([W/m/K]) :  Ice Thermal conductivity Coef 2 	{OK_SECHIBA}
+ZICETHRMCOND2 =  -0.0041 
+
+# ZICETHRMHEAT1 ([W/m/K]) :  Ice Thermal heat capacity Coef 1 	{OK_SECHIBA}
+ZICETHRMHEAT1 =  2115.3 
+
+# ZICETHRMHEAT2 ([W/m/K]) :  Ice Thermal heat capacity Coef 2 	{OK_SECHIBA}
+ZICETHRMHEAT2 =  7.79293 
+
+# IRRIG_DOSMAX ([kg.m^{-2}/hour]) :  The maximum irrigation water injected per hour (kg.m^{-2}/hour) 	{DO_IRRIGATION AND old_irrig_scheme }
+IRRIG_DOSMAX =  3. 
+
+# CUM_DH_THR ([m]) :  Threshold depth to define root zone, and calculate water deficit for irrigation 	{DO_IRRIGATION AND OLD_IRRIG_SCHEME }
+CUM_DH_THR =  0.64 
+
+# IRRIGATED_SOILTILE ([FLAG]) :  Do we introduce a new soil tile for irrigated croplands? 	{DO_IRRIGATION AND old_irrig_scheme }
+IRRIGATED_SOILTILE =  n 
+
+# OLD_IRRIG_SCHEME ([FLAG]) :  Do we run with the old irrigation scheme? 	{DO_IRRIGATION}
+OLD_IRRIG_SCHEME =  n 
+
+# IRRIG_ST ([]) :  Which is the soil tile with irrigation flux 	{DO_IRRIGATION and old_irrig_scheme }
+IRRIG_ST =  3 
+
+# AVAIL_RESERVE ([]) :  Max. fraction of routing reservoir volume that can be used for irrigation 	{DO_IRRIGATION and old_irrig_scheme }
+AVAIL_RESERVE =  0.9,0.9,0.9 
+
+# BETA_IRRIG ([]) :  Threshold multiplier of Target SM to calculate root deficit 	{DO_IRRIGATION and OLD_IRRIG_SCHEME }
+BETA_IRRIG =  0.9 
+
+# LAI_IRRIG_MIN ([m2/m2]) :  Min. LAI (Leaf Area Index) to trigger irrigation 	{DO_IRRIGATION and old_irrig_scheme }
+LAI_IRRIG_MIN =  0.1 
+
+# IRRIG_MAP_DYNAMIC_FLAG ([FLAG]) :  Do we use a dynamic irrig map? 	{DO_IRRIGATION}
+IRRIG_MAP_DYNAMIC_FLAG =  n 
+
+# SELECT_SOURCE_IRRIG ([FLAG]) :  Do we use the new priorization scheme, based on maps of equipped area with surface water? 	{DO_IRRIGATION}
+SELECT_SOURCE_IRRIG =  n 
+
+# REINFILTR_IRRIGFIELD ([FLAG]) :  Reinfiltrate all/part of runoff in crop soil tile 	{DO_IRRIGATION}
+REINFILTR_IRRIGFIELD =  n 
+
+# reinf_slope_cropParam ([FRACTION 0-1]) :  DO_IRRIGATION 	{DO_IRRIGATION }
+reinf_slope_cropParam =  0.8 
+
+# a_stream_adduction   ([FRACTION 0-1]) :  DO_IRRIGATION 	{DO_IRRIGATION }
+a_stream_adduction   =  0.05 
+
+# CB ([-]) :  Constant of the Louis scheme  	{OK_SECHIBA}
+CB =  5.0 
+
+# CC ([-]) :  Constant of the Louis scheme  	{OK_SECHIBA}
+CC =  5.0 
+
+# CD ([-]) :  Constant of the Louis scheme  	{OK_SECHIBA}
+CD =  5.0 
+
+# RAYT_CSTE ([W.m^{-2}]) :  Constant in the computation of surface resistance   	{OK_SECHIBA}
+RAYT_CSTE =  125 
+
+# DEFC_PLUS ([K.W^{-1}]) :  Constant in the computation of surface resistance   	{OK_SECHIBA}
+DEFC_PLUS =  23.E-3 
+
+# DEFC_MULT ([K.W^{-1}]) :  Constant in the computation of surface resistance   	{OK_SECHIBA}
+DEFC_MULT =  1.5 
+
+# JNLVLS ([-]) :  number of photosyntheis canopy levels  	{OK_SECHIBA}
+JNLVLS =  29 
+
+# JNLVLS_UNDER ([-]) :  number of energy layers under the canopy  	{OK_SECHIBA}
+JNLVLS_UNDER =  10 
+
+# JNLVLS_CANOPY ([-]) :  number of energy layers in the canopy  	{OK_SECHIBA}
+JNLVLS_CANOPY =  10 
+
+# JNLVLS_OVER ([-]) :  number of energy layers over the canopy  	{OK_SECHIBA}
+JNLVLS_OVER =  10 
+
+# NLEV_TOP ([-]) :  Maximum number of canopy levels at the top. 	{OK_SECHIBA}
+NLEV_TOP =  10 
+
+# LAIMAX ([m^2/m^2]) :  Maximum LAI 	{OK_SECHIBA}
+LAIMAX =   
+
+# DEW_VEG_POLY_COEFF ([-]) :  coefficients of the polynome of degree 5 for the dew 	{OK_SECHIBA}
+DEW_VEG_POLY_COEFF =  0.887773, 0.205673, 0.110112, 0.014843, 0.000824, 0.000017  
+
+# DOWNREGULATION_CO2 ([FLAG]) :  Activation of CO2 downregulation. 	{OK_SECHIBA}
+DOWNREGULATION_CO2 =  n 
+
+# DOWNREGULATION_CO2_BASELEVEL ([ppm]) :  CO2 base level 	{OK_SECHIBA }
+DOWNREGULATION_CO2_BASELEVEL =  380. 
+
+# GB_REF ([s m-1]) :  Leaf bulk boundary layer resistance 	{}
+GB_REF =  1./25. 
+
+# BULK_DEFAULT ([kg/m3]) :  default bulk density 	{OK_SECHIBA }
+BULK_DEFAULT =  1000.0 
+
+# PH_DEFAULT ([-]) :  default soil pH 	{OK_SECHIBA }
+PH_DEFAULT =  5.5 
+
+# MIN_VEGFRAC  ([-]) :  Minimal fraction of mesh a vegetation type can occupy  	{OK_SECHIBA }
+MIN_VEGFRAC  =  0.001  
+
+# FRAC_NOBIO_FIXED_TEST1  ([-]) :  Value for frac_nobio for tests in 0-dim simulations (0-1, unitless) 	{OK_SECHIBA }
+FRAC_NOBIO_FIXED_TEST1  =  0.0 
+
+# STEMPDIAG_BID  ([K]) :  only needed for an initial LAI if there is no restart file 	{OK_SECHIBA }
+STEMPDIAG_BID  =  280. 
+
+# MIN_N (gNH4-N/m^2/day) :  Minimum allowable n_mineralisation in som_dynamics 	{OK_STOMATE}
+MIN_N =  0.0001 
+
+# MAX_CN ([-]) :  Maximum allowable ratio of som_input_total(:,icarbon) 	{OK_STOMATE}
+MAX_CN =  250 
+
+# SNC ([gN gC-1]) :  Structural nitrogen concentration 	{OK_STOMATE}
+SNC =  0.004 
+
+# SUGAR_LOAD_MIN ([-]) :  Lower bound for sugar loading when used to regulate NUE 	{OK_STOMATE}
+SUGAR_LOAD_MIN =  0.0 
+
+# SUGAR_LOAD_MAX ([-]) :  Upper bound for sugar loading when used to regulate NUE 	{OK_STOMATE}
+SUGAR_LOAD_MAX =  1.0 
+
+# NCIRC ([-]) :  Number of basal area classes in allocation scheme 	{OK_STOMATE, OK_SECHIBA }
+NCIRC =  2  
+
+# SLOPE_RA ([-]) :  Reduction factor to make resp_maint less temperature sensitive 	{OK_STOMATE}
+SLOPE_RA =  1. 
+
+# LAIEFF_SOLAR_ANGLE ([degrees]) :  The solar zenith angle for effective LAI 	{OK_SECHIBA}
+LAIEFF_SOLAR_ANGLE =  60 
+
+# LAIEFF_ZERO_CUTOFF ([-]) :  Cutoff for effective lai values 	{OK_SECHIBA}
+LAIEFF_ZERO_CUTOFF =  0.0000001 
+
+# DIRECT_LIGHT_WEIGHT ([degrees]) :  The weighting factor to weight different sources of light 	{OK_SECHIBA}
+DIRECT_LIGHT_WEIGHT =  0.5 
+
+# MAINT_RESP_CONTROL ([-]) :  Sets the approach to calculate Rm 	{OK_SECHIBA}
+MAINT_RESP_CONTROL =  'trunk' 
+
+# CROWN_PACKING ([-]) :  Packing efficiency of the crowns within the canopy space 	{OK_SECHIBA}
+CROWN_PACKING =  1. 
+
+# ALPHA_HEIGHT_PRECIP ([m]) :  alpha parameter in height-precipitation relationship 	{}
+ALPHA_HEIGHT_PRECIP =  3.22 
+
+# BETA_HEIGHT_PRECIP ([-]) :  beta parameter in height-precipitation relationship 	{}
+BETA_HEIGHT_PRECIP =  0.33877 
+
+# N_ITER_TUZET (unitless) :  number of iterations of the simili-implicit scheme in Tuzet 	{OK_HYDROL_ARCH}
+N_ITER_TUZET =  25 
+
+# NLAKE ([-]) :  Maximum number of lake type in a grid cell 	{OK_LAKE_ENERGY}
+NLAKE =  3 
+
+# ALBEDO_WATER_LAKE ([-]) :  free water lake albedo 	{OK_LAKE_ENERGY }
+ALBEDO_WATER_LAKE =  0.07 
+
+# LIGHT_EXT_SNOW_LAKE ([m-1]) :  snow lake light extinction 	{OK_LAKE_ENERGY}
+LIGHT_EXT_SNOW_LAKE =  15 
+
+# LIGHT_EXT_ICE_LAKE ([m-1]) :  ice lake light extinction 	{OK_LAKE_ENERGY}
+LIGHT_EXT_ICE_LAKE =  8 
+
+# HEIGHT_TQ_LAKE ([m]) :  Height where temperature and humidity are measured 	{OK_LAKE_ENERGY}
+HEIGHT_TQ_LAKE =  2 
+
+# HEIGHT_U_LAKE ([m]) :  snow lake light extinction 	{OK_LAKE_ENERGY }
+HEIGHT_U_LAKE =  2 
+
+# T_CLIM_LAKE  ([K]) :  Climate temperature for initialization if constant method is used 	{OK_LAKE_ENERGY}
+T_CLIM_LAKE  =  277.15 
+
+# LAKE_DEPTH_CONS ([m]) :  Uniform constant value for lake depth instead of spatial values from file  	{OK_LAKE_ENERGY}
+LAKE_DEPTH_CONS =  0 
+
+# OK_DEPTH_LAKE_MAX ([-]) :  Truncation of the depth lake for FLake use (Should be used) 	{OK_LAKE_ENERGY}
+OK_DEPTH_LAKE_MAX =  y  
+
+# DEPTH_LAKE_MAX ([m]) :  Maximul lake depth 	{OK_LAKE_ENERGY and OK_DEPTH_LAKE_MAX}
+DEPTH_LAKE_MAX =  60  
+
+# ALBEDO_ICE_LAKE ([-]) :  ice lake albedo 	{OK_LAKE_ENERGY and OK_SNOW_ICE_LAKE_PAR=n}
+ALBEDO_ICE_LAKE =  0.4 
+
+# ALBEDO_SNOW_LAKE ([-]) :  snow lake albedo 	{ok_lake_energy and OK_SNOW_ICE_LAKE_PAR=n}
+ALBEDO_SNOW_LAKE =  0.6 
+
+# DEPTH_SED_LAKE ([m]) :  depth layer of sediment layer 	{OK_BOTSED_LAKE}
+DEPTH_SED_LAKE =  10 
+
+# T_SED_LAKE ([K]) :  Sediment bottom temperature 	{OK_BOTSED_LAKE}
+T_SED_LAKE =  277.15 
+
+# LAI_LEVEL_DEPTH ([-]) :   	{}
+LAI_LEVEL_DEPTH =  0.15 
+
+# Oi ([ubar]) :  Intercellular oxygen partial pressure 	{}
+Oi =  210000. 
+
+# THRESHOLD_C13_ASSIM ([-]) :  If assimilation falls below this threshold the delta_c13 is set to zero  	{OK_C13}
+THRESHOLD_C13_ASSIM =  0.01  
+
+# C13_A ([-]) :  Coefficient for fractionation occurring due to diffusion in air  	{OK_C13}
+C13_A =  0.01  
+
+# C13_B ([-]) :  Coefficient for fractionation caused by carboxylation  	{OK_C13}
+C13_B =  0.01  
+
+# EXP_KF ([-]) :  Exponential of the sensitivity of k_latosa to tree height 	{OK_STOMATE}
+EXP_KF =  3.0 
+
+# TOO_LONG  ([years]) :  longest sustainable time without regeneration (vernalization) 	{OK_STOMATE}
+TOO_LONG  =  5. 
+
+# TAU_FIRE  ([days]) :  Time scale for memory of the fire index (days). Validated for one year in the DGVM.  	{OK_STOMATE }
+TAU_FIRE  =  30. 
+
+# LITTER_CRIT ([gC/m^2]) :  Critical litter quantity for fire 	{OK_STOMATE }
+LITTER_CRIT =  200. 
+
+# FIRE_RESIST_LIGNIN ([-]) :   	{OK_STOMATE }
+FIRE_RESIST_LIGNIN =  0.5 
+
+# CO2FRAC ([-]) :  What fraction of a burned plant compartment goes into the atmosphere 	{OK_STOMATE }
+CO2FRAC =  0.95, 0.95, 0., 0.3, 0., 0., 0.95, 0.95 
+
+# BCFRAC_COEFF ([-]) :   	{OK_STOMATE }
+BCFRAC_COEFF =  0.3, 1.3, 88.2  
+
+# ALLOC_FIREFUEL ([-]  ) :   	{OK_STOMATE }
+ALLOC_FIREFUEL =  0.045,0.075,0.21,0.67 
+
+# FIREFRAC_COEFF  ([-]) :   	{OK_STOMATE }
+FIREFRAC_COEFF  =  0.45, 0.8, 0.6, 0.13 
+
+# REF_GREFF ([1/year]) :  Asymptotic maximum mortality rate 	{OK_STOMATE }
+REF_GREFF =  0.035 
+
+# OK_AED_WIND ([FLAG]) :  Flag for opening fragmentation effects on wind 	{.NOT. FIRE_DISABLE}
+OK_AED_WIND =  n 
+
+# OK_AED_SIZE ([FLAG]) :  Flag for opening fragmentation effects on fire size 	{.NOT. FIRE_DISABLE}
+OK_AED_SIZE =  n 
+
+# OK_AED_HUMIGN ([FLAG]) :  Flag for opening fragmentation effects on human ignition 	{.NOT. FIRE_DISABLE}
+OK_AED_HUMIGN =  n 
+
+# OK_AED_FUEL ([FLAG]) :  Flag for opening fragmentation effects on feul wetness 	{.NOT. FIRE_DISABLE}
+OK_AED_FUEL =  n 
+
+# CF_TRESHOLD ([-] ) :  Crown fire happens when ignited_fraction is higher than cf_threshold 	{}
+CF_TRESHOLD =  0.5 (Could be optimized) 
+
+# PATCH_MULTIPLIER_GRASS ([-] ) :  Multiplier to get max patch size for grass 	{}
+PATCH_MULTIPLIER_GRASS =  1.2 (Bowring et al.. 2024, Table 1) 
+
+# PATCH_MULTIPLIER_FOREST ([-]  ) :  Multiplier to get max patch size for forest 	{}
+PATCH_MULTIPLIER_FOREST =  1 (Bowring et al.. 2024, Table 1) 
+
+# WETNESS_DIFF ([-]  ) :  Relative fuel wetness difference between edge and interior 	{}
+WETNESS_DIFF =  0.25 (Bowring et al.. 2024) 
+
+# EDGE_IGNITION_FACTOR ([-]  ) :  Relative fuel wetness difference between edge and interior 	{}
+EDGE_IGNITION_FACTOR =  1.0 (Bowring et al.. 2024) 
+
+# EDGE_WIND_FACTOR ([-]  ) :  Relative fuel wetness difference between edge and interior 	{}
+EDGE_WIND_FACTOR =  1.0 (Bowring et al.. 2024) 
+
+# EDGE_DISTANCE_IGNITION ([m]  ) :  The edge distance for increasing human ignition 	{}
+EDGE_DISTANCE_IGNITION =  1.0 (Bowring et al.. 2024, Table 1) 
+
+# EDGE_DISTANCE_WIND ([m]  ) :  The edge distance for increasing wind speed 	{}
+EDGE_DISTANCE_WIND =  16.0 (Bowring et al.. 2024, Table 1) 
+
+# EDGE_DISTANCE_WETNESS ([m]  ) :  The edge distance for decreasing feul moisture 	{}
+EDGE_DISTANCE_WETNESS =  20.0 (Bowring et al.. 2024, Table 1) 
+
+# RESERVE_TIME_TREE  ([days]) :  maximum time during which reserve is used (trees)  	{OK_STOMATE }
+RESERVE_TIME_TREE  =  30. 
+
+# RESERVE_TIME_GRASS  ([days]) :  maximum time during which reserve is used (grasses)  	{OK_STOMATE }
+RESERVE_TIME_GRASS  =  20.  
+
+# PRECIP_CRIT  ([mm/year]) :  minimum precip 	{OK_STOMATE }
+PRECIP_CRIT  =  100. 
+
+# GDD_CRIT_ESTAB ([-]) :  minimum gdd for establishment of saplings 	{OK_STOMATE }
+GDD_CRIT_ESTAB =  150.  
+
+# SPRING_DAYS_MAX ([days]) :  Maximum number of days during which we watch for possible spring frost damage 	{OK_STOMATE }
+SPRING_DAYS_MAX =  40 
+
+# FPC_CRIT ([-]) :  critical fpc, needed for light competition and establishment 	{OK_STOMATE }
+FPC_CRIT =  0.95 
+
+# ALPHA_GRASS ([-]) :  sapling characteristics : alpha's 	{OK_STOMATE }
+ALPHA_GRASS =  0.5 
+
+# ALPHA_TREE ([-]) :  sapling characteristics : alpha's  	{OK_STOMATE }
+ALPHA_TREE =  1. 
+
+# STRUCT_TO_LEAVES ([-]) :  Fraction of structural carbon in grass and crops as a share of the leaf 	{OK_STOMATE }
+STRUCT_TO_LEAVES =  0.05 
+
+# LABILE_TO_TOTAL ([-]) :  Fraction of the labile pool in trees, grasses and crops 	{OK_STOMATE }
+LABILE_TO_TOTAL =  0.01 
+
+# TEST_BIOMASS_INIT ([FLAG]) :  Use initial biomass estimate to determine size of plant at establishment 	{OK_STOMATE }
+TEST_BIOMASS_INIT =  n 
+
+# TAU_WEEK ([days]) :  time scales for phenology and other processes 	{OK_STOMATE }
+TAU_WEEK =  7. 
+
+# TAU_HUM_MONTH ([days]) :  time scales for phenology and other processes 	{OK_STOMATE }
+TAU_HUM_MONTH =  20.  
+
+# TAU_HUM_WEEK ([days]) :  time scales for phenology and other processes 	{OK_STOMATE }
+TAU_HUM_WEEK =  7. 
+
+# TAU_PRECIP_MONTH ([days]) :  time scales for phenology and other processes 	{OK_STOMATE }
+TAU_PRECIP_MONTH =  30. 
+
+# TAU_T2M_MONTH ([days]) :  time scales for phenology and other processes 	{OK_STOMATE }
+TAU_T2M_MONTH =  20. 
+
+# TAU_T2M_WEEK ([days]) :  time scales for phenology and other processes 	{OK_STOMATE }
+TAU_T2M_WEEK =  7. 
+
+# TAU_TSOIL_MONTH  ([days]) :  time scales for phenology and other processes 	{OK_STOMATE }
+TAU_TSOIL_MONTH  =  20.  
+
+# TAU_GPP_WEEK  ([days]) :  time scales for phenology and other processes 	{OK_STOMATE }
+TAU_GPP_WEEK  =  7.  
+
+# TAU_GPP_YEAR  ([days]) :  time scales to average gpp over a year 	{OK_STOMATE }
+TAU_GPP_YEAR  =  365 
+
+# TAU_GPP_SELF_THIN  ([years]) :  time scales to average gpp for self thinning 	{OK_STOMATE }
+TAU_GPP_SELF_THIN  =  30 
+
+# TAU_SUGARLOAD_WEEK  ([days]) :  time scales for calculating sugar loading 	{OK_STOMATE }
+TAU_SUGARLOAD_WEEK  =  7.  
+
+# TAU_GDD ([days]) :  time scales for phenology and other processes 	{OK_STOMATE }
+TAU_GDD =  40.  
+
+# TAU_NGD ([days]) :  time scales for phenology and other processes 	{OK_STOMATE }
+TAU_NGD =  43. 
+
+# COEFF_TAU_LONGTERM ([days]) :  time scales for phenology and other processes 	{OK_STOMATE }
+COEFF_TAU_LONGTERM =  3.  
+
+# BM_SAPL_CARBRES  ([-]) :   	{OK_STOMATE }
+BM_SAPL_CARBRES  =  5.  
+
+# BM_SAPL_SAPABOVE ([-]) :   	{OK_STOMATE}
+BM_SAPL_SAPABOVE =  0.5  
+
+# BM_SAPL_HEARTABOVE  ([-]) :   	{OK_STOMATE }
+BM_SAPL_HEARTABOVE  =  2. 
+
+# BM_SAPL_HEARTBELOW  ([-]) :   	{OK_STOMATE }
+BM_SAPL_HEARTBELOW  =  2.  
+
+# BM_SAPL_LABILE  ([-]) :   	{OK_STOMATE }
+BM_SAPL_LABILE  =  5.  
+
+# INIT_SAPL_MASS_LABILE ([-]) :   	{OK_STOMATE }
+INIT_SAPL_MASS_LABILE =  5.  
+
+# INIT_SAPL_MASS_LEAF_NAT ([-]) :   	{OK_STOMATE }
+INIT_SAPL_MASS_LEAF_NAT =  0.1  
+
+# INIT_SAPL_MASS_LEAF_AGRI ([-]) :   	{OK_STOMATE }
+INIT_SAPL_MASS_LEAF_AGRI =  1.  
+
+# INIT_SAPL_MASS_CARBRES ([-]) :   	{OK_STOMATE }
+INIT_SAPL_MASS_CARBRES =  5.  
+
+# INIT_SAPL_MASS_ROOT ([-]) :   	{OK_STOMATE }
+INIT_SAPL_MASS_ROOT =  0.1  
+
+# INIT_SAPL_MASS_FRUIT ([-]) :   	{OK_STOMATE }
+INIT_SAPL_MASS_FRUIT =  0.3  
+
+# CN_SAPL_INIT  ([-]) :   	{OK_STOMATE }
+CN_SAPL_INIT  =  0.5  
+
+# MIGRATE_TREE  ([m/year]) :   	{OK_STOMATE }
+MIGRATE_TREE  =  10000. 
+
+# MIGRATE_GRASS ([m/year]) :   	{OK_STOMATE }
+MIGRATE_GRASS =  10000. 
+
+# LAI_INITMIN_TREE ([m^2/m^2]) :   	{OK_STOMATE }
+LAI_INITMIN_TREE =  0.3 
+
+# LAI_INITMIN_GRASS  ([m^2/m^2]) :   	{OK_STOMATE }
+LAI_INITMIN_GRASS  =  0.1 
+
+# DIA_COEFF ([-]) :   	{OK_STOMATE }
+DIA_COEFF =  4., 0.5 
+
+# BM_SAPL_LEAF ([-]) :   	{OK_STOMATE }
+BM_SAPL_LEAF =  4., 4., 0.8, 5.  
+
+# CN ([-]) :  C/N ratio 	{OK_STOMATE }
+CN =  40., 40., 40., 40., 40., 40., 40., 40. 
+
+# FRAC_SOIL_STRUCT_SUA ([-]) :  frac_soil(istructural,isurface,iabove) 	{OK_STOMATE }
+FRAC_SOIL_STRUCT_SUA =  0.55 
+
+# FRAC_SOIL_STRUCT_AA ([-]) :  frac_soil(istructural,iactive,iabove) 	{OK_STOMATE }
+FRAC_SOIL_STRUCT_AA =  0.4 
+
+# FRAC_SOIL_METAB_SUA  ([-]) :  frac_soil(imetabolic,isurface,iabove)  	{OK_STOMATE }
+FRAC_SOIL_METAB_SUA  =  0.4  
+
+# FRAC_SOIL_METAB_AA  ([-]) :  frac_soil(imetabolic,iactive,iabove)  	{OK_STOMATE }
+FRAC_SOIL_METAB_AA  =  0.4  
+
+# TURN_METABOLIC ([years]) :   	{OK_STOMATE }
+TURN_METABOLIC =  0.066 
+
+# TURN_STRUCT  ([years]) :   	{OK_STOMATE }
+TURN_STRUCT  =  0.245  
+
+# TURN_WOODY ([years]) :   	{OK_STOMATE }
+TURN_WOODY =  1.33 
+
+# SNAG_FRAC ([-]) :  Fraction of woody litter input going to snags 	{OK_STOMATE }
+SNAG_FRAC =  0.3 
+
+# TURN_SNAG ([years]) :  Decomposition / Turnover of snag pool to soil organic matter 	{OK_STOMATE }
+TURN_SNAG =  0.00133 
+
+# TURN_SNAG_FALL ([years]) :  Snag fall / Turnover of snag pool to woody litter pool 	{OK_STOMATE }
+TURN_SNAG_FALL =  0.133 
+
+# METABOLIC_REF_FRAC ([-]) :  	{OK_STOMATE }
+METABOLIC_REF_FRAC =  0.85   
+
+# Z_DECOMP ([m]) :  scaling depth for soil activity 	{OK_STOMATE }
+Z_DECOMP =  0.2 
+
+# FRAC_SOIL_STRUCT_A  ([-]) :  frac_soil(istructural,iactive,ibelow) 	{OK_STOMATE }
+FRAC_SOIL_STRUCT_A  =  0.45 
+
+# FRAC_SOIL_STRUCT_SA ([-]) :  frac_soil(istructural,islow,iabove) 	{OK_STOMATE}
+FRAC_SOIL_STRUCT_SA =  0.7   
+
+# FRAC_SOIL_STRUCT_SB ([-]) :  frac_soil(istructural,islow,ibelow)  	{OK_STOMATE }
+FRAC_SOIL_STRUCT_SB =  0.7   
+
+# FRAC_SOIL_METAB_AB  ([-]) :  frac_soil(imetabolic,iactive,ibelow) 	{OK_STOMATE }
+FRAC_SOIL_METAB_AB  =  0.45   
+
+# METABOLIC_LN_RATIO ([-]) :   	{OK_STOMATE }
+METABOLIC_LN_RATIO =  0.018   
+
+# SOIL_Q10 ([-]) :   	{OK_STOMATE }
+SOIL_Q10 =  0.69 ( 
+
+# SOIL_Q10_UPTAKE ([-]) :   	{OK_STOMATE }
+SOIL_Q10_UPTAKE =  0.69 ( 
+
+# TSOIL_REF ([C]) :   	{OK_STOMATE }
+TSOIL_REF =  30.  
+
+# LITTER_STRUCT_COEF  ([-]) :   	{OK_STOMATE }
+LITTER_STRUCT_COEF  =  3.  
+
+# MOIST_COEFF ([-]) :   	{OK_STOMATE }
+MOIST_COEFF =  1.1, 2.4, 0.29 
+
+# MOISTCONT_MIN ([-]) :  minimum soil wetness to limit the heterotrophic respiration 	{OK_STOMATE }
+MOISTCONT_MIN =  0.25 
+
+# FINEROOTDEPTH_RATIO ([-]) :  the ratio of fine root to overall root e-folding depth (for C inputs) 	{OK_STOMATE and OK_SOIL_CARBON_DISCRETIZATION }
+FINEROOTDEPTH_RATIO =  0.5 
+
+# ALTROOT_RATIO ([-]) :  the maximum ratio of fine root depth to active layer thickness (for C inputs) 	{OK_STOMATE and OK_SOIL_CARBON_DISCRETIZATION }
+ALTROOT_RATIO =  0.5 
+
+# FRAC_WOODY ([-]) :  Coefficient for determining the lignin fraction of woody litter 	{OK_STOMATE}
+FRAC_WOODY =  0.65 
+
+# FRAC_SNAG ([-]) :  Coefficient for determining the lignin fraction of snag litter 	{OK_STOMATE}
+FRAC_SNAG =  0.65 
+
+# FRAC_TURNOVER_DAILY  ([-]) :   	{OK_STOMATE }
+FRAC_TURNOVER_DAILY  =  0.55 
+
+# TAX_MAX ([-]) :  maximum fraction of allocatable biomass used for maintenance respiration 	{OK_STOMATE }
+TAX_MAX =  0.8 
+
+# MIN_GROWTHINIT_TIME  ([days]) :  minimum time since last beginning of a growing season 	{OK_STOMATE }
+MIN_GROWTHINIT_TIME  =  300.  
+
+# GDDNCD_REF  ([-]) :   	{OK_STOMATE }
+GDDNCD_REF  =  964.  
+
+# GDDNCD_CURVE ([-]) :   	{OK_STOMATE }
+GDDNCD_CURVE =  0.0058  
+
+# GDDNCD_OFFSET ([-]) :   	{OK_STOMATE }
+GDDNCD_OFFSET =  12.8.  
+
+# MAINT_RESP_MIN_VMAX ([-]) :   	{OK_STOMATE }
+MAINT_RESP_MIN_VMAX =  0.3 
+
+# MAINT_RESP_COEFF  ([-]) :   	{OK_STOMATE }
+MAINT_RESP_COEFF  =  1.4  
+
+# ACTIVE_TO_PASS_CLAY_FRAC ([-]) :   	{OK_STOMATE }
+ACTIVE_TO_PASS_CLAY_FRAC =  0.032  
+
+# ACTIVE_TO_PASS_REF_FRAC ([-]) :  Fixed fraction from Active to Passive pool 	{OK_STOMATE }
+ACTIVE_TO_PASS_REF_FRAC =  0.003 
+
+# SURF_TO_SLOW_REF_FRAC ([-]) :  Fixed fraction from Surface to Slow pool 	{OK_STOMATE }
+SURF_TO_SLOW_REF_FRAC =  0.4 
+
+# ACTIVE_TO_CO2_REF_FRAC ([-]) :  Fixed fraction from Active pool to CO2 emission 	{OK_STOMATE }
+ACTIVE_TO_CO2_REF_FRAC =  0.85 
+
+# SLOW_TO_PASS_REF_FRAC ([-]) :  Fixed fraction from Slow to Passive pool 	{OK_STOMATE }
+SLOW_TO_PASS_REF_FRAC =  0.003 
+
+# SLOW_TO_CO2_REF_FRAC ([-]) :  Fixed fraction from Slow pool to CO2 emission 	{OK_STOMATE }
+SLOW_TO_CO2_REF_FRAC =  0.55 
+
+# PASS_TO_ACTIVE_REF_FRAC ([-]) :  Fixed fraction from Passive to Active pool 	{OK_STOMATE }
+PASS_TO_ACTIVE_REF_FRAC =  0.45 
+
+# PASS_TO_SLOW_REF_FRAC ([-]) :  Fixed fraction from Passive to Slow pool 	{OK_STOMATE }
+PASS_TO_SLOW_REF_FRAC =  0. 
+
+# ACTIVE_TO_CO2_CLAY_SILT_FRAC ([-]) :  Clay-Silt-dependant fraction from Active pool to CO2 emission 	{OK_STOMATE }
+ACTIVE_TO_CO2_CLAY_SILT_FRAC =  0.68 
+
+# SLOW_TO_PASS_CLAY_FRAC ([-]) :  Clay-dependant fraction from Slow to Passive pool 	{OK_STOMATE }
+SLOW_TO_PASS_CLAY_FRAC =  -0.009 
+
+# SOM_TURN_ISURFACE ( [year-1]) :  turnover in surface pool 	{OK_STOMATE }
+SOM_TURN_ISURFACE =  6.0 
+
+# SOM_TURN_IACTIVE ( [year-1]) :  turnover in active pool 	{OK_STOMATE }
+SOM_TURN_IACTIVE =  7.3 
+
+# SOM_TURN_ISLOW ([year-1]) :  turnover in slow pool 	{OK_STOMATE }
+SOM_TURN_ISLOW =  0.2 
+
+# FSLOW ([-]) :  converting factor from active to slow pool turnover 	{OK_STOMATE and OK_SOIL_CARBON_DISCRETIZATION}
+FSLOW =  37 
+
+# FPASSIVE ([-]) :  converting factor from active to slow pool turnover 	{OK_STOMATE and OK_SOIL_CARBON_DISCRETIZATION}
+FPASSIVE =  1617.45  
+
+# STOMATE_TAU ([seconds]) :  turnover of the active pool  	{OK_STOMATE and OK_SOIL_CARBON_DISCRETIZATION}
+STOMATE_TAU =  4.699E6 
+
+# DEPTH_MODIFIER ([-]) :  turnover rate modifier depending on depth 	{OK_STOMATE and OK_SOIL_CARBON_DISCRETIZATION}
+DEPTH_MODIFIER =  1.E6 
+
+# SOM_TURN_IACTIVE_CLAY_FRAC ([-]) :  clay-dependant parameter impacting on turnover rate of active pool - Tm parameter of Parton et al. 1993 (-) 	{OK_STOMATE }
+SOM_TURN_IACTIVE_CLAY_FRAC =  0.75 
+
+# SOM_INIT_ACTIVE ([g m-2]) :  Initial active SOM carbon  	{OK_STOMATE}
+SOM_INIT_ACTIVE =  1000 
+
+# SOM_INIT_SLOW ([g m-2]) :  Initial slow SOM carbon 	{OK_STOMATE}
+SOM_INIT_SLOW =  3000 
+
+# SOM_INIT_PASSIVE ([g m-2]) :  Initial passive SOM carbon 	{OK_STOMATE}
+SOM_INIT_PASSIVE =  3000 
+
+# SOM_INIT_SURFACE ([g m-2]) :  Initial surface SOM carbon 	{OK_STOMATE}
+SOM_INIT_SURFACE =  1000 
+
+# CN_TARGET_IACTIVE_REF ([-]) :  CN target ratio of active pool for soil min N  	{OK_STOMATE }
+CN_TARGET_IACTIVE_REF =  15. 
+
+# CN_TARGET_ISLOW_REF ([-]) :  CN target ratio of slow pool for soil min N  	{OK_STOMATE }
+CN_TARGET_ISLOW_REF =  20. 
+
+# CN_TARGET_IPASSIVE_REF ([-]) :  CN target ratio of passive pool for soil min N  	{OK_STOMATE }
+CN_TARGET_IPASSIVE_REF =  10. 
+
+# CN_TARGET_ISURFACE_REF ([-]) :  CN target ratio of surface pool for soil min N  	{OK_STOMATE }
+CN_TARGET_ISURFACE_REF =  20. 
+
+# CN_TARGET_IACTIVE_NMIN ([(g m-2)-1]) :  CN target ratio change per mineral N unit (g m-2) for active pool  	{OK_STOMATE }
+CN_TARGET_IACTIVE_NMIN =  -6. 
+
+# CN_TARGET_ISLOW_NMIN ([(g m-2)-1]) :  CN target ratio change per mineral N unit (g m-2) for slow pool  	{OK_STOMATE }
+CN_TARGET_ISLOW_NMIN =  -4. 
+
+# CN_TARGET_IPASSIVE_NMIN ([(g m-2)-1]) :  CN target ratio change per mineral N unit (g m-2) for passive pool  	{OK_STOMATE }
+CN_TARGET_IPASSIVE_NMIN =  -1.5 
+
+# CN_TARGET_ISURFACE_PNC ([-]) :  CN target ratio change per plant nitrogen content unit (%) for surface pool 	{OK_STOMATE }
+CN_TARGET_ISURFACE_PNC =  -5. 
+
+# H_SAXTON ([m^3/m^3]) :  Coefficient h for computing soil moisture content at saturation 	{OK_STOMATE }
+H_SAXTON =  0.332 
+
+# J_SAXTON ([m^3/m^3]) :  Coefficient j for computing soil moisture content at saturation 	{OK_STOMATE }
+J_SAXTON =  -7.251*1e-4  
+
+# K_SAXTON ([m^3/m^3]) :  Coefficient k for computing soil moisture content at saturation 	{OK_STOMATE }
+K_SAXTON =  O.1276 
+
+# DIFFUSIONO2_POWER_1 ([-]) :  Power used in the equation defining the diffusion of oxygen in soil 	{OK_STOMATE }
+DIFFUSIONO2_POWER_1 =  3.33 
+
+# DIFFUSIONO2_POWER_2 ([-]) :  Power used in the equation defining the diffusion of oxygen in soil 	{OK_STOMATE }
+DIFFUSIONO2_POWER_2 =  2.0 
+
+# F_NOFROST ([-]) :  Temperature-related Factor impacting on Oxygen diffusion rate 	{OK_STOMATE }
+F_NOFROST =  1.2 
+
+# F_FROST ([-]) :  Temperature-related Factor impacting on Oxygen diffusion rate 	{OK_STOMATE }
+F_FROST =  0.8 
+
+# A_ANVF ([-]) :  Coefficient used in the calculation of Volumetric fraction of anaerobic microsites 	{OK_STOMATE }
+A_ANVF =  0.85 
+
+# B_ANVF ([-]) :  Coefficient used in the calculation of Volumetric fraction of anaerobic microsites 	{OK_STOMATE }
+B_ANVF =  1. 
+
+# A_FIXNH4 ([-]) :  Coefficient used in the calculation of the Fraction of adsorbed NH4+ 	{OK_STOMATE }
+A_FIXNH4 =  0.41 
+
+# B_FIXNH4 ([-]) :  Coefficient used in the calculation of the Fraction of adsorbed NH4+ 	{OK_STOMATE }
+B_FIXNH4 =  -0.47 
+
+# CLAY_MAX ([-]) :  Coefficient used in the calculation of the Fraction of adsorbed NH4+ 	{OK_STOMATE }
+CLAY_MAX =  0.63 
+
+# FW_NIT_0 ([-]) :  Coefficient used in the calculation of the Response of Nitrification to soil moisture 	{OK_STOMATE }
+FW_NIT_0 =  -0.0243 
+
+# FW_NIT_1 ([-]) :  Coefficient used in the calculation of the Response of Nitrification to soil moisture 	{OK_STOMATE }
+FW_NIT_1 =  0.9975 
+
+# FW__NIT_2 ([-]) :  Coefficient used in the calculation of the Response of Nitrification to soil moisture 	{OK_STOMATE }
+FW__NIT_2 =  -5.5368 
+
+# FW_NIT_3 ([-]) :  Coefficient used in the calculation of the Response of Nitrification to soil moisture 	{OK_STOMATE }
+FW_NIT_3 =  17.651 
+
+# FW_NIT_4 ([-]) :  Coefficient used in the calculation of the Response of Nitrification to soil moisture 	{OK_STOMATE }
+FW_NIT_4 =  -12.904 
+
+# FT_NIT_0 ([-]) :  Coefficient used in the calculation of the Response of Nitrification to Temperature 	{OK_STOMATE }
+FT_NIT_0 =  -0.0233 
+
+# FT_NIT_1 ([-]) :  Coefficient used in the calculation of the Response of Nitrification to Temperature 	{OK_STOMATE }
+FT_NIT_1 =  0.3094 
+
+# FT_NIT_2 ([-]) :  Coefficient used in the calculation of the Response of Nitrification to Temperature 	{OK_STOMATE }
+FT_NIT_2 =  -0.2234 
+
+# FT_NIT_3 ([-]) :  Coefficient used in the calculation of the Response of Nitrification to Temperature 	{OK_STOMATE }
+FT_NIT_3 =  0.1566 
+
+# FT_NIT_4 ([-]) :  Coefficient used in the calculation of the Response of Nitrification to Temperature 	{OK_STOMATE }
+FT_NIT_4 =  -0.0272 
+
+# FPH_0 ([-]) :  Coefficient used in the calculation of the Response of Nitrification to pH 	{OK_STOMATE }
+FPH_0 =  -1.2314 
+
+# FPH_1 ([-]) :  Coefficient used in the calculation of the Response of Nitrification to pH 	{OK_STOMATE }
+FPH_1 =  0.7347 
+
+# FPH_2 ([-]) :  Coefficient used in the calculation of the Response of Nitrification to pH 	{OK_STOMATE }
+FPH_2 =  -0.0604 
+
+# FTV_0 ([-]) :  Coefficient used in the calculation of the response of NO2 or NO production during nitrificationof to Temperature 	{OK_STOMATE }
+FTV_0 =  2.72 
+
+# FTV_1 ([-]) :  Coefficient used in the calculation of the response of NO2 or NO production during nitrificationof to Temperature 	{OK_STOMATE }
+FTV_1 =  34.6 
+
+# FTV_2 ([-]) :  Coefficient used in the calculation of the response of NO2 or NO production during nitrificationof to Temperature 	{OK_STOMATE }
+FTV_2 =  9615. 
+
+# K_NITRIF ([day**-1]) :  Nitrification rate at 20 ◦C and field capacity 	{OK_STOMATE }
+K_NITRIF =  2.0 
+
+# N2O_NITRIF_P ([gN-N2O (gN-NO3)-1]) :  Reference n2o production per N-NO3 produced g N-N2O 	{OK_STOMATE }
+N2O_NITRIF_P =  0.0006 
+
+# NO_NITRIF_P ([gN-NO (gN-NO3)-1]) :  Reference NO production per N-NO3 produced g N-N2O 	{OK_STOMATE }
+NO_NITRIF_P =  0.0025 
+
+# CHEMO_T0 ([-]) :  Coefficient used in the calculation of the Response of NO production from chemodenitrification to Temperature 	{OK_STOMATE }
+CHEMO_T0 =  -31494 
+
+# CHEMO_PH0 ([-]) :  Coefficient used in the calculation of the Response of NO production from chemodenitrification to pH 	{OK_STOMATE }
+CHEMO_PH0 =  -1.62 
+
+# CHEMO_0 ([-]) :  Coefficient used in the calculation of NO production from chemodenitrification 	{OK_STOMATE }
+CHEMO_0 =  30. 
+
+# CHEMO_1 ([-]) :  Coefficient used in the calculation of NO production from chemodenitrification 	{OK_STOMATE }
+CHEMO_1 =  16565 
+
+# FT_DENIT_0 ([-]) :  Coefficient used in the response of relative growth rate of total denitrifiers to Temperature 	{OK_STOMATE }
+FT_DENIT_0 =  2. 
+
+# FT_DENIT_1 ([-]) :  Coefficient used in the response of relative growth rate of total denitrifiers to Temperature 	{OK_STOMATE }
+FT_DENIT_1 =  22.5 
+
+# FT_DENIT_2 ([-]) :  Coefficient used in the response of relative growth rate of total denitrifiers to Temperature 	{OK_STOMATE }
+FT_DENIT_2 =  10 
+
+# FPH_NO3_0 ([-]) :  Coefficient used in the response of relative growth rate of NO3 denitrifiers to pH 	{OK_STOMATE }
+FPH_NO3_0 =  4.25 
+
+# FPH_NO3_1 ([-]) :  Coefficient used in the response of relative growth rate of NO3 denitrifiers to pH 	{OK_STOMATE }
+FPH_NO3_1 =  0.5 
+
+# FPH_NO_0 ([-]) :  Coefficient used in the response of relative growth rate of NO denitrifiers to pH 	{OK_STOMATE }
+FPH_NO_0 =  5.25 
+
+# FPH_NO_1 ([-]) :  Coefficient used in the response of relative growth rate of NO denitrifiers to pH 	{OK_STOMATE }
+FPH_NO_1 =  1. 
+
+# FPH_N2O_0 ([-]) :  Coefficient used in the response of relative growth rate of N2O denitrifiers to pH 	{OK_STOMATE }
+FPH_N2O_0 =  6.25 
+
+# FPH_N2O_1 ([-]) :  Coefficient used in the response of relative growth rate of N2O denitrifiers to pH 	{OK_STOMATE }
+FPH_N2O_1 =  1.5 
+
+# KN ([kgN/m**3]) :  Half Saturation of N oxydes  	{OK_STOMATE }
+KN =  0.083 
+
+# CTE_BACT ([-]) :  Denitrification activiy of bacteria      	{OK_STOMATE}
+CTE_BACT =  0.00005 
+
+# MU_NO3_MAX ([hour**-1]) :  Maximum Relative growth rate of NO3 denitrifiers 	{OK_STOMATE }
+MU_NO3_MAX =  0.67 
+
+# MU_NO_MAX ([hour**-1]) :  Maximum Relative growth rate of NO denitrifiers 	{OK_STOMATE }
+MU_NO_MAX =  0.34 
+
+# MU_N2O_MAX ([hour**-1]) :  Maximum Relative growth rate of N2O denitrifiers 	{OK_STOMATE }
+MU_N2O_MAX =  0.34 
+
+# Y_NO3 ([kgC / kgN]) :  Maximum growth yield of NO3 denitrifiers on N oxydes 	{OK_STOMATE }
+Y_NO3 =  0.401 
+
+# Y_NO ([kgC / kgN]) :  Maximum growth yield of NO denitrifiers on N oxydes 	{OK_STOMATE }
+Y_NO =  0.428 
+
+# Y_N2O ([kgC / kgN]) :  Maximum growth yield of N2O denitrifiers on N oxydes 	{OK_STOMATE }
+Y_N2O =  0.151 
+
+# M_NO3 ([kgN / kgC / hour]) :  Maintenance coefficient on NO3 	{OK_STOMATE }
+M_NO3 =  0.09 
+
+# M_NO ([kgN / kgC / hour]) :  Maintenance coefficient on NO 	{OK_STOMATE }
+M_NO =  0.035 
+
+# M_N2O ([kgN / kgC / hour]) :  Maintenance coefficient on N2O 	{OK_STOMATE }
+M_N2O =  0.079 
+
+# MAINT_C ([kgC / kgC / hour]) :  Maintenance coefficient of carbon 	{OK_STOMATE }
+MAINT_C =  0.0076 
+
+# YC ([kgC / kgC ]) :  Maximum growth yield on soluble carbon 	{OK_STOMATE }
+YC =  0.503 
+
+# F_CLAY_0 ([-]) :  Coefficient used in the eq. defining the response of N-emission to clay fraction 	{OK_STOMATE }
+F_CLAY_0 =  0.13 
+
+# F_CLAY_1 ([-]) :  Coefficient used in the eq. defining the response of N-emission to clay fraction 	{OK_STOMATE }
+F_CLAY_1 =  -0.079 
+
+# RATIO_NH4_FERT ([-]) :  Proportion of ammonium in the fertilizers (ammo-nitrate)  	{OK_STOMATE }
+RATIO_NH4_FERT =  0.875 
+
+# BOOST_FERT ([-]) :  use for fertilisation scenario while using inputs maps  	{OK_STOMATE }
+BOOST_FERT =  0.0 
+
+# MANURE_TYPE ([-]) :  C:N ratio of organic fertilizers coming from Fuchs,et al, 	{OK_STOMATE }
+MANURE_TYPE =  CASE (e.g dairy_cow, feedlots) 
+
+# K_N_MIN ([umol per litter]) :  [NH4+] and [NO3-] for which the Nuptake equals vmax/2.  	{OK_STOMATE }
+K_N_MIN =  30. 30. 
+
+# LOW_K_N_MIN ([umol**-1]) :  Rate of N uptake not associated with Michaelis- Menten Kinetics for Ammonium 	{OK_STOMATE }
+LOW_K_N_MIN =  0.0002 0.0002 
+
+# EMM_FAC ([-]) :  Factor for reducing NH3 emission   	{OK_NCYCLE}
+EMM_FAC =  0.2 
+
+# FACT_KN_NO ([-]) :  Factor for adusting kn constant for NOx production 	{OK_NCYCLE}
+FACT_KN_NO =  0.012 
+
+# FACT_KN_N2O ([-]) :  Factor for adusting kn constant for N2O production 	{OK_NCYCLE}
+FACT_KN_N2O =  0.04 
+
+# KFWDENIT ([-]) :  Factor for adjusting sensitivity of denitrification to water content 	{OK_NCYCLE}
+KFWDENIT =  -5. 
+
+# FWDENITFC ([-]) :  Value at field capacity of the sensitivity function of denitrification to water content 	{OK_NCYCLE}
+FWDENITFC =  0.05 
+
+# FRACN_DRAINAGE ([-]) :  Fraction of NH3/NO3 loss by drainage  	{OK_NCYCLE}
+FRACN_DRAINAGE =  1.0 
+
+# FRACN_RUNOFF ([-]) :  Fraction of NH3/NO3 loss by runoff 	{OK_NCYCLE}
+FRACN_RUNOFF =  0.3 
+
+# LEAF_N_DMAX (???) :  Maximal elasticity of foliage N concentrations 	{OK_STOMATE }
+LEAF_N_DMAX =  0.25 
+
+# P_N_UPTAKE ([-]) :  Minimum value of the correction factor for plant N uptake 	{OK_STOMATE }
+P_N_UPTAKE =  0.6 
+
+# SYNC_THRESHOLD ([-]) :  The threshold value for a warning when we sync biomass 	{OK_STOMATE }
+SYNC_THRESHOLD =  0.1  
+
+# MAX_DELTA_KF ([m]) :  Maximum change in KF from one time step to another 	{OK_STOMATE }
+MAX_DELTA_KF =  0.1  
+
+# MAINT_FROM_GPP ([-]) :  Some carbon needs to remain to support the growth, hence,  	{OK_STOMATE }
+MAINT_FROM_GPP =  0.8 
+
+# NEW_TURNOVER_TIME_REF ([days]) :   	{OK_STOMATE }
+NEW_TURNOVER_TIME_REF =  20.  
+
+# VMAX_OFFSET  ([-]) :  offset (minimum relative vcmax) 	{OK_STOMATE }
+VMAX_OFFSET  =  0.3 
+
+# LEAFAGE_FIRSTMAX ([-]) :  leaf age at which vmax attains vcmax_opt (in fraction of critical leaf age) 	{OK_STOMATE }
+LEAFAGE_FIRSTMAX =  0.03  
+
+# LEAFAGE_LASTMAX  ([-]) :  leaf age at which vmax falls below vcmax_opt (in fraction of critical leaf age)  	{OK_STOMATE }
+LEAFAGE_LASTMAX  =  0.5  
+
+# LEAFAGE_OLD  ([-]) :  leaf age at which vmax attains its minimum (in fraction of critical leaf age) 	{OK_STOMATE }
+LEAFAGE_OLD  =  1. 
+
+# GPPFRAC_DORMANCE  ([-]) :  rapport maximal GPP/GGP_max pour dormance 	{OK_STOMATE }
+GPPFRAC_DORMANCE  =  0.2  
+
+# TAU_CLIMATOLOGY ([days]) :  tau for "climatologic variables  	{OK_STOMATE }
+TAU_CLIMATOLOGY =  20 
+
+# HVC1  ([-]) :  parameters for herbivore activity 	{OK_STOMATE }
+HVC1  =  0.019 
+
+# HVC2  ([-]) :  parameters for herbivore activity  	{OK_STOMATE }
+HVC2  =  1.38 
+
+# LEAF_FRAC_HVC ([-]) :  parameters for herbivore activity  	{OK_STOMATE }
+LEAF_FRAC_HVC =  0.33 
+
+# TLONG_REF_MAX ([K]) :  maximum reference long term temperature  	{OK_STOMATE }
+TLONG_REF_MAX =  303.1 
+
+# TLONG_REF_MIN  ([K]) :  minimum reference long term temperature  	{OK_STOMATE }
+TLONG_REF_MIN  =  253.1 
+
+# NCD_MAX_YEAR ([days]) :   	{OK_STOMATE }
+NCD_MAX_YEAR =  3.  
+
+# NGD_THRESHOLD  ([days]) :   	{OK_STOMATE }
+NGD_THRESHOLD  =  -5.  
+
+# GREEN_AGE_EVER  ([-]) :   	{OK_STOMATE }
+GREEN_AGE_EVER  =  2.  
+
+# GREEN_AGE_DEC ([-]) :   	{OK_STOMATE }
+GREEN_AGE_DEC =  0.5  
+
+# NGD_MIN_DORMANCE ([days]) :  Minimum length (days) of the dormance period for species with the ngd phenology type 	{OK_STOMATE }
+NGD_MIN_DORMANCE =  55. 
+
+# NAGEC ([-]) :  Number of age classes 	{OK_STOMATE }
+NAGEC =  1  
+
+# AGE_CLASS_BOUND ([m]) :  Boundaries of the age classes 	{OK_STOMATE }
+AGE_CLASS_BOUND =  5.0  
+
+# MIN_WATER_STRESS ([-]) :  Minimal value for wstress_fac 	{OK_STOMATE }
+MIN_WATER_STRESS =  0.1  
+
+# NDIA_HARVEST ([-]) :  Number of basal area classes in which the harvest is stored 	{OK_STOMATE, OK_DIMENSIONAL_PRODUCT_USE }
+NDIA_HARVEST =  5  
+
+# MAX_HARVEST_DIA ([m]) :  The maximum diamter of tree which can be harvested 	{OK_STOMATE }
+MAX_HARVEST_DIA =  1.0 
+
+# N_PAI ([-]) :  Number of years used for the calculation of the periodic annual increment 	{OK_STOMATE }
+N_PAI =  5  
+
+# NTREES_PROFIT ([number of trees]) :  Number of trees below which the forest will be cut and replanted 	{FOREST_MANAGEMENT  }
+NTREES_PROFIT =  100  
+
+# SPECIES_CHANGE_FORCE ([PFT number]) :  New species after a final cut for testing and debugging only 	{OK_STOMATE}
+SPECIES_CHANGE_FORCE =  -9999 
+
+# FM_CHANGE_FORCE ([1, 2, 3 or 4; unitless]) :  New management after a final cut for testing and debugging only 	{OK_STOMATE, LCHANGE_SPECIES}
+FM_CHANGE_FORCE =  ifm_none 
+
+# nb_years_bgi ([years]) :  numbers of years over which bark beetle generation index is calculated 	{OK_PEST, OK_STOMATE}
+nb_years_bgi =  3 
+
+# DAILY_MAX_TUNE ([-]) :  Non linear tuning factor for daily maximum wind speed used in windthrow module 	{OK_WINDTHROW, stomate main program}
+DAILY_MAX_TUNE =  1.000 
+
+# ELEVATE_WIND ([-]) :  Non linear tuning factor for daily maximum wind speed used 	{OK_WINDTHROW, stomate main program}
+ELEVATE_WIND =  10.0 
+
+# H_THRESHOLD_WIND ([-]) :  Ratio of height threshold to pipe_tune2 for truncating wind damage 	{OK_WINDTHROW, stomate main program}
+H_THRESHOLD_WIND =  0.3 
+
+# D_THRESHOLD_WIND ([-]) :  Fraction of the largest tree diameter used as reference threshold 	{OK_WINDTHROW, stomate main program}
+D_THRESHOLD_WIND =  0.7 
+
+# CLEAR_CUT_MAX (m2) :  The maximum contiguous area clearfelled used to calculate edge length 	{OK_WINDTHROW, OK_STOMATE}
+CLEAR_CUT_MAX =  20000. 
+
+# LEGACY_YEARS_WIND (years) :  The years used to calculate the maximum/mean/sum related to wind speed 	{OK_WINDTHROW, OK_STOMATE}
+LEGACY_YEARS_WIND =  5 
+
+# LEGACY_YEARS (years) :  The years used to calculate the total damage from disturbances 	{OK_WINDTHROW, OK_STOMATE}
+LEGACY_YEARS =  3 
+
+# LEGACY_YEARS_WOOD (years) :  The years used to calculate the wood leftover legacy (bark beetles) 	{OK_PEST, OK_STOMATE}
+LEGACY_YEARS_WOOD =   
+
+# BEETLE_LEGACY (years) :  The years used to calculate wood leftover 	{OK_PEST, OK_STOMATE}
+BEETLE_LEGACY =  6 
+
+# WIND_DAYS (day) :  the number of days to save sum of wind speed overtime   	{OK_WINDTHROW, stomate main program}
+WIND_DAYS =  3 
+
+# GAP_THRESHOLD (-) :  The threshold for the basal area loss to be considered to create the gap with edges 	{OK_WINDTHROW, stomate main program}
+GAP_THRESHOLD =  0.3 
+
+# NB_DAYS_STORM (days) :  the number of days at which the max wind speed is less than wind_speed_storm_thr 	{OK_WINDTHROW, stomate main program}
+NB_DAYS_STORM =  5 
+
+# WIND_SUM_THRESHOLD (m/s) :  Threshold for the sum of wind_days of wind speed for all 	{OK_WINDTHROW, stomate main program}
+WIND_SUM_THRESHOLD =  200 
+
+# WIND_RATIO_THRESHOLD (-) :  Threshold for the ratio of wind to longterm wind for each ime stpe to sum ratios 	{OK_WINDTHROW, stomate main program}
+WIND_RATIO_THRESHOLD =  3.0 
+
+# WIND_SPEED_STORM_THR (meter per second     ) :  the wind speed threshold above which is_storm flag is set to TRUE  	{OK_WINDTHROW, stomate main program}
+WIND_SPEED_STORM_THR =  20.000 
+
+# REPLACE_THR_WIND (unitless) :  the threshold for the ratio of biomss revmoved from storm event to replace stand  	{OK_WINDTHROW, stomate main program}
+REPLACE_THR_WIND =  0.25 
+
+# REPLACE_THR_BEETLE (unitless) :  the threshold for the ratio of biomss revmoved from bark 	{OK_PEST, stomate main program}
+REPLACE_THR_BEETLE =  0.05 
+
+# REPLACE_THR_FIRE (unitless) :  the threshold for the ratio of biomss revmoved from fire 	{OK_SPITFIRE, stomate main program}
+REPLACE_THR_FIRE =  0.1 
+
+# FORCED_CLEAR_CUT (year) :  Use to force a clear cut at a specific year during a simulation. 	{OK_STOMATE}
+FORCED_CLEAR_CUT =  .FALSE. 
+
+# NOUTDIACLASS ([-]) :  Number of diameter classes in the output files 	{OK_STOMATE}
+NOUTDIACLASS =  16 
+
+# OUT_DIA_CLASS ([m]  ) :  Boundaries of diameter classes in the output files 	{OK_STOMATE}
+OUT_DIA_CLASS =  zero, .01, .05, .1, .15, .2, .3, .4, .5, .6, .7, .8, .9, 1., 1.5, 2., 9.9 
+
+# USE_HEIGHT_DOM ([-]) :  Use the dominant vegetation height instead of the average height when calculating roughness length 	{OK_STOMATE}
+USE_HEIGHT_DOM =  .FALSE. 
+
+# ERR_ACT ([1: write to history file, 2: warn and write to history file, and 3&4: stop the model]) :  Action following an error 	{OK_STOMATE}
+ERR_ACT =  1 
+
+# OK_FORCE_PHENO ([-]) :  Use to force phenology when the conditions are not suitable 	{OK_STOMATE}
+OK_FORCE_PHENO =  .TRUE. 
+
+# OK_CROPS_IPRESENESCENCE ([-]) :  Flag to allow crops to enter ipresenesence. Allows 	{OK_STOMATE}
+OK_CROPS_IPRESENESCENCE =  .FALSE. 
+
+# NPP_LONGTERM_INIT ([gC/m^2/year]) :   	{OK_STOMATE}
+NPP_LONGTERM_INIT =  10. 
+
+# SPAT_MOD_SELF_THIN (-) :  Spatial modifier of alpha_self_thinning 	{OK_STOMATE}
+SPAT_MOD_SELF_THIN =  0.15 
+
+# SPAT_EXP_SELF_THIN (-) :  Spatial exponent of alpha_self_thinning 	{OK_STOMATE}
+SPAT_EXP_SELF_THIN =  0.33 
+
+# FLUX_TOT_COEFF ([days] ) :  coeff related to decomposition on peatland, esp agri_peat 	{OK_STOMATE and agri_peat}
+FLUX_TOT_COEFF =  1.2, 1.4,.75 
+
+# P_A ([(g/m3)] ) :  acrotelm density (g/m3) 	{OK_STOMATE and ok_peat_NoDiscretisation}
+P_A =  3.5E+4 
+
+# P_C ([(g/m3)] ) :  catotelm density (g/m3) 	{OK_STOMATE and ok_peat_NoDiscretisation}
+P_C =  9.1E+4  
+
+# CF_A ([] ) :  carbon fraction in catotelm peat 	{OK_STOMATE and ok_peat_NoDiscretisation}
+CF_A =  0.50  
+
+# CF_C ([] ) :  carbon fraction in acrotelm peat 	{OK_STOMATE and ok_peat_NoDiscretisation}
+CF_C =  0.52  
+
+# V_RATIO ([] ) :  ratio anaerobic-aerobic CO2 	{OK_STOMATE and ok_peat_NoDiscretisation}
+V_RATIO =  0.35  
+
+# KA_INI ([year-1] ) :  acrotelm decomposition rate (an-1) 	{OK_STOMATE and ok_peat_NoDiscretisation}
+KA_INI =  0.067 
+
+# KP_INI ([] ) :  carbon fraction in acrotelm peat 	{OK_STOMATE and ok_peat_NoDiscretisation}
+KP_INI =  1.91E-2 
+
+# KC_INI ([year-1] ) :  catotelm decomposition rate (an-1) 	{OK_STOMATE and ok_peat_NoDiscretisation}
+KC_INI =  3.35E-5 
+
+# ESTAB_MAX_TREE ([-]) :  Maximum tree establishment rate  	{OK_DGVM}
+ESTAB_MAX_TREE =  0.12  
+
+# ESTAB_MAX_GRASS ([-]) :  Maximum grass establishment rate 	{OK_DGVM}
+ESTAB_MAX_GRASS =  0.12  
+
+# ESTABLISH_SCAL_FACT ([-]) :   	{OK_DGVM }
+ESTABLISH_SCAL_FACT =  5. 
+
+# MAX_TREE_COVERAGE  ([-]) :   	{OK_DGVM }
+MAX_TREE_COVERAGE  =  0.98 
+
+# IND_0_ESTAB ([-]) :   	{OK_DGVM }
+IND_0_ESTAB =  0.2 
+
+# ANNUAL_INCREASE ([FLAG]) :  for diagnosis of fpc increase, compare today's fpc to last year's maximum (T) or to fpc of last time step (F)? 	{OK_DGVM}
+ANNUAL_INCREASE =  y 
+
+# MIN_COVER  ([-]) :  For trees, minimum fraction of crown area occupied  	{OK_DGVM}
+MIN_COVER  =  0.05  
+
+# IND_0  ([-]) :  initial density of individuals 	{OK_DGVM}
+IND_0  =  0.02  
+
+# MIN_AVAIL ([-]) :  minimum availability 	{OK_DGVM}
+MIN_AVAIL =  0.01 
+
+# RIP_TIME_MIN ([year]) :   	{OK_DGVM}
+RIP_TIME_MIN =  1.25  
+
+# EVERYWHERE_INIT ([-]) :   	{OK_DGVM}
+EVERYWHERE_INIT =  0.05  
+
+# SNOW_HEAT_COND ([W.m^{-2}.K^{-1}]) :  Thermal Conductivity of snow 	{OK_SECHIBA  }
+SNOW_HEAT_COND =  0.3 
+
+# SNOW_DENSITY ([-]) :  Snow density for the soil thermodynamics  	{OK_SECHIBA }
+SNOW_DENSITY =  330.0 
+
+# SECHIBA_QSINT  ([kg/m^2]) :  Interception reservoir coefficient 	{OK_SECHIBA }
+SECHIBA_QSINT  =  0.02 
+
+# MCR_SUP_PARAM  ([m]) :  Residual moisture content in the superficial soil layer 	{OK_SECHIBA }
+MCR_SUP_PARAM  =  0.078 
+
+# MCR_INF_PARAM  ([m]) :  Residual moisture content in the inferior soil layer 	{OK_SECHIBA }
+MCR_INF_PARAM  =  0.078 
+
+# MCS_SUP_PARAM  ([m]) :  Saturated moisture content in the superficial soil layer 	{OK_SECHIBA }
+MCS_SUP_PARAM  =  0.43 
+
+# MCS_INF_PARAM  ([m]) :  Saturated moisture content in the inferior soil layer 	{OK_SECHIBA }
+MCS_INF_PARAM  =  0.43 
+
+# OK_FREEZE ([FLAG]) :  Activate the complet soil freezing scheme 	{OK_SECHIBA }
+OK_FREEZE =  TRUE 
+
+# READ_REFTEMP ([FLAG]) :  Initialize soil temperature using climatological temperature 	{}
+READ_REFTEMP =  True/False depening on OK_FREEZE 
+
+# READ_REFTEMPICE ([FLAG]) :  Initialize ice temperature using equilibrated temperature 	{OK_ICE_SHEET }
+READ_REFTEMPICE =  False 
+
+# USE_INITSOM ([FLAG]) :  Initialize SOM using SOM map 	{OK_SOIL_CARBON_DISCRETIZATION}
+USE_INITSOM =  False 
+
+# INITSOM_FRAC_A ([FILE]) :  Fraction of initSOM to put in active C pool 	{USE_INITSOM}
+INITSOM_FRAC_A =  0.1 
+
+# INITSOM_FRAC_S ([FILE]) :  Fraction of initSOM to put in slow C pool 	{USE_INITSOM}
+INITSOM_FRAC_S =  0.2 
+
+# INITSOM_FRAC_P ([FILE]) :  Fraction of initSOM to put in passive C pool 	{USE_INITSOM}
+INITSOM_FRAC_P =  0.7 
+
+# OK_FREEZE_THERMIX ([FLAG]) :  Activate thermal part of the soil freezing scheme 	{}
+OK_FREEZE_THERMIX =  True if OK_FREEZE else false 
+
+# OK_ECORR ([FLAG]) :  Energy correction for freezing 	{OK_FREEZE_THERMIX}
+OK_ECORR =  True if OK_FREEZE else false 
+
+# USE_SOILC_INSULATION ([FLAG]) :  insolation effect of the organic top soil layer  	{OK_FREEZE }
+USE_SOILC_INSULATION =  FALSE 
+
+# OK_FREEZE_THAW_LATENT_HEAT ([FLAG]) :  Activate latent heat part of the soil freezing scheme 	{}
+OK_FREEZE_THAW_LATENT_HEAT =  FALSE  
+
+# fr_dT ([K] ) :  Freezing window width 	{OK_SECHIBA}
+fr_dT =  2.0 
+
+# FR_CENTER_C ([°C]) :  Center value of the freezing window in degree Celsius 	{OK_SECHIBA}
+FR_CENTER_C =  -1.0 
+
+# SOILC_MAX ([gC/m3]) :  Soil carbon above which soil thermal properties equals to organic soil properties  	{USE_SOILC_INSULATION}
+SOILC_MAX =  500000 
+
+# OK_FREEZE_CWRR ([FLAG]) :  CWRR freezing scheme by I. Gouttevin 	{}
+OK_FREEZE_CWRR =  True if OK_FREEZE else false 
+
+# OK_THERMODYNAMICAL_FREEZING ([FLAG]) :  Calculate frozen fraction thermodynamically  	{OK_FREEZE_CWRR}
+OK_THERMODYNAMICAL_FREEZING =  False 
+
+# CHECK_CWRR ([FLAG]) :  Calculate diagnostics to check CWRR water balance 	{}
+CHECK_CWRR =  n 
+
+# MOSS_LAYER_THICKNESS ([m] ) :  Moss layer thickness 	{OK_SOIL_CARBON_DISCRETIZATION AND OK_MOSS}
+MOSS_LAYER_THICKNESS =  0.05 
+
+# SOIL_MOSS_DEPTH ([m]) :  Maximum depth over which to compute moss thermal properties 	{OK_SOIL_CARBON_DISCRETIZATION AND OK_MOSS}
+SOIL_MOSS_DEPTH =  0.05 
+
+#TAU_peat ([second?]) :  A turn-over rate for peatland 	{OK_SOIL_CARBON_DISCRETIZATION AND PERMA_PEAT}
+TAU_peat=  3.1536E8  
+
+# Z_TAU ([]) :  An e-folding depth of turnover rates 	{OK_SOIL_CARBON_DISCRETIZATION AND PERMA_PEAT}
+Z_TAU =  1.E6 
+
+# DT_STOMATE ([seconds]) :  Time step of STOMATE and other slow processes 	{OK_STOMATE}
+DT_STOMATE =  86400. 
+
+# SOIL_FRACTIONS ([-]) :  Areal fraction of the 13 soil USDA textures; the dominant one is selected, Loam by default 	{IMPOSE_SOILT}
+SOIL_FRACTIONS =  0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 
+
+# CLAY_FRACTION ([-] ) :  Fraction of the clay fraction (0-dim mode) 	{IMPOSE_SOIL}
+CLAY_FRACTION =  0.2 
+
+# SAND_FRACTION ([-] ) :  Fraction of the sand fraction (0-dim mode) 	{IMPOSE_SOIL}
+SAND_FRACTION =  0.4 
+
+# BULK ([-] ) :  Bulk density (0-dim mode) 	{IMPOSE_SOIL}
+BULK =  1000.0 
+
+# SOIL_PH ([-]) :  Soil pH (0-dim mode) 	{IMPOSE_SOIL}
+SOIL_PH =  5.5  
+
+# NVAN_IMP ([-]) :  NVAN parameter from Van genutchen equations 	{IMPOSE_SOIL}
+NVAN_IMP =  1.56 if Loam 
+
+# AVAN_IMP ([-]) :  AVAN parameter from Van genutchen equations 	{IMPOSE_SOIL}
+AVAN_IMP =  0.0036 if Loam 
+
+# MCR_IMP ([-]) :  residual soil moisture 	{IMPOSE_SOIL}
+MCR_IMP =  0.078 if Loam 
+
+# MCS_IMP ([-]) :  saturation soil moisture 	{IMPOSE_SOIL}
+MCS_IMP =  0.43 if Loam 
+
+# KS_IMP ([mm/d]) :  saturation conductivity 	{IMPOSE_SOIL}
+KS_IMP =  249.6 if Loam 
+
+# MCFC_IMP ([-]) :  field capacity soil moisture 	{IMPOSE_SOIL}
+MCFC_IMP =  0.1654 if caclulated from default 5 parameters above 
+
+# MCW_IMP ([-]) :  wilting point soil moisture 	{IMPOSE_SOIL}
+MCW_IMP =  0.0884 if caclulated from default 5 parameters above 
+
+# REINF_SLOPE ([-]) :  Fraction of reinfiltrated surface runoff  	{IMPOSE_SLOPE}
+REINF_SLOPE =  0.1 
+
+# GET_SLOPE ([FLAG]) :  Read slopes from file and do the interpolation 	{}
+GET_SLOPE =  n 
+
+# SECHIBA_VEGMAX ([-]) :  Maximum vegetation distribution within the mesh (0-dim mode) 	{IMPOSE_VEG}
+SECHIBA_VEGMAX =  0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0 
+
+# SECHIBA_FRAC_NOBIO ([-]) :  Fraction of other surface types within the mesh (0-dim mode) 	{IMPOSE_VEG}
+SECHIBA_FRAC_NOBIO =  0.0 
+
+# NINPUT_UPDATE ([years]) :  Update N input frequency 	{ok_ncycle .AND. (.NOT. impose_cn) .AND. .NOT. impsoilt}
+NINPUT_UPDATE =  0Y 
+
+# NAMMONIUM ([gN m-2 d-1] ) :  Amount of N ammonium deposition  	{ok_ncycle .AND. (.NOT. impose_cn)}
+NAMMONIUM =  0 
+
+# NNITRATE ([gN m-2 d-1] ) :  Amount of N nitrate deposition  	{ok_ncycle .AND. (.NOT. impose_cn)}
+NNITRATE =  0 
+
+# NFERT ([gN m-2 d-1] ) :  Amount of N fertiliser  	{ok_ncycle .AND. (.NOT. impose_cn)}
+NFERT =  0 
+
+# NMANURE ([gN m-2 d-1] ) :  Amount of N manure  	{ok_ncycle .AND. (.NOT. impose_cn)}
+NMANURE =  0 
+
+# NBNF ([gN m-2 d-1] ) :  Amount of N biological fixation  	{ok_ncycle .AND. (.NOT. impose_cn)}
+NBNF =  0 
+
+# LAI_FILE ([FILE]) :  Name of file from which the vegetation map is to be read 	{LAI_MAP}
+LAI_FILE =  lai2D.nc 
+
+# RENORM_LAI ([FLAG]) :  flag to force LAI renormelization 	{LAI_MAP}
+RENORM_LAI =  n 
+
+# VEGETATION_FILE ([FILE]) :  Name of file from which the vegetation map is to be read 	{}
+VEGETATION_FILE =  PFTmap.nc 
+
+# CNLEAF_FILE ([FILE]) :  Name of file from which the cn leaf ratio is to be read 	{}
+CNLEAF_FILE =  cnleaf_map.nc 
+
+# CNLEAF_VAR ([VAR]) :  Name of the variable in the file from which the cn leaf ratio is to be read 	{}
+CNLEAF_VAR =  leaf_cn.nc 
+
+# SPMIPEXP ([-]) :  Types of alternative hydraulic parameters 	{}
+SPMIPEXP =  'texture' 
+
+# UNIF_CASE ([-]) :  Types of uniform soil textures in SPMIP, possible values: a, b, c and d 	{}
+UNIF_CASE =  'b' 
+
+# SOILCLASS_FILE ([FILE]) :  Name of file from which soil types are read 	{NOT(IMPOSE_VEG)}
+SOILCLASS_FILE =  soils_param.nc 
+
+# PARAM_FILE ([FILE]) :  Name of file from which soil parameter  values are read 	{N/A}
+PARAM_FILE =  params_sp_mip.nc 
+
+# SOIL_BULK_FILE ([FILE]) :  Name of file from which soil bulk should be read 	{}
+SOIL_BULK_FILE =  soil_bulk_and_ph.nc 
+
+# SOIL_PH_FILE ([FILE]) :  Name of file from which soil ph should be read 	{}
+SOIL_PH_FILE =  soil_bulk_and_ph.nc 
+
+# SLOPE_NOREINF ([%]) :  Slope over which surface runoff does not reinfiltrate 	{}
+SLOPE_NOREINF =  0.5 
+
+# TOPOGRAPHY_SLOPE_FILE ([FILE]) :  Name of file from which the slope of the topography map is to be read 	{}
+TOPOGRAPHY_SLOPE_FILE =  cartepente2d_15min.nc 
+
+# NINPUT File ([FILE]) :  Name of file from which the N-input map is to be read 	{}
+NINPUT File =  NONE 
+
+# NINPUT var ([FILE]) :  Name of the variable in the file from which the N-input map is to be read 	{}
+NINPUT var =  'Ninput_field' 
+
+# WOODHARVEST_FILE ([FILE]) :  Name of file from which the wood harvest will be read 	{DO_WOOD_HARVEST}
+WOODHARVEST_FILE =  woodharvest.nc 
+
+# IRRIGATION_DYN_FILE ([FILE]) :  Name of file from which the DYNAMIC irrigation fraction map is to be read 	{IRRIG_DYN}
+IRRIGATION_DYN_FILE =  IRRIGmap.nc 
+
+# FRACTION_AEI_SW_FILE ([FILE]) :  Name of file with AEI with SW 	{SELECT_SOURCE_IRRIG}
+FRACTION_AEI_SW_FILE =  AEI_SW_pct.nc 
+
+# ALB_BG_FILE ([FILE]) :  Name of file from which the background albedo is read  	{ALB_BG_MODIS}
+ALB_BG_FILE =  alb_bg.nc 
+
+# SOILALB_FILE ([FILE]) :  Name of file from which the bare soil albedo 	{NOT(IMPOSE_AZE)}
+SOILALB_FILE =  soils_param.nc 
+
+# CDRAG_FROM_GCM ([FLAG]) :  Keep cdrag coefficient from gcm. 	{OK_SECHIBA}
+CDRAG_FROM_GCM =  y 
+
+# N_FERTIL_FILE (- ) :  File name 	{CHEMISTRY_BVOC and NOx_FERTILIZERS_USE}
+N_FERTIL_FILE =  orchidee_fertilizer_1995.nc 
+
+# N_FERTIL_FILE (-) :  File name 	{CHEMISTRY_BVOC and NOx_FERTILIZERS_USE}
+N_FERTIL_FILE =  orchidee_fertilizer_1995.nc 
+
+# ENERBIL_TSURF (Kelvin [K]) :  Initial temperature if not found in restart 	{OK_SECHIBA}
+ENERBIL_TSURF =  280. 
+
+# ENERBIL_EVAPOT () :  Initial Soil Potential Evaporation 	{OK_SECHIBA       }
+ENERBIL_EVAPOT =  0.0 
+
+# BEDROCK_FLAG ([FLAG]) :  Flag to consider bedrock at deeper layers. 	{}
+BEDROCK_FLAG =  0 
+
+# USE_REFSOC ([FLAG]) :  Read a SOC map to perform the insolation effect 	{USE_SOILC_INSULATION }
+USE_REFSOC =  TRUE 
+
+# OK_MOSS ([FLAG]) :  Activate moss thermal effect 	{USE_SOILC_INSULATION}
+OK_MOSS =  FALSE 
+
+# IMPOSE_SOC_BD ([FLAG]) :  Flag to manually impose SOC and bulk density for site simulations (values defined in run.def) 	{USE_THERMO_NEWDISC, USE_SOILC_INSULATION}
+IMPOSE_SOC_BD =  FALSE 
+
+# FSOC_INIT ([kg SOC/kg fine matter]) :  Initial values of fSOC discretized on the 18 thermosoil layers 	{USE_THERMO_NEWDISC, IMPOSE_SOC_BD, USE_REFSOC =}
+FSOC_INIT =  0.0 
+
+# BDOD_INIT ([kg/m3]) :  Initial values of BDOD discretized on the 18 thermosoil layers 	{USE_THERMO_NEWDISC, IMPOSE_SOC_BD, USE_REFSOC =}
+BDOD_INIT =  1620.0 
+
+# CFVO_INIT ([m3/m3]) :  Initial values of CFVO discretized on the 18 thermosoil layers 	{USE_THERMO_NEWDISC, IMPOSE_SOC_BD, USE_REFSOC =}
+CFVO_INIT =  0.0 
+
+# USE_SOILC_METHOD ([FLAG]) :  Flag to control the way to average thermal conductivity of mineral soil and organic soil 	{OK_SOIL_CARBON_DISCRETIZATION}
+USE_SOILC_METHOD =  1 
+
+# SNOW_COND_METHOD ([1=original method, 2=method by Decharme et al 2016]) :  Flag to choose the way to calculate snow thermal conductivity  	{OK_SOIL_CARBON_DISCRETIZATION}
+SNOW_COND_METHOD =  1 
+
+# USE_MOSS_COND_METHOD ([FLAG]) :  Flag to control the way to average thermal conductivity of moss and soil: 1 	{OK_SOIL_CARBON_DISCRETIZATION and OK_MOSS}
+USE_MOSS_COND_METHOD =  1 
+
+# DRY_SOIL_HEAT_CAPACITY ([J.m^{-3}.K^{-1}]) :  Dry soil Heat capacity of soils 	{}
+DRY_SOIL_HEAT_CAPACITY =  (1.47, 1.41, 1.34, 1.27, 1.21, 1.21, 1.18, 1.32, 1.23, 1.18, 1.15, 1.09, 1.09)*e+6 
+
+# THERMOSOIL_TPRO (Kelvin [K]) :  Initial soil temperature profile if not found in restart 	{OK_SECHIBA}
+THERMOSOIL_TPRO =  280. 
+
+# SOIL_REFTEMP_FILE ([FILE]) :  File with climatological soil temperature 	{READ_REFTEMP}
+SOIL_REFTEMP_FILE =  reftemp.nc 
+
+# SOIL_REFSOC_FILE ([FILE]) :  File with soil carbon stocks 	{OK_SOIL_CARBON_DISCRETIZATION, USE_REFSOC, SOIL_CTEMPDIFF}
+SOIL_REFSOC_FILE =  refSOC.nc 
+
+# SOC_FILE ([FILE]) :  File with SOC concentrations (bulk density of SOC in the total volume - kg/m3) 	{OK_SOIL_CARBON_DISCRETIZATION, USE_REFSOC, SOIL_CTEMPDIFF, USE_THERMO_NEWDISC}
+SOC_FILE =  SOC.nc 
+
+# BD_FILE ([FILE]) :  File with BD of fine matter in the total volume (kg/m3) 	{OK_SOIL_CARBON_DISCRETIZATION, USE_REFSOC, SOIL_CTEMPDIFF, USE_THERMO_NEWDISC}
+BD_FILE =  BD.nc 
+
+# CM_FILE ([FILE]) :  File with volume fraction of coarse matter (m3/m3) 	{OK_SOIL_CARBON_DISCRETIZATION, USE_REFSOC, SOIL_CTEMPDIFF, USE_THERMO_NEWDISC}
+CM_FILE =  CM.nc 
+
+# DO_PONDS ([FLAG]) :  Should we include ponds  	{}
+DO_PONDS =  n 
+
+# FROZ_FRAC_CORR  ([-]) :  Coefficient for the frozen fraction correction 	{OK_FREEZE}
+FROZ_FRAC_CORR  =  1.0 
+
+# MAX_FROZ_HYDRO ([-]) :  Coefficient for the frozen fraction correction 	{OK_FREEZE}
+MAX_FROZ_HYDRO =  1.0 
+
+# SMTOT_CORR ([-]) :  Coefficient for the frozen fraction correction 	{OK_FREEZE}
+SMTOT_CORR =  2.0 
+
+# DO_RSOIL ([FLAG]) :  Should we reduce soil evaporation with a soil resistance 	{}
+DO_RSOIL =  y if RSOIL_SCALE>0 
+
+# OK_RUN2PEAT ([FLAG]) :  Flag to allow adding the runoff of other soil tiles to the peat soil tile   	{OK_PEAT_HYDRO or PEAT_TIDES}
+OK_RUN2PEAT =  n 
+
+# OK_WT_AB ([FLAG]) :  Flag to allow water table above the surface  	{OK_PEAT_HYDRO or PEAT_TIDES}
+OK_WT_AB =  n 
+
+# MAX_WT_AB ([mm]) :  Flag to allow water table being above the surface  	{OK_PEAT_HYDRO or PEAT_TIDES}
+MAX_WT_AB =  100.0 
+
+# AGRI_DRAIN ([FLAG]) :  Should we consider drainage over agriculture and peat  	{OK_PEAT_HYDRO AND AGRI_PEAT}
+AGRI_DRAIN =  n 
+
+# DRAIN_FACTOR  ([-]) :  Coefficient for drainage over agriculture and peat 	{AGRI_DRAIN}
+DRAIN_FACTOR  =  1.0 
+
+# B_MUFF ([-]) :  Campbell coefficient b 	{}
+B_MUFF =  2.708, 2.708, 2.708 
+
+# PSI_AIR_ENTRY ([-]) :  Air entry water potential 	{}
+PSI_AIR_ENTRY =  -0.015, -0.015, -0.015 
+
+# IS_VG ([FLAG]) :  Flag to control the calculation of the hydraulic conductivity and water potential 	{}
+IS_VG =  TRUE 
+
+# WETNESS_TRANSPIR_MAX ([-]) :  Soil moisture above which transpir is max, for each soil texture class  	{}
+WETNESS_TRANSPIR_MAX =  0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8 
+
+# VWC_MIN_FOR_WET_ALB ([m3/m3]) :  Vol. wat. cont. above which albedo is cst 	{}
+VWC_MIN_FOR_WET_ALB =  0.25, 0.25, 0.25 
+
+# VWC_MAX_FOR_DRY_ALB ([m3/m3]) :  Vol. wat. cont. below which albedo is cst 	{}
+VWC_MAX_FOR_DRY_ALB =  0.1, 0.1, 0.1 
+
+# HYDROL_MOISTURE_CONTENT ([m3/m3]) :  Soil moisture on each soil tile and levels 	{}
+HYDROL_MOISTURE_CONTENT =  0.3 
+
+# US_INIT ([-]) :  US_NVM_NSTM_NSLM 	{}
+US_INIT =  0.0 
+
+# ZWT_FORCE ([m]) :  Prescribed water depth, dimension nstm 	{}
+ZWT_FORCE =  -9999. -9999. -9999. 
+
+# FREE_DRAIN_COEF ([-]) :  Coefficient for free drainage at bottom, dimension nstm 	{}
+FREE_DRAIN_COEF =  1.0 1.0 1.0 
+
+# WATER_TO_INFILT ([mm]) :  Water to be infiltrated on top of the soil 	{}
+WATER_TO_INFILT =  0.0 
+
+# EVAPNU_SOIL ([mm]) :  Bare soil evap on each soil if not found in restart 	{}
+EVAPNU_SOIL =  0.0 
+
+# HYDROL_SNOW () :  Initial snow mass if not found in restart 	{OK_SECHIBA}
+HYDROL_SNOW =  0.0 
+
+# HYDROL_SNOWAGE (***) :  Initial snow age if not found in restart 	{OK_SECHIBA}
+HYDROL_SNOWAGE =  0.0 
+
+# HYDROL_SNOW_NOBIO_AGE (***) :  Initial snow age on ice, lakes, etc. if not found in restart 	{OK_SECHIBA}
+HYDROL_SNOW_NOBIO_AGE =  0.0 
+
+# HYDROL_QSV ([mm]) :  Initial water on canopy if not found in restart 	{OK_SECHIBA}
+HYDROL_QSV =  0.0 
+
+# RUN2PEAT ([mm]) :  Runoff from other soil tiles to peat 	{OK_PEAT_HYDRO (or OK_RUN2PEAT)}
+RUN2PEAT =  0.0 
+
+# WT_AB ([mm]) :  Height of water reservatory above the surface 	{OK_PEAT_HYDRO (or ok_wt_ab)}
+WT_AB =  0.0 
+
+# WTP ([mm]) :  Water table position 	{OK_PEAT_HYDRO }
+WTP =  0.0 
+
+# liqwt_ratio ([mm]) :  Liquid water ratio in peat 	{OK_PEAT_HYDRO }
+liqwt_ratio =  0.0 
+
+# wt_ab_tide ([mm]) :  Height of water reservatory above the surface when flag tides is activated 	{TIDES}
+wt_ab_tide =  0.0 
+
+# run2man ([mm]) :  Runoff from other soil tiles to mangrove when the tides is activated 	{TIDES}
+run2man =  0.0 
+
+# CWRR_NKS_N0  ([-]) :  fitted value for relation log((n-n0)/(n_ref-n0))  	{}
+CWRR_NKS_N0  =  0.0 
+
+# CWRR_NKS_POWER ([-]) :  fitted value for relation log((n-n0)/(n_ref-n0))  	{}
+CWRR_NKS_POWER =  0.0 
+
+# CWRR_AKS_A0  ([1/mm]) :  fitted value for relation log((a-a0)/(a_ref-a0))  	{}
+CWRR_AKS_A0  =  0.0 
+
+# CWRR_AKS_POWER ([-]) :  fitted value for relation log((a-a0)/(a_ref-a0))  	{}
+CWRR_AKS_POWER =  0.0 
+
+# KFACT_DECAY_RATE ([1/m]) :  Factor for Ks decay with depth 	{}
+KFACT_DECAY_RATE =  2.0 
+
+# KFACT_STARTING_DEPTH ([m]) :  Depth for compacted value of Ks  	{}
+KFACT_STARTING_DEPTH =  0.3 
+
+# KFACT_MAX ([-]) :  Maximum Factor for Ks increase due to vegetation 	{}
+KFACT_MAX =  10.0 
+
+# KFACT_ROOT_CONST ([y/n]) :  Set constant kfact_root in every soil layer. Otherwise kfact_root increase over soil depth in the rootzone.  	{}
+KFACT_ROOT_CONST =  n 
+
+# DT_ROUTING  ([seconds]) :  Time step of the routing scheme 	{RIVER_ROUTING}
+DT_ROUTING  =  86400. 
+
+# ROUTING_RIVERS ([-]) :  Number of rivers  	{RIVER_ROUTING}
+ROUTING_RIVERS =  50 
+
+# DO_FLOODINFILT ([FLAG]) :  Should floodplains reinfiltrate into the soil 	{RIVER_ROUTING}
+DO_FLOODINFILT =  n 
+
+# DO_SWAMPS ([FLAG]) :  Should we include swamp parameterization  	{RIVER_ROUTING}
+DO_SWAMPS =  n 
+
+# DO_PONDS ([FLAG]) :  Should we include ponds 	{RIVER_ROUTING}
+DO_PONDS =  n 
+
+# SLOW_TCST ([days]) :  Time constant for the slow reservoir 	{RIVER_ROUTING}
+SLOW_TCST =  25.0 
+
+# FAST_TCST ([days]) :  Time constant for the fast reservoir 	{RIVER_ROUTING}
+FAST_TCST =  3.0 
+
+# STREAM_TCST ([days]) :  Time constant for the stream reservoir 	{RIVER_ROUTING}
+STREAM_TCST =  0.24 
+
+# FLOOD_TCST ([days]) :  Time constant for the flood reservoir 	{RIVER_ROUTING}
+FLOOD_TCST =  4.0 
+
+# SWAMP_CST ([-]) :  Fraction of the river that flows back to swamps 	{RIVER_ROUTING}
+SWAMP_CST =  0.2 
+
+# FLOOD_BETA ([-]) :  Parameter to fix the shape of the floodplain 	{RIVER_ROUTING}
+FLOOD_BETA =  2.0 
+
+# POND_BETAP ([-]) :  Ratio of the basin surface intercepted by ponds and the maximum surface of ponds 	{RIVER_ROUTING}
+POND_BETAP =  0.5 
+
+# FLOOD_CRI ([mm]) :  Potential height for which all the basin is flooded 	{DO_FLOODPLAINS or DO_PONDS}
+FLOOD_CRI =  2000. 
+
+# POND_CRI ([mm]) :  Potential height for which all the basin is a pond 	{DO_FLOODPLAINS or DO_PONDS}
+POND_CRI =  2000. 
+
+# MAX_LAKE_RESERVOIR ([kg/m2(routing area)]) :  Maximum limit of water in lake_reservoir 	{RIVER_ROUTING}
+MAX_LAKE_RESERVOIR =  7000 
+
+# RIVER_DESC ([FLAG]) :  Writes out a description of the rivers 	{RIVER_ROUTING}
+RIVER_DESC =  n 
+
+# RIVER_DESC_FILE ([FILE]) :  Filename in which we write the description of the rivers. If suffix is ".nc" a netCDF file is created 	{RIVER_DESC}
+RIVER_DESC_FILE =  river_desc.nc 
+
+# ROUTING_FILE ([FILE]) :  Name of file which contains the routing information 	{RIVER_ROUTING}
+ROUTING_FILE =  routing.nc 
+
+# IRRIGATION_FILE ([FILE]) :  Name of file which contains the map of irrigated areas 	{DO_IRRIGATION OR DO_FLOODPLAINS}
+IRRIGATION_FILE =  floodplains.nc 
+
+# EPS_CARBON ([%]   ) :  Allowed error on carbon stock 	{SPINUP_ANALYTIC}
+EPS_CARBON =  0.01 
+
+# SPINUP_PERIOD ([years]   ) :  Period to calulcate equilibrium during spinup analytic 	{SPINUP_ANALYTIC}
+SPINUP_PERIOD =  -1 
+
+# LIGHTNING_FILE (N/A) :  The file name from which lightning numbers will be read 	{OK_SPITFIRE}
+LIGHTNING_FILE =  The file name from which lightning numbers will be read 
+
+# LIGHTNING_FIELD_NAME (N/A) :  The field name representing the number of lightnings 	{OK_SPITFIRE}
+LIGHTNING_FIELD_NAME =  The field name representing the number of lightnings 
+
+# POPDENS_FILE (N/A) :  The file name from which population density will be read 	{OK_SPITFIRE}
+POPDENS_FILE =  The file name from which population density will be read 
+
+# POPDENS_FIELD_NAME (N/A) :  The field name representing population density 	{OK_SPITFIRE}
+POPDENS_FIELD_NAME =  The field name representing population density 
+
+# HUMANIGN_FILE (N/A) :  The file name from which the parameter values of a_nd will be read 	{OK_SPITFIRE}
+HUMANIGN_FILE =  The file name from which the parameter values of a_nd will be read 
+
+# HUMANIGN_FIELD_NAME (N/A) :  The field name representing the a_nd parameter for calculating human ignitions 	{OK_SPITFIRE}
+HUMANIGN_FIELD_NAME =  The field name representing the a_nd parameter for calculating human ignitions 
+
+# EDGE_LENGTH_FILE (N/A) :  The file name from which the parameter values of edge_length will be read 	{OK_SPITFIRE}
+EDGE_LENGTH_FILE =  The file name from which the parameter values of edge_length will be read 
+
+# AED_FIELD_NAME (N/A) :  The field name representing the edge_length parameter 	{OK_SPITFIRE}
+AED_FIELD_NAME =  The field name representing the edge_length parameter 
+
+# FORCESOIL_STEP_PER_YEAR ([days, months, year]) :  Number of time steps per year for carbon spinup. 	{STOMATE_CFORCING_NAME and OK_STOMATE and OK_SOIL_CARBON_DISCRETIZATION}
+FORCESOIL_STEP_PER_YEAR =  365 (366, ...) 
+
+# FORCESOIL_NB_YEAR ([years]) :  Number of years saved for carbon spinup. 	{STOMATE_CFORCING_NAME and OK_STOMATE}
+FORCESOIL_NB_YEAR =  1 
+
+# FROZEN_RESPIRATION_FUNC  ([1]) :  Method for soil decomposition function  	{OK_SOIL_CARBON_DISCRETIZATION }
+FROZEN_RESPIRATION_FUNC  =  1 
+
+# STOMATE_DIAGPT ([-]) :  Index of grid point for online diagnostics 	{OK_STOMATE}
+STOMATE_DIAGPT =  1 
+
+# INITSOC_FILE ([FILE]) :  File with soil carbon stocks for initialization 	{OK_SOIL_CARBON_DISCRETIZATION, USE_INITSOM}
+INITSOC_FILE =  initSOC.nc 
+
+# INITSON_FILE ([FILE]) :  File with soil nitrogen stocks 	{OK_SOIL_CARBON_DISCRETIZATION, USE_INITSOM}
+INITSON_FILE =  initSON.nc 
+
+# XIOS_ORCHIDEE_OK ([FLAG]) :  Use XIOS for writing diagnostics file 	{}
+XIOS_ORCHIDEE_OK =  y  
+
+# XIOS_INTERPOLATION ([FLAG]         ) :  Actiave reading and intrepolation using XIOS 	{XIOS_ORCHIDEE_OK and grid_type=regular_lonlat or regular_xy}
+XIOS_INTERPOLATION =  n (if regular_lonlat) / y (if regular_xy) 
+
+# XIOS_REMAP_OUTPUT ([FLAG]) :  Activate remaping of diagnostic output files to regular grid 	{XIOS_ORCHIDEE_OK .AND. grid_type=unstructured}
+XIOS_REMAP_OUTPUT =  True 
+
+# DT_STOMATE ([seconds]) :  Time step of STOMATE and other slow processes 	{OK_STOMATE}
+DT_STOMATE =  86400. 
+
+# ANNUAL_PROC_END_OF_YEAR ([flag]) :  If true the annual processes are done at the last time-step of the year(recommanded), otherwise it is done the last time-step of June 	{OK_STOMATE}
+ANNUAL_PROC_END_OF_YEAR =  y 
+
+# FM_FILE ([FILE]    filename_fm ) :  Name of file from which the forest management map is to be read 	{OK_READ_FM_MAP}
+FM_FILE =  FMmap.nc 
+
+# XIOS_INTERPOLATION_FM ([FILE]) :  Read and interpolate using XIOS 	{OK_READ_FM_MAP}
+XIOS_INTERPOLATION_FM =  XIOS_INTERPOLATION 
+
+# SPINUP_CLEARCUT_FORCE ([0/1]) :  New species after a final cut for testing and debugging only 	{.NOT. OK_READ_SP_CLEARCUT_MAP}
+SPINUP_CLEARCUT_FORCE =  0 
+
+# SPINUP_CLEARCUT_FILE ([FILE]) :  Name of file to be read 	{OK_STOMATE}
+SPINUP_CLEARCUT_FILE =  spinup_clearcut.nc 
+
+# LITTER_FILE ([FILE]) :  Name of file from which the litter raking map is to be read 	{OK_STOMATE}
+LITTER_FILE =  litter_map.nc 
+
+# SPECIES_CHANGE_FILE ([FILE]) :  Name of file from which the species change map is to be read 	{OK_STOMATE}
+SPECIES_CHANGE_FILE =  replant_species.nc 
+
+# FM_DESIRED_FILE ([FILE]) :  Name of file from which the forest management map is to be read 	{OK_STOMATE}
+FM_DESIRED_FILE =  FM_desired.nc 
+
+# organic_layer_thickness ([-]) :  The thickness of organic layer 	{OK_SOIL_CARBON_DISCRETIZATION}
+organic_layer_thickness =  0.0  
+
+# OK_METHANE ([FLAG]) :  Is Methanogenesis and methanotrophy taken into account? 	{OK_SOIL_CARBON_DISCRETIZATION}
+OK_METHANE =  n 
+
+# HEAT_CO2_ACT ([J/Kg C]) :  specific heat of soil organic matter oxidation for active carbon 	{OK_SOIL_CARBON_DISCRETIZATION}
+HEAT_CO2_ACT =  40.0E6  
+
+# HEAT_CO2_SLO ([J/Kg C]) :  specific heat of soil organic matter oxidation for slow carbon pool  	{OK_SOIL_CARBON_DISCRETIZATION}
+HEAT_CO2_SLO =  30.0E6  
+
+# HEAT_CO2_PAS ([J/Kg C]) :  specific heat of soil organic matter oxidation for passive carbon pool  	{OK_SOIL_CARBON_DISCRETIZATION}
+HEAT_CO2_PAS =  10.0E6  
+
+# TAU_CH4_TROPH ([s]) :  time constant of methanetrophy 	{OK_SOIL_CARBON_DISCRETIZATION}
+TAU_CH4_TROPH =  432000  
+
+# TAU_CH4_GEN_RATIO ([-]) :  time constant of methanogenesis (ratio to that of oxic) 	{OK_SOIL_CARBON_DISCRETIZATION}
+TAU_CH4_GEN_RATIO =  9.0  
+
+# O2_SEUIL_MGEN ([g/m3]) :  oxygen concentration below which there is anoxy  	{OK_SOIL_CARBON_DISCRETIZATION}
+O2_SEUIL_MGEN =  3.0  
+
+# HEAT_CH4_GEN ([J/kgC]) :  specific heat of methanogenesis  	{OK_SOIL_CARBON_DISCRETIZATION}
+HEAT_CH4_GEN =  0  
+
+# HEAT_CH4_TROPH ([J/kgC]) :  specific heat of methanotrophy  	{OK_SOIL_CARBON_DISCRETIZATION}
+HEAT_CH4_TROPH =  0  
+
+# O2_LIMIT ([flag]) :  O2 limitation taken into account 	{OK_SOIL_CARBON_DISCRETIZATION}
+O2_LIMIT =  n 
+
+# cryoturbate ([flag]) :  Do we allow for cyoturbation? 	{OK_SOIL_CARBON_DISCRETIZATION}
+cryoturbate =  y  
+
+# cryoturbation_diff_k_in ([m2/year]) :  diffusion constant for cryoturbation  	{OK_SOIL_CARBON_DISCRETIZATION}
+cryoturbation_diff_k_in =  0.001  
+
+# bioturbation_diff_k_in ([m2/year]) :  diffusion constant for bioturbation  	{OK_SOIL_CARBON_DISCRETIZATION}
+bioturbation_diff_k_in =  0.0 
+
+# MG_useallCpools ([flag]) :  Do we allow all three C pools to feed methanogenesis? 	{OK_SOIL_CARBON_DISCRETIZATION}
+MG_useallCpools =  y  
+
+# max_shum_value ([-]) :  maximum saturation degree on the thermal axes 	{OK_SOIL_CARBON_DISCRETIZATION}
+max_shum_value =  1  
+
+# reset_yedoma_carbon ([flag]) :  Do we reset carbon concentrations for yedoma region? 	{OK_SOIL_CARBON_DISCRETIZATION}
+reset_yedoma_carbon =  n  
+
+# yedoma_map_filename ([]) :  The filename for yedoma map 	{OK_SOIL_CARBON_DISCRETIZATION}
+yedoma_map_filename =  yedoma_map.nc  
+
+# yedoma_depth ([m]) :  The depth for soil carbon in yedoma 	{OK_SOIL_CARBON_DISCRETIZATION}
+yedoma_depth =  20  
+
+# deepC_a_init ([gC/?]) :  Carbon concentration for active soil C pool in yedoma 	{OK_SOIL_CARBON_DISCRETIZATION}
+deepC_a_init =  1790.1   
+
+# deepC_s_init ([gC/?]) :  Carbon concentration for slow soil C pool in yedoma 	{OK_SOIL_CARBON_DISCRETIZATION}
+deepC_s_init =  14360.8 
+
+# deepC_p_init ([gC/>]) :  Carbon concentration for passive soil C pool in yedoma 	{OK_SOIL_CARBON_DISCRETIZATION}
+deepC_p_init =  1436 
+
+# newaltcalc ([flag]) :  calculate alt ? 	{OK_SOIL_CARBON_DISCRETIZATION}
+newaltcalc =  n 
+
+# new_carbinput_intdepzlit ([flag]) :  ??? 	{OK_SOIL_CARBON_DISCRETIZATION}
+new_carbinput_intdepzlit =  n 
+
+# correct_carboninput_vertprof ([flag]) :  ??? 	{OK_SOIL_CARBON_DISCRETIZATION}
+correct_carboninput_vertprof =  n 
+
+# use_new_cryoturbation ([flag]) :  use new scheme to calculate cryoturbation 	{OK_SOIL_CARBON_DISCRETIZATION}
+use_new_cryoturbation =  n 
+
+# cryoturbation_method ([]) :  Which method should be used to calculate cryoturbation 	{ OK_SOIL_CARBON_DISCRETIZATION }
+cryoturbation_method =  1 
+
+# max_cryoturb_alt ([???]) :  ??? 	{OK_SOIL_CARBON_DISCRETIZATION}
+max_cryoturb_alt =  1 
+
+# min_cryoturb_alt ([???]) :  ??? 	{OK_SOIL_CARBON_DISCRETIZATION}
+min_cryoturb_alt =  1 
+
+# reset_fixed_cryoturbation_depth ([flag]) :  reset fixed cryoturbation depth 	{OK_SOIL_CARBON_DISCRETIZATION}
+reset_fixed_cryoturbation_depth =  n 
+
+# use_fixed_cryoturbation_depth ([flag]) :  use fixed cryoturbation depth 	{OK_SOIL_CARBON_DISCRETIZATION}
+use_fixed_cryoturbation_depth =  n 
+
+# bioturbation_depth () :  maximum bioturbation depth  	{OK_SOIL_CARBON_DISCRETIZATION}
+bioturbation_depth =  2 
+
+# ==== LOCAL DEVELOPMENTS (AED / forest management) -- generated, do not edit by hand
+# Parametres des developpements locaux, absents du fichier amont.
+# Regenerer avec : python3 scripts/update_orchidee_default.py --apply
+
+# AC12_DIA_RATIO_LAST ([-]) :  Seuil propre au dernier passage, celui qui alimente la classe terminale 	{OK_AGE_CLASS_BOUND_PFT}
+AC12_DIA_RATIO_LAST =  -1. 
+
+# AC12_DIA_RATIO_START ([-]) :  Rapport max_dia/borne a partir duquel les classes 2 et 3 montent 	{OK_AGE_CLASS_BOUND_PFT}
+AC12_DIA_RATIO_START =  0.60 
+
+# AC12_H_RATIO_START ([-]) :  Rapport de hauteur h1/h_ref ou commence la montee de la classe 1 vers la 2 	{OK_MATURITY_TRANSFER}
+AC12_H_RATIO_START =  0.85 
+
+
+# AED_ALPHA_REG ([-]) :  Weight of the regeneration-gap term (age class 1) in A_open 	{OK_EDGE_FROM_AGE_CLASS}
+AED_ALPHA_REG =  1.0 
+
+# AED_BEETLE_EPIDEMIC_THRESHOLD ([-]) :  Mass-attack index (i_beetles_massattack, 0-1) above which beetle 	{-}
+AED_BEETLE_EPIDEMIC_THRESHOLD =  0.5 
+
+# AED_BG_FRAC ([-]) :  v2 background-edge fraction: young/open forest (A_open) keeps a 	{OK_EDGE_FROM_AGE_CLASS}
+AED_BG_FRAC =  1.0 
+
+# AED_MIX_TAU ([yr]) :  v2 leaky agent-flux memory (yr) for the per-agent edge mix 	{OK_EDGE_FROM_AGE_CLASS}
+AED_MIX_TAU =  11. 
+
+# AED_RECRUIT_TIME ([yr]) :  Years to canopy reclosure (class-0 conveyor length) 	{OK_EDGE_FROM_AGE_CLASS}
+AED_RECRUIT_TIME =  11 
+
+# AED_RECRUIT_TIME_MAX ([yr]) :  Max class-0 conveyor length (= max per-PFT recovery time) 	{OK_EDGE_FROM_AGE_CLASS}
+AED_RECRUIT_TIME_MAX =  30 
+
+# AGE_CLASS_AGE_FRAC ([-]) :  Stand age of each age class as a fraction of the target rotation age 	{OK_STOMATE .AND. NAGEC > 1}
+AGE_CLASS_AGE_FRAC =  0.10, 0.45, 0.70, 0.92 
+
+# AGE_CLASS_FRAC ([-]) :  Age class bounds as a fraction of largest_tree_dia 	{OK_AGE_CLASS_BOUND_PFT}
+AGE_CLASS_FRAC =  0.25, 0.50, 0.75 
+
+# AGE_CLASS_INIT_FRAC ([-]) :  Cold-start area fraction of each age class 	{OK_STOMATE}
+AGE_CLASS_INIT_FRAC =  0.25, 0.25, 0.25, 0.25 
+
+# AGE_STAND_ESTAB ([an]) :  Age attribue a un peuplement fraichement etabli (plancher de age_stand_bm) 	{OK_STOMATE}
+AGE_STAND_ESTAB =  5. 
+
+# A_ND_SCALE ([-]) :  Multiplicative scaling of the human-ignition parameter a_nd (human_ign = exp(-0.5*sqrt(popd))*a_nd*A_ND_SCALE*popd). Calibration knob. 	{OK_SPITFIRE}
+A_ND_SCALE =  1.0 
+
+# COP_R_DOWN ([-]) :  Rapport de hauteurs sous lequel un creneau en taillis retombe en classe 1 	{OK_COPPICE_2CLASS}
+COP_R_DOWN =  0.4 
+
+# COP_R_UP ([-]) :  Rapport de hauteurs a partir duquel la classe 1 alimente la terminale 	{OK_COPPICE_2CLASS}
+COP_R_UP =  1. 
+
+# CR_FIRE ([-]) :  VPD fire-danger precip-suppression coefficient: FDI = VPD*exp(-CR_FIRE*precip_month). Was hardcoded 2.0; exposed as a calibration knob. 	{OK_SPITFIRE}
+CR_FIRE =  2.0 
+
+# DIA_ROTATION_TOL ([-]) :  Lower tolerance (fraction) on the clearcut diameter 	{OK_STOMATE}
+DIA_ROTATION_TOL =  0.175 
+
+# EDGE_DISTANCE_LIGHT ([m]) :  The edge distance for the canopy light effect 	{OK_AED_LIGHT}
+EDGE_DISTANCE_LIGHT =  20.0 
+
+# EDGE_FEEDBACK_ALPHA_FIRE ([m/m²]) :  Edge length generated per m² burnt 	{OK_AED_FEEDBACK}
+EDGE_FEEDBACK_ALPHA_FIRE =  0.0237 
+
+# EDGE_FEEDBACK_ALPHA_HARVEST ([m/m²]) :  Edge length generated per m² harvested or LCC-cut 	{OK_AED_FEEDBACK}
+EDGE_FEEDBACK_ALPHA_HARVEST =  0.0219 
+
+# EDGE_FEEDBACK_ALPHA_PEST ([m/m²]) :  Edge length generated per m² pest-killed 	{OK_AED_FEEDBACK}
+EDGE_FEEDBACK_ALPHA_PEST =  0.0481 
+
+# EDGE_FEEDBACK_ALPHA_STORM ([m/m²]) :  Edge length generated per m² stormed 	{OK_AED_FEEDBACK}
+EDGE_FEEDBACK_ALPHA_STORM =  0.0241 
+
+# EDGE_FEEDBACK_REF_FRAC ([-]) :  Fraction of the EFDA edge reference kept as the feedback baseline 	{OK_AED_FEEDBACK}
+EDGE_FEEDBACK_REF_FRAC =  0.0 
+
+# EDGE_FEEDBACK_TAU_RECOVERY ([s]) :  Edge-length recovery time toward Edge_length.nc reference 	{OK_AED_FEEDBACK}
+EDGE_FEEDBACK_TAU_RECOVERY =  3.4715e8 
+
+# EDGE_GRAIN_DEFAULT ([m]) :  Fallback sub-grid fragmentation grain for the meso edge term (m) 	{OK_AED_FEEDBACK}
+EDGE_GRAIN_DEFAULT =  384. 
+
+# EDGE_LAIEFF_FACTOR ([-]) :  Relative change of LAIeff at the edge vs interior 	{OK_AED_LIGHT}
+EDGE_LAIEFF_FACTOR =  -0.36 
+
+# EDGE_LENGTH_FIELD_NAME (-) :  The field name representing the edge_length parameter 	{OK_AED_* (any fragmentation flag, incl. OK_AED_LIGHT)}
+EDGE_LENGTH_FIELD_NAME =  edge_length 
+
+# EDGE_MIN_PATCH_AREA ([m²]) :  Minimum forest/disturbance patch area used for the edge-length cap 	{OK_AED_FEEDBACK}
+EDGE_MIN_PATCH_AREA =  4000. 
+
+# EDGE_PGAP_FACTOR ([-]) :  Relative change of Pgap at the edge vs interior 	{OK_AED_LIGHT}
+EDGE_PGAP_FACTOR =  0.225 
+
+# MANAGEMENT_INTENSITY_FILE ([FILE]) :  NetCDF map of management-intensity class fractions (fields "f_class1".."f_class5") 	{OK_MANAGEMENT_INTENSITY}
+MANAGEMENT_INTENSITY_FILE =  NONE 
+
+# MIN_DENSITY_RDI_FLOOR ([-]) :  RDI sous lequel un peuplement est tenu pour effondre 	{OK_MIN_DENSITY_RDI}
+MIN_DENSITY_RDI_FLOOR =  0.02 
+
+# MI_AGE_MOD_STRENGTH ([-]) :  Strength of the clearcut-size modulation by the stand maturity index J 	{OK_MANAGEMENT_INTENSITY}
+MI_AGE_MOD_STRENGTH =  1.0 
+
+# MI_CLEARCUT_SIZE ([m2]) :  Clearcut patch size (m2) per management-intensity class 1..5 	{OK_MANAGEMENT_INTENSITY}
+MI_CLEARCUT_SIZE =  1.e9, 10000., 30000., 90000., 250000. 
+
+# MI_CLEARCUT_SIZE_MAX ([m2]) :  Upper bound of the clearcut patch size after age modulation 	{OK_MANAGEMENT_INTENSITY}
+MI_CLEARCUT_SIZE_MAX =  250000. 
+
+# MI_CLEARCUT_SIZE_MIN ([m2]) :  Lower bound of the clearcut patch size after age modulation 	{OK_MANAGEMENT_INTENSITY}
+MI_CLEARCUT_SIZE_MIN =  10000. 
+
+# MI_DIA_FACTOR ([-]) :  Multiplier on the clearcut diameter, per management-intensity class 	{OK_MANAGEMENT_INTENSITY}
+MI_DIA_FACTOR =  1. 
+
+# MI_EDGE_SHAPE_COEF ([-]) :  Geometric shape factor k in alpha_c = k/sqrt(MI_CLEARCUT_SIZE(c)) 	{OK_MANAGEMENT_INTENSITY}
+MI_EDGE_SHAPE_COEF =  3.800 
+
+# MI_HARVEST_RATE ([ha/ha/yr]) :  Clearcut rate per management-intensity class 1..5 (ha cut / ha forest / yr) 	{OK_MANAGEMENT_INTENSITY}
+MI_HARVEST_RATE =  0.00043, 0.00067, 0.00277, 0.00562, 0.00987 
+
+# MI_ROTATION_FACTOR (-) :  (no !Config Desc in the source) 	{-}
+MI_ROTATION_FACTOR =  20.0, 1.60, 1.00, 0.65, 0.35 
+
+# N_CLASS0 ([an]) :  Duree de la phase de regeneration apres coupe rase (an) 	{OK_AGE_CLASS_BOUND_PFT}
+N_CLASS0 =  0 
+
+# OK_RDI_BAND_CLASS1 ([-]) :  Age class 1 joins the thinned classes and gets the RDI band 	{OK_CLEARCUT_LAST_CLASS}
+OK_RDI_BAND_CLASS1 =  n 
+# OK_AED_EDGE_RDI_WEIGHT ([-]) :  Weight the AED age-class-1 edge source by the stand openness 	{OK_EDGE_FROM_AGE_CLASS}
+OK_AED_EDGE_RDI_WEIGHT =  n 
+
+
+# OK_AED_FEEDBACK ([FLAG]) :  Flag for perturbation -> edge_length feedback (Marie 2026) 	{OK_STOMATE}
+OK_AED_FEEDBACK =  n 
+
+# OK_AED_LIGHT ([FLAG]) :  Flag for opening fragmentation effects on canopy light regime (Pgap, LAIeff) 	{OK_STOMATE}
+OK_AED_LIGHT =  n 
+
+# OK_AGE_CLASS_BOUND_PFT ([-]) :  Derive age class bounds from each PFT largest_tree_dia 	{OK_STOMATE}
+OK_AGE_CLASS_BOUND_PFT =  n 
+
+# OK_CLASS0_REPLANT ([-]) :  La restitution du convoyeur de classe 0 replante la fraction rendue 	{N_CLASS0 > 0}
+OK_CLASS0_REPLANT =  n 
+
+# OK_CLEARCUT_LAST_CLASS ([-]) :  Restrict management clearcut to the last age class 	{OK_STOMATE}
+OK_CLEARCUT_LAST_CLASS =  n 
+
+# OK_COPPICE_2CLASS ([FLAG]) :  Deux classes de maturite pour le taillis, graduees en HAUTEUR 	{OK_AGE_CLASS_BOUND_PFT}
+OK_COPPICE_2CLASS =  n 
+
+# OK_DIA_STAGGER ([FLAG]) :  Cold start: establish each age class at its own diameter bin 	{OK_STOMATE}
+OK_DIA_STAGGER =  n 
+
+# OK_DISTURB_VIA_CLASS0 ([-]) :  Feu, tempete et scolyte transitent par le registre de classe 0 	{N_CLASS0 > 0}
+OK_DISTURB_VIA_CLASS0 =  n 
+
+# OK_EDGE_FROM_AGE_CLASS ([FLAG]) :  Derive the forest edge length from the young age-class open area 	{OK_AED_FEEDBACK}
+OK_EDGE_FROM_AGE_CLASS =  n 
+
+# OK_MANAGEMENT_INTENSITY ([FLAG]) :  Single management-intensity concept driving rotation, cut diameter and clearcut size 	{OK_STOMATE}
+OK_MANAGEMENT_INTENSITY =  n 
+
+# OK_MIN_DENSITY_RDI ([FLAG]) :  CONDITION 1 juge l'effondrement sur le RDI, pas sur un nombre de tiges 	{OK_MIN_DENSITY_RESET}
+OK_MIN_DENSITY_RDI =  n 
+
+# OK_MIN_DENSITY_RESET ([-]) :  Keep the minimum-density resets driven by dens_target 	{OK_STOMATE}
+OK_MIN_DENSITY_RESET =  y 
+
+# OK_PROGRESSIVE_HARVEST ([FLAG]) :  Clearcut a rotation-paced fraction of the mature slot instead of emptying it 	{OK_MANAGEMENT_INTENSITY}
+OK_PROGRESSIVE_HARVEST =  n
+
+# OK_HARVEST_FEED_COUPLING ([FLAG]) :  Per-species harvest quotas, demand modulated by the mature-class filling ratio 	{OK_PROGRESSIVE_HARVEST}
+OK_HARVEST_FEED_COUPLING =  n
+
+# HARV_COUPLING_GAIN ([-]) :  Exponent of the harvest demand modulation outside the MAT_BAND dead band (0 = per-group quotas only) 	{OK_HARVEST_FEED_COUPLING}
+HARV_COUPLING_GAIN =  1.0
+
+# OK_RDI_RAMP ([FLAG]) :  La consigne de RDI descend pendant la classe d'amelioration 	{OK_CLEARCUT_LAST_CLASS}
+OK_RDI_RAMP =  n 
+
+# OK_ROAD_FOREST_MASK ([FLAG]) :  The road map is already restricted to forest (variable road_length_forest) 	{ROAD_LENGTH_FILE}
+OK_ROAD_FOREST_MASK =  y 
+
+# OK_SLOW_DEATH_DENSITY ([-]) :  Keep the slow death of stands below dens_target 	{OK_STOMATE}
+OK_SLOW_DEATH_DENSITY =  y 
+
+# OK_WIND_PRODUCT ([FLAG]) :  Single-threshold storm trigger combining wind magnitude and anomaly 	{OK_WINDTHROW}
+OK_WIND_PRODUCT =  n 
+
+# PEST_BIOMASS_REF ([gC/m²]) :  Standing biomass density used to convert beetle kill (gC/m²) to area 	{OK_AED_FEEDBACK}
+PEST_BIOMASS_REF =  10000.0 
+
+# PRECIP_LONGTERM_INIT ([mm/an]) :  Pluie annuelle supposee au demarrage a froid, pour initialiser precip_longterm 	{OK_STOMATE}
+PRECIP_LONGTERM_INIT =  700. 
+
+# PRESCRIBE_RDI_FRAC ([-]) :  Establishment RDI as a fraction of rdi_max, per age class 	{OK_STOMATE}
+PRESCRIBE_RDI_FRAC =  -1. 
+
+# RDI_BAND_HIGH (-) :  (no !Config Desc in the source) 	{-}
+RDI_BAND_HIGH =  0.80 
+
+# RDI_BAND_LOW ([-]) :  Intensity of a thinnig event when a forest reach the upper 	{OK_CLEARCUT_LAST_CLASS}
+RDI_BAND_LOW =  0.70 
+
+# RDI_RAMP_OUT ([-]) :  RDI vise en SORTIE de la classe d'amelioration (rampe intra-classe) 	{OK_RDI_RAMP}
+RDI_RAMP_OUT =  0.04 
+
+# ROAD_GRIP_CORRECTION ([-]) :  GRIP under-reporting correction applied to the road length 	{ROAD_LENGTH_FILE}
+ROAD_GRIP_CORRECTION =  2. 
+
+# ROAD_LENGTH_FILE ([FILE]) :  Road-length map for the MACRO edge term; 'NONE' switches the term off 	{OK_AED_FEEDBACK}
+ROAD_LENGTH_FILE =  NONE 
+
+# STAND_AGE_ROTATION_MAX ([years]) :  Plafond de la rotation utilisee pour DERIVER l'age au demarrage a froid 	{OK_STOMATE .AND. NAGEC > 1}
+STAND_AGE_ROTATION_MAX =  200. 
+
+# WIND_RATIO_A ([-]) :  Asymptote of the Gompertz weight applied to storm damage 	{OK_STOMATE}
+WIND_RATIO_A =  1.0 
+
+# WIND_RATIO_B (-) :  (no !Config Desc in the source) 	{-}
+WIND_RATIO_B =  100.0 
+
+# WIND_RATIO_C (-) :  (no !Config Desc in the source) 	{-}
+WIND_RATIO_C =  0.0 
+
+# WIND_STORM_PRODUCT_THR ([m2/s2]) :  Threshold of the single-product storm trigger 	{OK_WIND_PRODUCT}
+WIND_STORM_PRODUCT_THR =  13000. 
+
+# ==== end of local developments

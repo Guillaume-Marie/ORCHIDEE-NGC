@@ -1,0 +1,18 @@
+# Compile options for Spirit and Spiritx at IPSL ESPRI Mesocenter 
+# Using gfortran compiler from the GNU Compiler Collection (GCC) 
+
+NETCDF_INCDIR="$(nf-config --cflags) $(nc-config --cflags)"
+NETCDF_LIBDIR="$(nf-config --flibs) $(nc-config --libs)"
+#NETCDF_LIB="-lnetcdf "
+
+IOIPSL_INCDIR="-I${ORCHDIR}/../../lib -I${ORCHDIR}/../IOIPSL/inc"
+IOIPSL_LIBDIR="-L${ORCHDIR}/../../lib -L${ORCHDIR}/../IOIPSL/lib"
+IOIPSL_LIB="-lioipsl"
+
+XIOS_INCDIR="-I${ORCHDIR}/../XIOS/inc"
+XIOS_LIBDIR="-L${ORCHDIR}/../XIOS/lib"
+XIOS_LIB="-lxios -lstdc++"
+
+OASIS_INCDIR="-I${ORCHDIR}/../oasis3-mct/BLD/build/lib/psmile.MPI1 -I${ORCHDIR}/../oasis3-mct/BLD/build/lib/scrip -I${ORCHDIR}/../oasis3-mct/BLD/build/lib/mct"
+OASIS_LIBDIR="-L${ORCHDIR}/../oasis3-mct/BLD/lib"
+OASIS_LIB="-lpsmile.MPI1 -lscrip -lmct -lmpeu"
