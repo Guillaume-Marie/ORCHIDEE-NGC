@@ -1,0 +1,782 @@
+<title>Atlas euage</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f3f5f1; --panel:#fcfdfb; --panel2:#eef1ec; --ink:#1d2420; --muted:#5f6b60;
+  --line:#dde3da; --accent:#2f6b4f; --accent-ink:#ffffff; --grid:#e4e8e1;
+  --bare:#e3e6df; --sea:#f3f5f1; --hl:#1d2420;
+  --c1:#4aa85e; --c2:#1e96a6; --c3:#3a6fc4; --c4:#6b3fa0;
+  --s1:#b3e0b8; --s2:#9ad3db; --s3:#a8c4ee; --s4:#c4a8e0; --c0:#7a5c12;
+  --fire:#c0392b; --storm:#1f77b4; --pest:#8c564b; --harv:#8a7a1e;
+  --tab-on:#2f6b4f;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#12171a; --panel:#1a2124; --panel2:#151b1e; --ink:#e4eae4; --muted:#94a198;
+    --line:#2b3430; --accent:#6fbc92; --accent-ink:#0e1512; --grid:#242c28;
+    --bare:#232a26; --sea:#12171a; --hl:#e4eae4;
+    --c1:#7fd492; --c2:#4fc2d3; --c3:#7aa6ee; --c4:#b48ae0;
+    --s1:#2e6b3c; --s2:#1f5b66; --s3:#2d4a7a; --s4:#59397a; --c0:#b08f3a;
+    --fire:#e0604f; --storm:#5aa2d6; --pest:#b07f6e; --harv:#b3a13f;
+    --tab-on:#6fbc92;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#12171a; --panel:#1a2124; --panel2:#151b1e; --ink:#e4eae4; --muted:#94a198;
+  --line:#2b3430; --accent:#6fbc92; --accent-ink:#0e1512; --grid:#242c28;
+  --bare:#232a26; --sea:#12171a; --hl:#e4eae4;
+  --c1:#7fd492; --c2:#4fc2d3; --c3:#7aa6ee; --c4:#b48ae0;
+  --s1:#2e6b3c; --s2:#1f5b66; --s3:#2d4a7a; --s4:#59397a; --c0:#b08f3a;
+  --fire:#e0604f; --storm:#5aa2d6; --pest:#b07f6e; --harv:#b3a13f;
+  --tab-on:#6fbc92;
+}
+*{box-sizing:border-box}
+body{background:var(--bg); color:var(--ink); font:14px/1.45 "IBM Plex Sans",system-ui,sans-serif; margin:0; padding:0 20px 40px;}
+header{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; padding:18px 2px 10px; border-bottom:1px solid var(--line); margin-bottom:12px;}
+header h1{font:700 22px/1.1 Archivo,system-ui,sans-serif; margin:0; letter-spacing:.2px;}
+header .sub{color:var(--muted); font-size:13px;}
+header .sub b{color:var(--ink); font-weight:600;}
+.controls{display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; margin-bottom:12px;}
+.vargroups{display:flex; gap:14px; flex-wrap:wrap; flex:1 1 480px;}
+.vgroup{display:flex; flex-direction:column; gap:5px;}
+.vgroup .glabel{font-size:10.5px; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); font-weight:600;}
+.chips{display:flex; gap:5px; flex-wrap:wrap;}
+.chip{border:1px solid var(--line); background:var(--panel); color:var(--ink); border-radius:14px; padding:3px 11px; font-size:12.5px; cursor:pointer; font-family:inherit;}
+.chip:hover{border-color:var(--accent);}
+.chip.on{background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600;}
+.chip:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
+.timebox{display:flex; flex-direction:column; gap:4px; min-width:230px;}
+.timebox .glabel{font-size:10.5px; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); font-weight:600;}
+.timerow{display:flex; align-items:center; gap:8px;}
+.timerow input[type=range]{flex:1; accent-color:var(--accent);}
+#yearlab{font:500 14px "IBM Plex Mono",monospace; min-width:44px; text-align:right;}
+#playbtn{border:1px solid var(--line); background:var(--panel); color:var(--ink); border-radius:6px; width:26px; height:24px; cursor:pointer; font-size:11px; line-height:1;}
+#playbtn:hover{border-color:var(--accent);}
+.legendbox{display:flex; flex-direction:column; gap:3px; min-width:190px;}
+.legendbox .glabel{font-size:10.5px; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); font-weight:600;}
+#cbar{width:190px; height:12px; border-radius:3px; border:1px solid var(--line);}
+.cbarlabs{display:flex; justify-content:space-between; font:400 11px "IBM Plex Mono",monospace; color:var(--muted);}
+main{display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;}
+#mapcard{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px; position:relative; flex:0 0 auto;}
+#map{display:block; cursor:crosshair;}
+#maptip{position:absolute; pointer-events:none; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:6px 9px; font-size:12px; box-shadow:0 2px 10px rgba(0,0,0,.14); display:none; z-index:5; max-width:230px;}
+#maptip .tv{font-family:"IBM Plex Mono",monospace; font-weight:500;}
+#maptip .tc{color:var(--muted); font-size:11px;}
+.mapnote{color:var(--muted); font-size:11.5px; margin-top:6px;}
+#fichezone{flex:1 1 560px; min-width:420px;}
+#tabs{display:flex; gap:4px; flex-wrap:wrap; margin-bottom:8px; min-height:26px;}
+.tab{display:flex; align-items:center; gap:6px; border:1px solid var(--line); background:var(--panel); border-radius:6px 6px 0 0; padding:3px 8px 3px 10px; font:500 12px "IBM Plex Mono",monospace; cursor:pointer; color:var(--muted);}
+.tab.on{color:var(--ink); border-bottom:2px solid var(--tab-on); font-weight:600;}
+.tab .x{cursor:pointer; color:var(--muted); font-size:13px; padding:0 2px; border:none; background:none; font-family:inherit;}
+.tab .x:hover{color:var(--fire);}
+#fiche{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px;}
+#fiche .placeholder{color:var(--muted); padding:60px 20px; text-align:center; font-size:13.5px;}
+.fhead{display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:baseline; border-bottom:1px solid var(--line); padding-bottom:8px; margin-bottom:10px;}
+.fhead h2{font:600 16px Archivo,system-ui,sans-serif; margin:0;}
+.fhead .coord{font:500 13px "IBM Plex Mono",monospace; color:var(--muted);}
+.fhead .fmeta{color:var(--muted); font-size:12.5px;}
+.fgrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(255px,1fr)); gap:14px;}
+.panel h3{font:600 12.5px "IBM Plex Sans",sans-serif; margin:0 0 2px; letter-spacing:.01em;}
+.panel .unit{color:var(--muted); font-weight:400;}
+.panel canvas{display:block; width:100%; height:150px;}
+.lgd{display:flex; gap:9px; flex-wrap:wrap; font-size:10.5px; color:var(--muted); margin:2px 0 3px;}
+.lgd span{display:inline-flex; align-items:center; gap:4px;}
+.lgd i{width:10px; height:3px; border-radius:2px; display:inline-block;}
+.donuts{display:flex; gap:20px; flex-wrap:wrap; margin-top:4px;}
+.donut{display:flex; gap:10px; align-items:center;}
+.donut canvas{width:92px; height:92px;}
+.dlgd{font-size:11px; color:var(--muted); display:flex; flex-direction:column; gap:2px;}
+.dlgd b{color:var(--ink); font-weight:500; font-family:"IBM Plex Mono",monospace;}
+.chartip{position:fixed; pointer-events:none; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:5px 8px; font-size:11.5px; box-shadow:0 2px 10px rgba(0,0,0,.14); display:none; z-index:9;}
+.chartip .row{display:flex; align-items:center; gap:5px; white-space:nowrap;}
+.chartip i{width:8px; height:8px; border-radius:2px; display:inline-block;}
+.chartip .v{font-family:"IBM Plex Mono",monospace; margin-left:auto; padding-left:8px;}
+footer{margin-top:22px; border-top:1px solid var(--line); padding-top:10px; color:var(--muted); font-size:12px; max-width:900px;}
+footer p{margin:4px 0;}
+@media (max-width:1150px){ main{flex-direction:column;} #fichezone{min-width:0; width:100%;} }
+</style>
+
+<header>
+  <h1>Atlas euage</h1>
+  <div class="sub">Simulation <b>euage2</b> · pan-EU 1° · années <b>__Y0__–__Y1__</b> (cold start 2176,
+  classes initialisées 25/25/25/25, binaire corrigé c97f4081, simulation en cours) ·
+  cliquer une maille ouvre sa planche&nbsp;pixel — construite au premier appel, conservée ensuite.</div>
+</header>
+
+<div class="controls">
+  <div class="vargroups" id="vargroups"></div>
+  <div class="timebox">
+    <div class="glabel">Année</div>
+    <div class="timerow">
+      <button id="playbtn" title="Animer les années">▶</button>
+      <input type="range" id="yearslider" min="0" max="0" value="0">
+      <span id="yearlab"></span>
+    </div>
+  </div>
+  <div class="legendbox">
+    <div class="glabel" id="cbartitle">Échelle</div>
+    <canvas id="cbar" width="190" height="12"></canvas>
+    <div class="cbarlabs"><span id="cbmin"></span><span id="cbmax"></span></div>
+  </div>
+</div>
+
+<main>
+  <div id="mapcard">
+    <canvas id="map"></canvas>
+    <div id="maptip"></div>
+    <div class="mapnote">Mailles grises : terre sans forêt simulée. Projection azimutale équivalente de
+    Lambert (52°N, 10°E — style EPSG:3035) ; frontières Natural Earth 50m.</div>
+  </div>
+  <div id="fichezone">
+    <div id="tabs"></div>
+    <div id="fiche"><div class="placeholder">Cliquer une maille de la carte pour ouvrir sa planche pixel.<br>
+    Chaque planche ouverte reste disponible dans un onglet ci-dessus.</div></div>
+  </div>
+</main>
+
+<div class="chartip" id="chartip"></div>
+
+<footer>
+  <p><b>Lecture.</b> Les séries d'état par classe d'âge (diamètre, hauteur, âge, RDI, densité) sont des moyennes
+  pondérées par l'aire des PFT arbres de la classe, toutes essences confondues ; la courbe est coupée quand
+  l'aire de la classe passe sous 0,1&nbsp;% de la maille (créneau vide, pas une valeur nulle).</p>
+  <p><b>Filtre par essence.</b> Cliquer une essence (pastilles ou camembert de la planche) bascule les panneaux
+  structure sur les PFT de cette essence seule (aire, diamètre, hauteur, âge, RDI). Seules les essences portant
+  au moins 3&nbsp;% du couvert forestier du pixel sont proposées ; la densité de tiges et la bande classe 0
+  restent au niveau pixel. Séries par essence quantifiées plus grossièrement (int8) que l'agrégat.</p>
+  <p><b>Perturbations.</b> Taux annuels = aire perturbée cumulée (DA_*) rapportée à la surface terrestre de la
+  maille. La simulation euage tourne perturbations naturelles <i>désactivées</i> hors récolte&nbsp;: feu, tempête et
+  scolyte y sont attendus nuls — les panneaux restent en place pour les simulations qui les arment.</p>
+  <p><b>Deux âges.</b> L'<i>âge porté</i> (AGE_STAND_BM) est moyenné à chaque fusion de cohortes&nbsp;: il mesure
+  le <i>mélange</i> et suit la composante qui varie le plus en poids×amplitude, pas la plus étendue. L'<i>âge de
+  flux</i> Σ1/f̄ (taux réalisés AC12_F_REAL, moyenne glissante 15 ans zéros inclus, T plafonné à 200 ans,
+  classe mûre = entrée + 12 ans) est l'estimateur anti-mélange&nbsp;: l'âge y est une propriété du débit.</p>
+  <p><b>Deux assiettes de pondération.</b> <i>Âge porté</i> = AGE_STAND_BM (pondéré biomasse, correctifs de
+  dilution du 04/09) ; <i>âge pondéré aire</i> = AGE_STAND_AREA (miroir strict pondéré par l'aire, parcelle nue
+  = N_CLASS0&nbsp;−&nbsp;1 ans à la coupe). L'écart entre les deux panneaux mesure l'effet de l'assiette seule&nbsp;:
+  mêmes événements, même état initial, seule la règle de mélange diffère.</p>
+  <p><b>Fenêtre.</b> euage2 démarre à froid en 2176 (classes 25/25/25/25, diamètres étagés) et court vers 2325&nbsp;;
+  la page est régénérée au fil des années archivées. Données : stomate_history mensuel agrégé à l'année, int16.</p>
+</footer>
+
+<script>
+__PAKO__
+</script>
+<script>
+"use strict";
+const META = __META__;
+const CUBE_B64 = "__CUBE__";
+const ESS_B64 = "__ESS__";
+
+// ---------- décodage ----------
+function b64bytes(s){ const bin = atob(s); const u = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) u[i] = bin.charCodeAt(i); return u; }
+const RAW = pako.inflate(b64bytes(CUBE_B64));
+const Q = new Int16Array(RAW.buffer, RAW.byteOffset, RAW.byteLength>>1);
+const NYR = META.nyr, NPIX = META.npix, YEARS = META.years;
+const S = {}; META.series.forEach((s,i)=>S[s.name]=i);
+const OFF = META.series.map(s=>s.off), SC = META.series.map(s=>s.scale);
+function val(s,p,y){ const q = Q[(s*NPIX+p)*NYR+y]; return q === -32768 ? NaN : q*SC[s]+OFF[s]; }
+function serie(s,p){ const a = new Float64Array(NYR); for (let y=0;y<NYR;y++) a[y]=val(s,p,y); return a; }
+
+// blob PAR ESSENCE : int8, layout [pixel][essence][var][classe 0..3][année]
+// var : 0 aire, 1 diamètre (m), 2 hauteur (m), 3 âge (ans), 4 RDI, 5 taux réalisé AC12_F_REAL
+const ERAW = pako.inflate(b64bytes(ESS_B64));
+const EQ = new Int8Array(ERAW.buffer, ERAW.byteOffset, ERAW.byteLength);
+const PIX_ESS = META.pix_ess, ESTEPS = META.ess_steps, NEV = META.ess_steps.length;
+const essOff = new Array(NPIX);
+{ let o=0; for (let p=0;p<NPIX;p++){ essOff[p]=o; o+=PIX_ESS[p].length*NEV*4*NYR; } }
+function essVal(p,el,v,k,y){ const q=EQ[essOff[p]+((el*NEV+v)*4+k)*NYR+y];
+  return q===-128?NaN:(q+124)*ESTEPS[v]; }
+function essSerie(p,el,v,k){ const a=new Float64Array(NYR);
+  for (let y=0;y<NYR;y++) a[y]=essVal(p,el,v,k,y); return a; }
+
+const fmtFR = (d)=> new Intl.NumberFormat('fr-FR',{maximumFractionDigits:d,minimumFractionDigits:0});
+const F0=fmtFR(0), F1=fmtFR(1), F2=fmtFR(2);
+function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+// ---------- catalogue des variables carte ----------
+// chaque entrée : label, famille, unité, fn(p,y) -> valeur affichée, rampe (tokens)
+const AMIN = 1e-3;
+function wmean(pre,p,y){ let num=0, den=0;
+  for (let k=1;k<=4;k++){ const a=val(S["area_c"+k],p,y); const v=val(S[pre+k],p,y);
+    if (isFinite(a) && a>AMIN && isFinite(v)){ num+=v*a; den+=a; } }
+  return den>0 ? num/den : NaN; }
+const RAMPS = {
+  green:["#eaf4e4","#c2e3b6","#8fcb8a","#57a86a","#2c7f4d","#0f5433","#06331e"],
+  fire:["#fdf0e6","#f8cba4","#f09d66","#df6a3a","#bb3d1d","#8a220c","#5c1404"],
+  storm:["#eaf1fa","#c3d8f2","#93bbe8","#5f9ad8","#3572b8","#1c4f8f","#0d366b"],
+  pest:["#f6efe9","#e3cdbb","#cba98d","#b08363","#8c5e41","#663f28","#442817"],
+  harv:["#f4f2e3","#e0dab0","#c5bd7c","#a49a4e","#7f772e","#5a5419","#38340c"],
+  edge:["#eef2f5","#c9d8e2","#9cbac9","#6d97ad","#45758e","#26566e","#123a4e"],
+};
+const MAPVARS = [
+ {k:"age",   g:"Structure d'âge", lab:"Âge porté",        unit:"ans",  ramp:"green", f:(p,y)=>val(S.age_porte,p,y), fmt:F0},
+ {k:"aflux", g:"Structure d'âge", lab:"Âge de flux Σ1/f", unit:"ans",  ramp:"green", f:(p,y)=>val(S.age_flux,p,y), fmt:F0},
+ {k:"aarea", g:"Structure d'âge", lab:"Âge porté (aire)", unit:"ans",  ramp:"green", f:(p,y)=>val(S.age_area,p,y), fmt:F0},
+ {k:"mat",   g:"Structure d'âge", lab:"Part classe mûre", unit:"% forêt", ramp:"green", fmt:F0,
+   f:(p,y)=>{ const fa=val(S.forest_area,p,y); const a4=val(S.area_c4,p,y);
+              return (isFinite(fa)&&fa>AMIN) ? 100*(isFinite(a4)?a4:0)/fa : NaN; }},
+ {k:"cl0",   g:"Structure d'âge", lab:"Classe 0",         unit:"% maille", ramp:"green", fmt:F1, f:(p,y)=>100*val(S.class0,p,y)},
+ {k:"dia",   g:"Structure d'âge", lab:"Diamètre moyen",   unit:"cm",   ramp:"green", fmt:F0, f:(p,y)=>100*wmean("dia_c",p,y)},
+ {k:"hgt",   g:"Structure d'âge", lab:"Hauteur moyenne",  unit:"m",    ramp:"green", fmt:F1, f:(p,y)=>wmean("hgt_c",p,y)},
+ {k:"for",   g:"Structure d'âge", lab:"Aire forestière",  unit:"% maille", ramp:"green", fmt:F0, f:(p,y)=>100*val(S.forest_area,p,y)},
+ {k:"fire",  g:"Perturbations & récolte", lab:"Feu",      unit:"%/an", ramp:"fire",  fmt:F2, f:(p,y)=>100*val(S.da_fire,p,y)},
+ {k:"storm", g:"Perturbations & récolte", lab:"Tempête",  unit:"%/an", ramp:"storm", fmt:F2, f:(p,y)=>100*val(S.da_storm,p,y)},
+ {k:"pest",  g:"Perturbations & récolte", lab:"Scolyte",  unit:"%/an", ramp:"pest",  fmt:F2, f:(p,y)=>100*val(S.da_pest,p,y)},
+ {k:"harv",  g:"Perturbations & récolte", lab:"Récolte",  unit:"%/an", ramp:"harv",  fmt:F2, f:(p,y)=>100*val(S.da_harv,p,y)},
+ {k:"edge",  g:"Lisière", lab:"Longueur de lisière",      unit:"km",   ramp:"edge",  fmt:F0, f:(p,y)=>val(S.edge,p,y)/1000},
+];
+
+// domaines robustes (p2–p98 sur tous pixels × un an sur 4)
+for (const mv of MAPVARS){
+  const vals=[];
+  for (let y=0;y<NYR;y+=4) for (let p=0;p<NPIX;p++){ const v=mv.f(p,y); if (isFinite(v)) vals.push(v); }
+  vals.sort((a,b)=>a-b);
+  const n=vals.length;
+  mv.lo = n? vals[Math.floor(0.02*n)] : 0;
+  mv.hi = n? vals[Math.min(n-1,Math.floor(0.98*n))] : 1;
+  if (mv.hi<=mv.lo) mv.hi=mv.lo+1;
+  if (["fire","storm","pest","harv","cl0"].includes(mv.k)) mv.lo=0;
+}
+function rampColor(name,t){
+  const stops = RAMPS[name]; t=Math.max(0,Math.min(1,t));
+  const x=t*(stops.length-1), i=Math.min(stops.length-2,Math.floor(x)), r=x-i;
+  const c1=stops[i], c2=stops[i+1];
+  const h=(c)=>[parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)];
+  const a=h(c1), b=h(c2);
+  return `rgb(${Math.round(a[0]+(b[0]-a[0])*r)},${Math.round(a[1]+(b[1]-a[1])*r)},${Math.round(a[2]+(b[2]-a[2])*r)})`;
+}
+
+// ---------- état ----------
+let curVar = MAPVARS[0];
+let curYear = NYR-1;
+let selPix = -1;
+const ficheCache = new Map();   // p -> {node, tab}
+let playTimer = null;
+
+// ---------- contrôles ----------
+const groupsDiv = document.getElementById("vargroups");
+const groups = [...new Set(MAPVARS.map(v=>v.g))];
+for (const g of groups){
+  const gd=document.createElement("div"); gd.className="vgroup";
+  gd.innerHTML=`<div class="glabel">${g}</div>`;
+  const ch=document.createElement("div"); ch.className="chips";
+  for (const mv of MAPVARS.filter(v=>v.g===g)){
+    const b=document.createElement("button"); b.className="chip"; b.textContent=mv.lab; b.dataset.k=mv.k;
+    b.onclick=()=>{ curVar=mv; document.querySelectorAll(".chip").forEach(c=>c.classList.toggle("on",c.dataset.k===mv.k));
+                    drawMap(); drawCbar(); };
+    ch.appendChild(b);
+  }
+  gd.appendChild(ch); groupsDiv.appendChild(gd);
+}
+document.querySelector(".chip").classList.add("on");
+
+const slider=document.getElementById("yearslider");
+slider.max=NYR-1; slider.value=curYear;
+const yearlab=document.getElementById("yearlab");
+yearlab.textContent=YEARS[curYear];
+slider.oninput=()=>{ curYear=+slider.value; yearlab.textContent=YEARS[curYear]; drawMap(); };
+const playbtn=document.getElementById("playbtn");
+playbtn.onclick=()=>{
+  if (playTimer){ clearInterval(playTimer); playTimer=null; playbtn.textContent="▶"; return; }
+  playbtn.textContent="⏸";
+  if (curYear>=NYR-1) curYear=0;
+  playTimer=setInterval(()=>{ curYear++; if (curYear>=NYR-1){ clearInterval(playTimer); playTimer=null; playbtn.textContent="▶"; }
+    slider.value=curYear; yearlab.textContent=YEARS[curYear]; drawMap(); },130);
+};
+
+// ---------- carte (azimutale équivalente de Lambert, style EPSG:3035, 52°N 10°E) ----------
+const GLAT=META.grid.lat, GLON=META.grid.lon;
+const BORDERS = __BORDERS__;
+const RAD=Math.PI/180, LAM0=10*RAD, PHI1=52*RAD;
+function laea(lon,lat){
+  const lam=lon*RAD, phi=lat*RAD;
+  const den=1+Math.sin(PHI1)*Math.sin(phi)+Math.cos(PHI1)*Math.cos(phi)*Math.cos(lam-LAM0);
+  const k=Math.sqrt(2/Math.max(den,1e-9));
+  return [k*Math.cos(phi)*Math.sin(lam-LAM0),
+          -k*(Math.cos(PHI1)*Math.sin(phi)-Math.sin(PHI1)*Math.cos(phi)*Math.cos(lam-LAM0))];
+}
+let pxmin=1e9,pxmax=-1e9,pymin=1e9,pymax=-1e9;
+for (const la of GLAT) for (const lo of GLON)
+  for (const d of [[-0.5,-0.5],[0.5,-0.5],[0.5,0.5],[-0.5,0.5]]){
+    const [x,y]=laea(lo+d[0],la+d[1]);
+    pxmin=Math.min(pxmin,x); pxmax=Math.max(pxmax,x);
+    pymin=Math.min(pymin,y); pymax=Math.max(pymax,y);
+  }
+const MW=680, MSC=(MW-16)/(pxmax-pxmin), MH=Math.ceil((pymax-pymin)*MSC)+16;
+function P(lon,lat){ const [x,y]=laea(lon,lat); return [(x-pxmin)*MSC+8,(y-pymin)*MSC+8]; }
+const mapC=document.getElementById("map");
+const DPR=window.devicePixelRatio||1;
+mapC.width=MW*DPR; mapC.height=MH*DPR; mapC.style.width=MW+"px"; mapC.style.height=MH+"px";
+const mctx=mapC.getContext("2d"); mctx.scale(DPR,DPR);
+function cellQuad(iy,ix){
+  const la=GLAT[iy], lo=GLON[ix];
+  return [P(lo-0.5,la-0.5),P(lo+0.5,la-0.5),P(lo+0.5,la+0.5),P(lo-0.5,la+0.5)];
+}
+const pixQuad = new Array(NPIX);
+for (let p=0;p<NPIX;p++) pixQuad[p]=cellQuad(META.iy[p],META.ix[p]);
+const bareQuad = META.bare_iy.map((j,i)=>cellQuad(j,META.bare_ix[i]));
+function quadPath(g,q){
+  g.beginPath(); g.moveTo(q[0][0],q[0][1]);
+  for (let i=1;i<4;i++) g.lineTo(q[i][0],q[i][1]);
+  g.closePath();
+}
+function fillQuad(q,color){
+  quadPath(mctx,q);
+  mctx.fillStyle=color; mctx.fill();
+  // trait fin de la même couleur : comble les jointures entre quads voisins
+  mctx.strokeStyle=color; mctx.lineWidth=0.8; mctx.stroke();
+}
+function drawMap(){
+  mctx.clearRect(0,0,MW,MH);
+  const bare=css("--bare");
+  for (const q of bareQuad) fillQuad(q,bare);
+  const {lo,hi}=curVar;
+  for (let p=0;p<NPIX;p++){
+    const v=curVar.f(p,curYear);
+    fillQuad(pixQuad[p], isFinite(v)?rampColor(curVar.ramp,(v-lo)/(hi-lo)):bare);
+  }
+  // frontières & côtes (Natural Earth 50m, embarquées)
+  mctx.strokeStyle=css("--muted"); mctx.globalAlpha=0.55; mctx.lineWidth=0.8;
+  mctx.lineJoin="round";
+  for (const seg of BORDERS){
+    mctx.beginPath();
+    let [x0,y0]=P(seg[0][0],seg[0][1]); mctx.moveTo(x0,y0);
+    for (let i=1;i<seg.length;i++){ const [x,y]=P(seg[i][0],seg[i][1]); mctx.lineTo(x,y); }
+    mctx.stroke();
+  }
+  mctx.globalAlpha=1;
+  if (selPix>=0){
+    quadPath(mctx,pixQuad[selPix]);
+    mctx.lineWidth=2; mctx.strokeStyle=css("--hl"); mctx.stroke();
+  }
+}
+function drawCbar(){
+  const c=document.getElementById("cbar"), g=c.getContext("2d");
+  for (let x=0;x<190;x++){ g.fillStyle=rampColor(curVar.ramp,x/189); g.fillRect(x,0,1,12); }
+  document.getElementById("cbartitle").textContent=`${curVar.lab} (${curVar.unit})`;
+  document.getElementById("cbmin").textContent=curVar.fmt.format(curVar.lo);
+  document.getElementById("cbmax").textContent="≥ "+curVar.fmt.format(curVar.hi);
+}
+
+function inQuad(q,x,y){
+  // lancer de rayon sur les 4 côtés
+  let inside=false;
+  for (let i=0,j=3;i<4;j=i++){
+    const xi=q[i][0], yi=q[i][1], xj=q[j][0], yj=q[j][1];
+    if ((yi>y)!==(yj>y) && x < (xj-xi)*(y-yi)/(yj-yi)+xi) inside=!inside;
+  }
+  return inside;
+}
+function pixAt(mx,my){
+  for (let p=0;p<NPIX;p++){ const q=pixQuad[p];
+    if (mx<Math.min(q[0][0],q[3][0])-1 || mx>Math.max(q[1][0],q[2][0])+1) continue;
+    if (inQuad(q,mx,my)) return p; }
+  return -1;
+}
+const maptip=document.getElementById("maptip");
+mapC.addEventListener("mousemove",(e)=>{
+  const b=mapC.getBoundingClientRect(), mx=e.clientX-b.left, my=e.clientY-b.top;
+  const p=pixAt(mx,my);
+  if (p<0){ maptip.style.display="none"; return; }
+  const v=curVar.f(p,curYear);
+  maptip.innerHTML=`<div class="tv">${isFinite(v)?curVar.fmt.format(v)+"&nbsp;"+curVar.unit:"—"}</div>
+    <div class="tc">${fmtCoord(p)} · ${YEARS[curYear]}</div>`;
+  maptip.style.display="block";
+  maptip.style.left=Math.min(mx+14,MW-160)+"px"; maptip.style.top=(my+12)+"px";
+});
+mapC.addEventListener("mouseleave",()=>maptip.style.display="none");
+mapC.addEventListener("click",(e)=>{
+  const b=mapC.getBoundingClientRect();
+  const p=pixAt(e.clientX-b.left,e.clientY-b.top);
+  if (p>=0) openFiche(p);
+});
+function fmtCoord(p){
+  const la=META.lat[p], lo=META.lon[p];
+  return `${Math.abs(la).toFixed(1)}°${la>=0?"N":"S"} ${Math.abs(lo).toFixed(1)}°${lo>=0?"E":"O"}`;
+}
+
+// ---------- moteur de graphiques ----------
+const chartip=document.getElementById("chartip");
+let collector=[];   // renderers de la planche en cours de construction
+function allCharts(){ const out=[]; for (const e of ficheCache.values()) out.push(...e.charts); return out; }
+function mkCanvas(host,h){
+  const c=document.createElement("canvas");
+  host.appendChild(c);
+  const draw=(fn)=>{ const w=c.clientWidth||300, hh=h;
+    c.width=w*DPR; c.height=hh*DPR; c.style.height=hh+"px";
+    const g=c.getContext("2d"); g.setTransform(DPR,0,0,DPR,0,0); fn(g,w,hh); };
+  return {c,draw};
+}
+function niceTicks(lo,hi,n){
+  if (!(hi>lo)){ hi=lo+1; }
+  const span=hi-lo, step0=span/n, mag=Math.pow(10,Math.floor(Math.log10(step0)));
+  const step=[1,2,2.5,5,10].map(m=>m*mag).find(s=>span/s<=n)||mag*10;
+  const t0=Math.ceil(lo/step)*step, out=[];
+  for (let t=t0;t<=hi+1e-9;t+=step) out.push(t);
+  return out;
+}
+// chart générique : opts={series:[{name,color(varname),vals}],unit,fmt,stack:bool,ymin}
+function chart(host,opts){
+  const box=mkCanvas(host,150);
+  const PADL=44,PADR=8,PADT=6,PADB=18;
+  let geom=null;
+  function render(){
+    box.draw((g,w,h)=>{
+      const X0=PADL, X1=w-PADR, Y0=PADT, Y1=h-PADB;
+      const ink=css("--ink"), muted=css("--muted"), grid=css("--grid"), panel=css("--panel");
+      let lo=opts.ymin!==undefined?opts.ymin:Infinity, hi=-Infinity;
+      if (opts.stack){
+        for (let y=0;y<NYR;y++){ let s=0;
+          for (const sr of opts.series){ const v=sr.vals[y]; if (isFinite(v)) s+=v; }
+          hi=Math.max(hi,s); }
+        lo=0;
+      } else {
+        for (const sr of opts.series) for (const v of sr.vals){ if (isFinite(v)){ lo=Math.min(lo,v); hi=Math.max(hi,v);} }
+        if (!isFinite(lo)){ lo=0; hi=1; }
+        if (opts.ymin!==undefined) lo=opts.ymin;
+      }
+      if (hi<=lo) hi=lo+1;
+      const pad=(hi-lo)*0.06; if (opts.ymin===undefined) lo-=pad; hi+=pad;
+      const xs=(y)=>X0+(X1-X0)*y/(NYR-1);
+      const ys=(v)=>Y1-(Y1-Y0)*(v-lo)/(hi-lo);
+      // grille + ticks
+      g.font="10px 'IBM Plex Mono',monospace"; g.fillStyle=muted; g.strokeStyle=grid; g.lineWidth=1;
+      for (const t of niceTicks(lo,hi,4)){
+        const y=ys(t); g.beginPath(); g.moveTo(X0,y); g.lineTo(X1,y); g.stroke();
+        g.textAlign="right"; g.textBaseline="middle"; g.fillText(opts.fmt.format(t),X0-5,y);
+      }
+      g.textAlign="center"; g.textBaseline="top";
+      for (const ty of [YEARS[0], YEARS[Math.floor(NYR/2)], YEARS[NYR-1]]){
+        const y=YEARS.indexOf(ty); g.fillText(ty,xs(y),Y1+4);
+      }
+      g.strokeStyle=css("--line"); g.beginPath(); g.moveTo(X0,Y1); g.lineTo(X1,Y1); g.stroke();
+      if (opts.stack){
+        const base=new Float64Array(NYR);
+        for (const sr of opts.series){
+          g.beginPath();
+          const tops=new Float64Array(NYR);
+          for (let y=0;y<NYR;y++){ const v=isFinite(sr.vals[y])?sr.vals[y]:0; tops[y]=base[y]+v; }
+          g.moveTo(xs(0),ys(base[0]));
+          for (let y=1;y<NYR;y++) g.lineTo(xs(y),ys(base[y]));
+          for (let y=NYR-1;y>=0;y--) g.lineTo(xs(y),ys(tops[y]));
+          g.closePath();
+          g.fillStyle=css(sr.color); g.fill();
+          g.strokeStyle=panel; g.lineWidth=1; g.stroke();
+          base.set(tops);
+        }
+      } else {
+        for (const sr of opts.series){
+          g.strokeStyle=css(sr.color); g.lineWidth=sr.w||2; g.lineJoin="round";
+          g.beginPath(); let pen=false;
+          for (let y=0;y<NYR;y++){ const v=sr.vals[y];
+            if (!isFinite(v)){ pen=false; continue; }
+            if (!pen){ g.moveTo(xs(y),ys(v)); pen=true; } else g.lineTo(xs(y),ys(v)); }
+          g.stroke();
+        }
+      }
+      geom={X0,X1,Y0,Y1,xs};
+    });
+  }
+  render();
+  collector.push(render);
+  // survol : réticule + infobulle
+  box.c.addEventListener("mousemove",(e)=>{
+    if (!geom) return;
+    const b=box.c.getBoundingClientRect(), mx=e.clientX-b.left;
+    if (mx<geom.X0||mx>geom.X1){ chartip.style.display="none"; render(); return; }
+    const y=Math.round((mx-geom.X0)/(geom.X1-geom.X0)*(NYR-1));
+    render();
+    const g=box.c.getContext("2d");
+    g.setTransform(DPR,0,0,DPR,0,0);
+    g.strokeStyle=css("--muted"); g.lineWidth=1; g.setLineDash([3,3]);
+    g.beginPath(); g.moveTo(geom.xs(y),geom.Y0); g.lineTo(geom.xs(y),geom.Y1); g.stroke(); g.setLineDash([]);
+    let html=`<div class="row" style="color:var(--muted)">${YEARS[y]}</div>`;
+    for (const sr of opts.series){
+      const v=sr.vals[y];
+      html+=`<div class="row"><i style="background:${css(sr.color)}"></i>${sr.name}
+             <span class="v">${isFinite(v)?opts.fmt.format(v):"—"}</span></div>`;
+    }
+    chartip.innerHTML=html;
+    chartip.style.display="block";
+    chartip.style.left=Math.min(e.clientX+14,window.innerWidth-170)+"px";
+    chartip.style.top=(e.clientY+12)+"px";
+  });
+  box.c.addEventListener("mouseleave",()=>{ chartip.style.display="none"; render(); });
+}
+function donut(host,parts,title,onPick,selGid){
+  // parts=[{name,frac,color,gid?}] — color = hex direct ; gid présent = tranche sélectionnable
+  const wrap=document.createElement("div"); wrap.className="donut";
+  const c=document.createElement("canvas"); c.width=92*DPR; c.height=92*DPR;
+  wrap.appendChild(c);
+  const lg=document.createElement("div"); lg.className="dlgd";
+  lg.innerHTML=`<span style="font-weight:600;color:var(--ink)">${title}</span>`;
+  function render(){
+    const g=c.getContext("2d"); g.setTransform(DPR,0,0,DPR,0,0);
+    g.clearRect(0,0,92,92);
+    let a0=-Math.PI/2;
+    for (const pt of parts){
+      const a1=a0+pt.frac*2*Math.PI;
+      const on = selGid!==undefined && selGid>=0 && pt.gid===selGid;
+      g.beginPath(); g.moveTo(46,46); g.arc(46,46,on?44:42,a0,a1); g.closePath();
+      g.fillStyle=pt.color; g.fill();
+      g.strokeStyle=on?css("--ink"):css("--panel"); g.lineWidth=on?2:1.5; g.stroke();
+      a0=a1;
+    }
+    g.beginPath(); g.arc(46,46,20,0,2*Math.PI); g.fillStyle=css("--panel"); g.fill();
+  }
+  render(); collector.push(render);
+  if (onPick){
+    c.style.cursor="pointer";
+    c.title="Cliquer une tranche pour filtrer la planche sur cette essence";
+    c.addEventListener("click",(e)=>{
+      const b=c.getBoundingClientRect();
+      const x=e.clientX-b.left-46, y=e.clientY-b.top-46, r=Math.hypot(x,y);
+      if (r<20||r>46) return;
+      let ang=Math.atan2(y,x)+Math.PI/2; if (ang<0) ang+=2*Math.PI;
+      let a0=0;
+      for (const pt of parts){
+        const a1=a0+pt.frac*2*Math.PI;
+        if (ang>=a0&&ang<a1){ if (pt.gid!==undefined) onPick(pt.gid); return; }
+        a0=a1;
+      }
+    });
+  }
+  for (const pt of parts){
+    const d=document.createElement("span");
+    const sel = selGid!==undefined && selGid>=0 && pt.gid===selGid;
+    d.innerHTML=`<i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${pt.color};margin-right:4px"></i>${sel?"<u>":""}${pt.name}${sel?"</u>":""} <b>${F0.format(100*pt.frac)}%</b>`;
+    if (onPick && pt.gid!==undefined){ d.style.cursor="pointer"; d.onclick=()=>onPick(pt.gid); }
+    lg.appendChild(d);
+  }
+  wrap.appendChild(lg); host.appendChild(wrap);
+}
+
+// ---------- planche pixel ----------
+const CLS_COLORS=["--c1","--c2","--c3","--c4"];
+const CLS_STACK=["--s1","--s2","--s3","--s4"];
+const ESS_HEX=["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#4a3aa7","#e34948"];
+const MI_HEX=["#dcefe4","#9ed3b4","#e0bd72","#d4793f","#9c3a24"];
+const MI_NAMES=["1 · non géré","2 · extensif","3 · modéré","4 · intensif","5 · très intensif"];
+const tabsDiv=document.getElementById("tabs");
+const ficheDiv=document.getElementById("fiche");
+
+function openFiche(p){
+  selPix=p; drawMap();
+  if (ficheCache.has(p)){ activate(p); return; }
+  const tab=document.createElement("div"); tab.className="tab";
+  tab.innerHTML=`<span>${fmtCoord(p)}</span>`;
+  const x=document.createElement("button"); x.className="x"; x.textContent="×"; x.title="Fermer";
+  x.onclick=(e)=>{ e.stopPropagation(); closeFiche(p); };
+  tab.appendChild(x);
+  tab.onclick=()=>{ selPix=p; drawMap(); activate(p); };
+  tabsDiv.appendChild(tab);
+  ficheCache.set(p,{node:null,tab,sel:-1,charts:[]}); // construction au premier appel…
+  rebuildFiche(p);                                    // …puis conservée en mémoire
+  activate(p);
+}
+function rebuildFiche(p){
+  const e=ficheCache.get(p);
+  collector=[];
+  e.node=buildFiche(p,e.sel);
+  e.charts=collector; collector=[];
+}
+function setEss(p,g){
+  const e=ficheCache.get(p);
+  e.sel = (e.sel===g) ? -1 : g;   // re-cliquer la même essence = revenir à toutes
+  rebuildFiche(p); activate(p);
+}
+function activate(p){
+  for (const [k,v] of ficheCache){ v.tab.classList.toggle("on",k===p); }
+  const e=ficheCache.get(p);
+  ficheDiv.replaceChildren(e.node);
+  // les canvas construits hors DOM ont une largeur nulle : redessiner une fois attachés
+  requestAnimationFrame(()=>{ for (const r of e.charts) r(); });
+}
+function closeFiche(p){
+  const e=ficheCache.get(p); if (!e) return;
+  e.tab.remove(); ficheCache.delete(p);
+  if (selPix===p){ selPix=-1; drawMap();
+    const nxt=[...ficheCache.keys()].pop();
+    if (nxt!==undefined){ selPix=nxt; drawMap(); activate(nxt); }
+    else ficheDiv.innerHTML=`<div class="placeholder">Cliquer une maille de la carte pour ouvrir sa planche pixel.</div>`;
+  }
+}
+function maskArea(vals,areas){ // coupe l'état quand l'aire de classe < AMIN
+  const out=new Float64Array(NYR);
+  for (let y=0;y<NYR;y++) out[y]=(isFinite(areas[y])&&areas[y]>AMIN)?vals[y]:NaN;
+  return out;
+}
+// Âge de FLUX Σ1/f̄ : taux réalisés lissés W=15 ans (zéros inclus), T plafonné à 200,
+// classes 1-3 = entrée + T/2, classe terminale = entrée + 12 (demi-séjour mûr pxneuU).
+const W_FLUX=15, T_MAXF=200, T4_HALF=12;
+function fluxAgesEss(p,el){
+  const ages=[], entry=new Float64Array(NYR);
+  for (let k=0;k<4;k++){
+    const f=essSerie(p,el,5,k), a=new Float64Array(NYR);
+    for (let y=0;y<NYR;y++){
+      let s=0,n=0;
+      for (let t=Math.max(0,y-W_FLUX+1);t<=y;t++){ s+=isFinite(f[t])?f[t]:0; n++; }
+      const fb=s/n, T=Math.min(fb>1/T_MAXF?1/fb:T_MAXF, T_MAXF);
+      a[y] = k<3 ? entry[y]+T/2 : entry[y]+T4_HALF;
+      if (k<3) entry[y]+=T;
+    }
+    ages.push(a);
+  }
+  return ages;
+}
+function fluxAgesAll(p){ // agrégat des essences stockées, pondéré par l'aire essence×classe
+  const per=PIX_ESS[p].map((g,el)=>({ages:fluxAgesEss(p,el),
+    areas:[0,1,2,3].map(k=>essSerie(p,el,0,k))}));
+  return [0,1,2,3].map(k=>{
+    const a=new Float64Array(NYR);
+    for (let y=0;y<NYR;y++){
+      let num=0,den=0;
+      for (const e of per){ const w=e.areas[k][y], v=e.ages[k][y];
+        if (isFinite(w)&&w>0&&isFinite(v)){ num+=v*w; den+=w; } }
+      a[y]=den>0?num/den:NaN;
+    }
+    return a;
+  });
+}
+function panel(host,title,unit,legend){
+  const d=document.createElement("div"); d.className="panel";
+  d.innerHTML=`<h3>${title} <span class="unit">${unit}</span></h3>`;
+  if (legend){
+    const lg=document.createElement("div"); lg.className="lgd";
+    for (const it of legend) lg.innerHTML+=`<span><i style="background:${it[1].startsWith("--")?css(it[1]):it[1]}"></i>${it[0]}</span>`;
+    d.appendChild(lg);
+  }
+  host.appendChild(d);
+  return d;
+}
+function buildFiche(p,sel){
+  const root=document.createElement("div");
+  const hasSel = sel>=0 && PIX_ESS[p].includes(sel);
+  const el = hasSel ? PIX_ESS[p].indexOf(sel) : -1;
+  const essName = hasSel ? META.essences[sel] : null;
+  // aires de référence : par essence (PFT) si filtrée, sinon agrégat toutes essences
+  const areas = hasSel ? [0,1,2,3].map(k=>essSerie(p,el,0,k))
+                       : [1,2,3,4].map(k=>serie(S["area_c"+k],p));
+  const AME = hasSel ? 5e-4 : AMIN;   // seuil « créneau vide » plus bas par essence
+  const mask=(vals,k)=>{ const out=new Float64Array(NYR);
+    for (let y=0;y<NYR;y++) out[y]=(isFinite(areas[k][y])&&areas[k][y]>AME)?vals[y]:NaN;
+    return out; };
+  const st=(vi,k,f)=>mask(essSerie(p,el,vi,k).map(f||(v=>v)),k);
+  const fa=serie(S.forest_area,p);
+  const lastY=NYR-1;
+  // entête
+  const ess=META.ess_share[p].map((f,i)=>({i,f})).filter(e=>e.f>0.02).sort((a,b)=>b.f-a.f);
+  const head=document.createElement("div"); head.className="fhead";
+  head.innerHTML=`<h2>Planche pixel <span class="coord">${fmtCoord(p)}</span></h2>
+   <div class="fmeta">terre ${F0.format(META.land_area_km2[p])} km² ·
+   forêt ${F0.format(100*(fa[lastY]||0))} % ·
+   ${ess.slice(0,2).map(e=>META.essences[e.i]).join(", ")||"—"}</div>`;
+  root.appendChild(head);
+  // sélecteur d'essence (mêmes essences que le camembert, >= 3 %)
+  if (PIX_ESS[p].length){
+    const selrow=document.createElement("div"); selrow.className="chips"; selrow.style.marginBottom="10px";
+    const mk=(label,gid)=>{ const b=document.createElement("button"); b.className="chip";
+      b.textContent=label;
+      if ((gid<0&&!hasSel)||(gid===sel)) b.classList.add("on");
+      b.onclick=()=>setEss(p,gid);
+      selrow.appendChild(b); };
+    mk("Toutes essences",-1);
+    for (const g of PIX_ESS[p]) mk(META.essences[g],g);
+    root.appendChild(selrow);
+  }
+  const grid=document.createElement("div"); grid.className="fgrid";
+  root.appendChild(grid);
+  const sfx = hasSel ? " — "+essName : "";
+  const clsLgd=[["classe 1","--s1"],["classe 2","--s2"],["classe 3","--s3"],["classe 4 (mûre)","--s4"],
+                ...(hasSel?[]:[["classe 0","--c0"]])];
+  const lineLgd=[["c1","--c1"],["c2","--c2"],["c3","--c3"],["c4","--c4"]];
+
+  // 1 aires empilées (+ classe 0 en mode toutes essences — le registre est au niveau pixel)
+  chart(panel(grid,"Aires par classe d'âge"+sfx,"% de maille",clsLgd),{
+    stack:true, fmt:F0, ymin:0,
+    series:[...[0,1,2,3].map(k=>({name:"classe "+(k+1),color:CLS_STACK[k],
+              vals:areas[k].map(v=>100*(isFinite(v)?v:0))})),
+            ...(hasSel?[]:[{name:"classe 0",color:"--c0",
+              vals:serie(S.class0,p).map(v=>100*(isFinite(v)?v:0))}])]});
+  // 2 diamètre
+  chart(panel(grid,"Diamètre quadratique"+sfx,"cm",lineLgd),{
+    fmt:F0, series:[0,1,2,3].map(k=>({name:"classe "+(k+1),color:CLS_COLORS[k],
+      vals: hasSel ? st(1,k,v=>100*v)
+                   : maskArea(serie(S["dia_c"+(k+1)],p).map(v=>100*v),areas[k])}))});
+  // 3 hauteur
+  chart(panel(grid,"Hauteur"+sfx,"m",lineLgd),{
+    fmt:F1, series:[0,1,2,3].map(k=>({name:"classe "+(k+1),color:CLS_COLORS[k],
+      vals: hasSel ? st(2,k) : maskArea(serie(S["hgt_c"+(k+1)],p),areas[k])}))});
+  // 4 âge porté (+ agrégat de l'essence filtrée, pour lire l'effet de mélange)
+  const essAgeAgg = hasSel ? (()=>{ const a=new Float64Array(NYR);
+    for (let y=0;y<NYR;y++){ let num=0,den=0;
+      for (let k=0;k<4;k++){ const w=areas[k][y], v=essVal(p,el,3,k,y);
+        if (isFinite(w)&&isFinite(v)){ num+=w*v; den+=w; } }
+      a[y]=den>1e-4?num/den:NaN; } return a; })() : null;
+  chart(panel(grid,"Âge porté (AGE_STAND_BM)"+sfx,"ans",
+      [...lineLgd,...(hasSel?[["essence","--muted"]]:[]),["pixel","--ink"]]),{
+    fmt:F0, series:[...[0,1,2,3].map(k=>({name:"classe "+(k+1),color:CLS_COLORS[k],
+      vals: hasSel ? st(3,k) : maskArea(serie(S["age_c"+(k+1)],p),areas[k])})),
+      ...(hasSel?[{name:essName+" (pondéré)",color:"--muted",w:2.2,vals:essAgeAgg}]:[]),
+      {name:"pixel (toutes ess.)",color:"--ink",w:2.6,vals:serie(S.age_porte,p)}]});
+  // 4bis âge pondéré AIRE (miroir de l'âge porté : même mécanique, autre assiette)
+  chart(panel(grid,"Âge pondéré aire (AGE_STAND_AREA)"+sfx,"ans",[...lineLgd,["pixel","--ink"]]),{
+    fmt:F0, series:[...[0,1,2,3].map(k=>({name:"classe "+(k+1),color:CLS_COLORS[k],
+      vals: hasSel ? st(6,k) : maskArea(serie(S["aga_c"+(k+1)],p),areas[k])})),
+      {name:"pixel (toutes ess.)",color:"--ink",w:2.6,vals:serie(S.age_area,p)}]});
+  // 4ter âge de flux Σ1/f̄
+  chart(panel(grid,"Âge de flux (Σ1/f̄)"+sfx,"ans",[...lineLgd,["pixel","--ink"]]),{
+    fmt:F0, series:[...(()=>{ const fc=hasSel?fluxAgesEss(p,el):fluxAgesAll(p);
+      return [0,1,2,3].map(k=>({name:"classe "+(k+1),color:CLS_COLORS[k],
+        vals:mask(fc[k],k)})); })(),
+      {name:"pixel (toutes ess.)",color:"--ink",w:2.6,vals:serie(S.age_flux,p)}]});
+  // 5 RDI
+  chart(panel(grid,"RDI"+sfx,"–",lineLgd),{
+    fmt:F2, series:[0,1,2,3].map(k=>({name:"classe "+(k+1),color:CLS_COLORS[k],
+      vals: hasSel ? st(4,k) : maskArea(serie(S["rdi_c"+(k+1)],p),areas[k])}))});
+  // 6 densité (toujours toutes essences : non stockée par PFT)
+  chart(panel(grid,"Densité de tiges"+(hasSel?" (toutes ess.)":""),"ind/ha",lineLgd),{
+    fmt:F0, series:[0,1,2,3].map(k=>({name:"classe "+(k+1),color:CLS_COLORS[k],
+      vals:maskArea(serie(S["ind_c"+(k+1)],p).map(v=>1e4*v),
+                    [1,2,3,4].map(kk=>serie(S["area_c"+kk],p))[k])}))});
+  // 7 perturbations
+  chart(panel(grid,"Perturbations & récolte","% terre/an",
+        [["feu","--fire"],["tempête","--storm"],["scolyte","--pest"],["récolte","--harv"]]),{
+    fmt:F2, ymin:0,
+    series:[["da_fire","feu","--fire"],["da_storm","tempête","--storm"],
+            ["da_pest","scolyte","--pest"],["da_harv","récolte","--harv"]]
+      .map(([s,n,c])=>({name:n,color:c,vals:serie(S[s],p).map(v=>100*v)}))});
+  // 8 lisière
+  chart(panel(grid,"Longueur de lisière","km",null),{
+    fmt:F0, ymin:0, series:[{name:"lisière dynamique",color:"--storm",vals:serie(S.edge,p).map(v=>v/1000)}]});
+  // 9 biomasse
+  chart(panel(grid,"Biomasse vivante (forêt)","kgC/m²",null),{
+    fmt:F1, ymin:0, series:[{name:"biomasse",color:"--c3",vals:serie(S.biomass,p).map(v=>v/1000)}]});
+
+  // camemberts
+  const dn=document.createElement("div"); dn.className="donuts";
+  const essParts=[]; let cum=0;
+  ess.slice(0,5).forEach((e,r)=>{ essParts.push({name:META.essences[e.i],frac:e.f,
+    color:ESS_HEX[r%ESS_HEX.length],
+    ...(PIX_ESS[p].includes(e.i)?{gid:e.i}:{})}); cum+=e.f; });
+  if (cum<0.999) essParts.push({name:"autres",frac:1-cum,color:"#9a9a92"});
+  donut(dn,essParts,"Essences (aire, 5 dern. années)",(g)=>setEss(p,g),sel);
+  const fmp=META.fm_share[p].map((f,i)=>({name:MI_NAMES[i],frac:f,color:MI_HEX[i]})).filter(e=>e.frac>0.005);
+  donut(dn,fmp,"Intensité de gestion");
+  root.appendChild(dn);
+  return root;
+}
+
+// ---------- init & thème ----------
+drawMap(); drawCbar();
+const mq=window.matchMedia("(prefers-color-scheme: dark)");
+function redrawAll(){ drawMap(); drawCbar(); for (const r of allCharts()) r(); }
+mq.addEventListener?.("change",redrawAll);
+new MutationObserver(redrawAll).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+window.addEventListener("resize",()=>{ for (const r of allCharts()) r(); });
+</script>
