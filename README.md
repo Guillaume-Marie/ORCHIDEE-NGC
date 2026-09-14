@@ -31,8 +31,13 @@ versions, see https://orchidee.ipsl.fr and the IPSL forge
 
 ## Tools
 
-- **`tools/atlas_toolkit/`** — standalone interactive atlas generator for ORCHIDEE
-  outputs: builds a self-contained `atlas.html` (clickable European map, per-pixel
-  panels with age classes, species filter, disturbances, forest edge) from monthly
-  `stomate_history` files. No server or account needed — the produced file opens
-  offline in any browser. See `tools/atlas_toolkit/README.md` (French).
+The post-processing tools live in their own repositories:
+
+- **orchidee_atlas** — https://github.com/Guillaume-Marie/orchidee_atlas — standalone
+  interactive atlas generator: builds a self-contained `atlas.html` (clickable map,
+  per-cell time-series plates with age classes, species filter, disturbances) from
+  ORCHIDEE history files, driven by a single configuration file. The produced file
+  opens offline in any browser.
+- **orchidee_extract** — https://github.com/Guillaume-Marie/orchidee_extract —
+  recipe-driven extraction and aggregation of ORCHIDEE outputs to zarr / netCDF /
+  parquet, with an explicit semantics layer (area basis of each field, units).
