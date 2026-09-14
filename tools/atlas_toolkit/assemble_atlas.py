@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Assemble atlas.html à partir du gabarit et des blobs produits par extract_atlas_cube.py.
+# -*- coding: utf-8 -*-
+"""Assemble atlas.html: template + blobs produced by extract_atlas_cube.py.
 
-Usage : python3 assemble_atlas.py [dossier_des_blobs] [sortie.html]
-Défauts : blobs dans le dossier courant, sortie ./atlas.html.
-Le fichier produit est AUTONOME (pako embarqué) : il s'ouvre par double-clic,
-hors ligne, dans n'importe quel navigateur récent.
+Usage: python3 assemble_atlas.py [blob_directory] [output.html]
+Defaults: blobs in the current directory, output ./atlas.html.
+The produced file is STANDALONE (pako embedded): it opens by double-click,
+offline, in any recent browser.
 """
 import json, os, sys
 
@@ -12,18 +13,30 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 blobs = sys.argv[1] if len(sys.argv) > 1 else "."
 out = sys.argv[2] if len(sys.argv) > 2 else "atlas.html"
 
-tpl = open(os.path.join(HERE, "atlas_template.html")).read()
-meta = open(os.path.join(blobs, "euage_cube_meta.json")).read()
+
+def rd(*parts):
+    with open(os.path.join(*parts)) as f:
+        return f.read()
+
+
+# basemap: the one clipped to the domain if it exists, otherwise the shipped one
+borders = os.path.join(blobs, "borders_domain.json")
+if not os.path.exists(borders):
+    borders = os.path.join(HERE, "borders_eu.json")
+    print(f"note: {borders} used (run make_borders.py to clip the basemap "
+          "to the domain)")
+
+meta = rd(blobs, "atlas_meta.json")
 m = json.loads(meta)
-html = (tpl.replace("__META__", meta)
-           .replace("__CUBE__", open(os.path.join(blobs, "euage_cube.b64")).read())
-           .replace("__ESS__", open(os.path.join(blobs, "euage_ess.b64")).read())
-           .replace("__BORDERS__", open(os.path.join(HERE, "borders_eu.json")).read())
-           .replace("__PAKO__", open(os.path.join(HERE, "pako.min.js")).read())
-           .replace("__Y0__", str(m["years"][0]))
-           .replace("__Y1__", str(m["years"][-1])))
+html = (rd(HERE, "atlas_template.html")
+        .replace("__META__", meta)
+        .replace("__CUBE__", rd(blobs, "atlas_cube.b64"))
+        .replace("__ESS__", rd(blobs, "atlas_ess.b64"))
+        .replace("__BORDERS__", rd(borders))
+        .replace("__PAKO__", rd(HERE, "pako.min.js")))
 for ph in ("__META__", "__CUBE__", "__ESS__", "__BORDERS__", "__PAKO__"):
-    assert ph not in html, f"placeholder restant : {ph}"
-open(out, "w").write(html)
-print(f"OK {out} : {len(html)/1e6:.2f} Mo, années {m['years'][0]}-{m['years'][-1]}, "
-      f"{m['npix']} pixels")
+    assert ph not in html, f"remaining placeholder: {ph}"
+with open(out, "w") as f:
+    f.write(html)
+print(f"OK {out}: {len(html) / 1e6:.2f} MB · {m['run']} · {m['years'][0]}-{m['years'][-1]} · "
+      f"{m['npix']} pixels · {len(m['essences'])} species x {m['ncls']} classes")
