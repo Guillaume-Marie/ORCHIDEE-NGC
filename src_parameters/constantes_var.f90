@@ -810,6 +810,8 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(ok_lightningfire)
   CHARACTER(LEN=100), SAVE :: road_length_file           !! FRAG_3TERMS macro: road-length NetCDF; 'NONE' = term off
 !$OMP THREADPRIVATE(road_length_file)
+  CHARACTER(LEN=100), SAVE :: edge_hydro_file           !! FRAG_3TERMS permanent: lake/coast/river edge NetCDF; 'NONE' = term off
+!$OMP THREADPRIVATE(edge_hydro_file)
   REAL(r_std), SAVE :: road_grip_correction              !! FRAG_3TERMS macro: GRIP under-reporting factor (Bowring et al. 2024: 2.0)
 !$OMP THREADPRIVATE(road_grip_correction)
   LOGICAL, SAVE :: ok_road_forest_mask                   !! FRAG_3TERMS macro: T = map already restricted to forest (5 arcmin EFDA);
@@ -1758,6 +1760,8 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
 !$OMP THREADPRIVATE(ok_management_intensity)
   CHARACTER(LEN=100), SAVE   :: management_intensity_file  !! NetCDF annuel, fractions f_class1..5 ; "NONE" = desactive
 !$OMP THREADPRIVATE(management_intensity_file)
+  CHARACTER(LEN=100), SAVE   :: rotation_ref_file          !! ROTATION_REF_FILE: regional reference rotation (veget, lat, lon) ; "NONE" = namelist ROTATION_REF only
+!$OMP THREADPRIVATE(rotation_ref_file)
   REAL(r_std), SAVE, DIMENSION(nmiclass) :: mi_clearcut_size !! Taille de parcelle de realisation par classe (m2), 1 ha .. 25 ha
 !$OMP THREADPRIVATE(mi_clearcut_size)
   REAL(r_std), SAVE, DIMENSION(nmiclass) :: mi_dia_factor    !! Facteur multiplicatif sur le diametre de coupe par classe d'intensite (-), 1 = inchange
@@ -1805,6 +1809,8 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
                                                                   !! measures filling ratios against it. Allocated to
                                                                   !! nagec AFTER NAGEC is read.
 !$OMP THREADPRIVATE(mat_target_frac)
+  REAL(r_std), SAVE :: mat_a3_frac_max                              !! MAT_TARGET_A3: cap of the terminal setpoint 1 - a3/R (-)
+!$OMP THREADPRIVATE(mat_a3_frac_max)
   REAL(r_std), SAVE :: mat_band_low          !! MATURITY_TRANSFER : lower edge of the regulator dead band on the
                                              !! receiver filling ratio; inside the band f = MAT_F_REF (-)
 !$OMP THREADPRIVATE(mat_band_low)
@@ -1860,6 +1866,11 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
 !$OMP THREADPRIVATE(mi_clearcut_size_min)
   REAL(r_std), SAVE          :: mi_clearcut_size_max       !! Borne haute de S apres modulation (m2)
 !$OMP THREADPRIVATE(mi_clearcut_size_max)
+  ! Guillaume M. -- Intensity class applied where the management map is silent. The map
+  ! stops at the EFDA footprint, so the gap is managed forest (Turkey, Russia, Ukraine),
+  ! not wilderness: class 3 states the reference regime instead of claiming no harvest.
+  INTEGER(i_std), SAVE       :: mi_default_class           !! Classe d'intensite appliquee quand la carte est muette (-)
+!$OMP THREADPRIVATE(mi_default_class)
   REAL(r_std), SAVE          :: pest_biomass_ref           !! Standing biomass density used to convert beetle kill to area (gC/m²)
 !$OMP THREADPRIVATE(pest_biomass_ref)
   REAL(r_std), SAVE          :: aed_beetle_epidemic_threshold !! Mass-attack index (0-1) above which beetle kills feed the AED edge budget (epidemic phase); below = endemic / background mortality, excluded
@@ -2731,10 +2742,10 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
   ! itinerary in the applied rotation. See design/MODULE_DESIGN_ROTATION_GROWTH.md.
   REAL(r_std), SAVE         :: rotation_growth_weight     !! Weight of site conditions in the rotation; 0 = recommendation alone (-)
 !$OMP THREADPRIVATE(rotation_growth_weight)
-  REAL(r_std), SAVE         :: dia_growth_tau             !! Memory of the diameter-increment integrator (yr)
-!$OMP THREADPRIVATE(dia_growth_tau)
-  REAL(r_std), SAVE         :: dia_growth_area_tol        !! Relative area change above which a slot's increment is rejected (-)
-!$OMP THREADPRIVATE(dia_growth_area_tol)
+  REAL(r_std), SAVE         :: mat_age_entry_tau          !! MAT_AGE_ENTRY: memory of the entry-age integrator (yr)
+!$OMP THREADPRIVATE(mat_age_entry_tau)
+  LOGICAL, SAVE             :: mat_a3_online              !! MAT_AGE_ENTRY: terminal setpoint from the measured entry age
+!$OMP THREADPRIVATE(mat_a3_online)
   REAL(r_std), SAVE         :: rotation_growth_min        !! Lower bound of the growth-derived rotation (yr)
 !$OMP THREADPRIVATE(rotation_growth_min)
   REAL(r_std), SAVE         :: rotation_growth_max        !! Upper bound of the growth-derived rotation (yr)
@@ -2753,6 +2764,11 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
   ! classe 4 depasserait le plafond d'une foret eclaircie qui l'eclaircirait aussitot.
   REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: prescribe_rdi_frac !! Establishment RDI as a fraction of rdi_max, per age class (nagec) (-)
 !$OMP THREADPRIVATE(prescribe_rdi_frac)
+  ! Guillaume M. -- SOIL_INIT_FILE: soil reservoirs of a reference spinup, read at cold start
+  ! only (in place of the val_exp fallback of readrestart). 'NONE' = off, no other switch.
+  ! The optional PFT map SOIL_INIT_PFT_MAP is read in stomate_io (needs nvm and nvm_src).
+  CHARACTER(LEN=80), SAVE   :: soil_init_file             !! Reference soil-pool file, regular lon/lat grid ('NONE' = off)
+!$OMP THREADPRIVATE(soil_init_file)
   LOGICAL, SAVE             :: ok_min_density_reset       !! Keep the dens_target-driven clearcut (sapiens_forestry CONDITION 1)
 !$OMP THREADPRIVATE(ok_min_density_reset)
   LOGICAL, SAVE             :: ok_slow_death_density      !! Keep the dens_target-driven slow death of sparse stands (stomate_kill)

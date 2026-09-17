@@ -1376,6 +1376,9 @@ REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:)   :: ndying_year       !! Reference
                                                                     !! Defaut par MTC (rotation_ref_mtc) ; surchargeable par ROTATION_REF.
                                                                     !! <= 0 => pas de rotation definie pour ce PFT.
 !$OMP THREADPRIVATE(rotation_ref)
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: mat_a3_entry      !! MAT_TARGET_A3: age of entry into the terminal age class (yr), per PFT.
+                                                                    !! <= 0 = inactive, the terminal setpoint stays MAT_TARGET_FRAC(nagec).
+!$OMP THREADPRIVATE(mat_a3_entry)
   LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:) :: fm_src_pft            !! Force forest_managed = ifm_src (taillis courte rotation) sur ces PFT.
                                                                     !! Defaut FALSE partout. Pilote PAR PFT et non en dur sur "eucalyptus" :
                                                                     !! il n'existe pas de MTC eucalyptus, l'espece n'est qu'une affectation

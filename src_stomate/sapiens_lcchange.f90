@@ -98,6 +98,7 @@ CONTAINS
        harvest_pool_bound,   bm_to_litter,         turnover_daily,             leaf_age, &
        longevity_eff_leaf,   longevity_eff_sap,    longevity_eff_root, &
        veget_max_new,        loss_gain,            age_stand,                  last_cut, &
+       age_stand_bm,         age_stand_area, &
        k_latosa_adapt,       losses,               light_tran_to_floor_season, lpft_replant, &
        soil_n_min,           bact,                 species_change_map,         cn_leaf_init_2D, &
        bm_sapl_2D,           tree_bm_to_litter,    fLulccResidue,              fDeforestToProduct, &
@@ -215,7 +216,9 @@ CONTAINS
     REAL(r_std), DIMENSION(:,:), INTENT(inout)        :: harvest_cut           !! Type of cutting that was used for the harvest
                                                                                !! (unitless)
     REAL(r_std), DIMENSION(:,:,:), INTENT(inout)      :: harvest_area          !! Harvested area (m^{2})
-    INTEGER(i_std), DIMENSION(:,:), INTENT(inout)     :: age_stand             !! Age of the forest stand (years)  
+    INTEGER(i_std), DIMENSION(:,:), INTENT(inout)     :: age_stand             !! Age of the forest stand (years)
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)        :: age_stand_bm          !! Biomass-weighted conserved mean stand age (years) - STAND_AGE
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)        :: age_stand_area        !! AREA-weighted conserved mean stand age (years) - STAND_AGE
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)     :: last_cut              !! Years since last thinning (years)
     REAL(r_std),DIMENSION(:,:), INTENT(in)            :: cn_leaf_init_2D       !! initial leaf C/N ratio 
     REAL(r_std),DIMENSION(:,:,:,:,:), INTENT(inout)   :: bm_sapl_2D            !! biomass of sapling
@@ -1996,11 +1999,14 @@ CONTAINS
              atm_to_bm(ipts,c0r_ivm,:) = atm_to_bm(ipts,c0r_ivm,:) + &
                   c0r_phi * new_atm_to_bm(ipts,c0r_ivm,:)
 
-             ! Guillaume M. -- /!\ KNOWN GAP: age_stand_bm is NOT updated here, it is out of
-             ! the scope of land_cover_change_main. The replanted fraction does get younger
-             ! in density and biomass, but the age INDICATOR keeps climbing +1 yr/yr, so do
-             ! not judge this fix on the age curves. It is diagnostic only, to be handled by
-             ! a separate pass.
+             ! Guillaume M. -- STAND_AGE: the replanted share carries a freshly established
+             ! stand. Blend by AREA with age_stand_estab (mirror of the progressive-harvest
+             ! path): the area arrives with saplings, their biomass comes later, so a
+             ! biomass weight would be inert and the indicator kept climbing without bound.
+             age_stand_bm(ipts,c0r_ivm) = c0r_share * age_stand_bm(ipts,c0r_ivm) + &
+                  (un - c0r_share) * age_stand_estab
+             age_stand_area(ipts,c0r_ivm) = c0r_share * age_stand_area(ipts,c0r_ivm) + &
+                  (un - c0r_share) * age_stand_estab
 
              ! Guillaume M. -- Consumed: a second read would replant the same area twice.
              class0_restitute(ipts,c0r_ivm) = zero
@@ -2313,7 +2319,7 @@ CONTAINS
        resp_maint, resp_growth, npp_daily, &
        rue_longterm, mai, pai, &
        mai_count, previous_wood_volume, vegstress_season, &
-       MatrixA, MatrixV, VectorB, VectorU, age_stand, age_stand_bm, last_cut, &
+       MatrixA, MatrixV, VectorB, VectorU, age_stand, age_stand_bm, age_stand_area, last_cut, &
        k_latosa_adapt, fm_change_map, lpft_replant, cn_leaf_min_season,&
        cn_leaf_init_2D, nstress_season, soil_n_min, p_O2, bact, &
        CN_som_litter_longterm, sugar_load, &
@@ -2463,6 +2469,7 @@ CONTAINS
     REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)     :: MatrixV             !!
     REAL(r_std), DIMENSION(:,:,:), INTENT(inout)       :: VectorU             !!
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)      :: age_stand           !! Age of the forest stand (years)
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)         :: age_stand_area      !! AREA-weighted conserved mean stand age (years) - STAND_AGE
     REAL(r_std), DIMENSION(:,:), INTENT(inout)         :: age_stand_bm        !! Biomass-weighted conserved mean stand age (years) - STAND_AGE
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)      :: last_cut            !! Years since last thinning (years)
     REAL(r_std), DIMENSION(:,:), INTENT(inout)         :: cn_leaf_min_season  !! Seasonal min CN ratio of leaves 
@@ -2581,6 +2588,8 @@ CONTAINS
     REAL(r_std)                                        :: c0_due              !! CLASSE 0: aire sortant du convoyeur cette annee (-)
     REAL(r_std)                                        :: c0_sum              !! CLASSE 0: total du registre, pour la garde de coherence
     REAL(r_std)                                        :: ph_v_mov            !! PROGRESSIVE_HARVEST: veget_max moved to age class 1 (-)
+    REAL(r_std)                                        :: mae_age             !! MAT_AGE_ENTRY: age of the parcel moved upward (yr)
+    REAL(r_std)                                        :: mae_decay           !! MAT_AGE_ENTRY: leak of the integrator (-)
     REAL(r_std)                                        :: ph_v_mov_new        !! PROGRESSIVE_HARVEST: same for veget_max_new (-)
     REAL(r_std)                                        :: ph_v_rec            !! PROGRESSIVE_HARVEST: receiver veget_max AFTER the move (-)
     REAL(r_std)                                        :: ph_v_rem            !! PROGRESSIVE_HARVEST: donor veget_max AFTER the move (-)
@@ -2588,6 +2597,8 @@ CONTAINS
     REAL(r_std)                                        :: share_rec           !! Share of the veget_max of the existing vegetation
                                                                               !! within a PFT over the total veget_max following
                                                                               !! expansion of that PFT (unitless, 0-1)
+    REAL(r_std)                                        :: aw_new, aw_old      !! STAND_AGE : poids d'AIRE du receveur et de la
+                                                                              !! parcelle deplacee, pour le miroir age_stand_area (-)
     REAL(r_std)                                        :: bm_w_new, bm_w_old  !! STAND_AGE : carbone SUR PIED des deux classes,
                                                                               !! capture AVANT la fusion, pour ponderer le melange
                                                                               !! de age_stand_bm par la BIOMASSE et non par l'aire
@@ -2913,6 +2924,11 @@ CONTAINS
                          age_stand_bm(ipts,ph_new_pft) = &
                               ( (veget_max(ipts,ph_new_pft) - ph_v_mov) &
                                 * age_stand_bm(ipts,ph_new_pft) &
+                              + ph_v_mov * age_stand_estab ) &
+                              / veget_max(ipts,ph_new_pft)
+                         age_stand_area(ipts,ph_new_pft) = &
+                              ( (veget_max(ipts,ph_new_pft) - ph_v_mov) &
+                                * age_stand_area(ipts,ph_new_pft) &
                               + ph_v_mov * age_stand_estab ) &
                               / veget_max(ipts,ph_new_pft)
                       ENDIF
@@ -3255,10 +3271,12 @@ CONTAINS
                             ENDDO
                             IF (mat_gain > zero .AND. mat_a_grp > min_stomate) THEN
                                iagec_rec = ac12_rec - start_index(ivma) + 1
+                               ! Guillaume M. -- Same effective setpoints as the harvest-feed
+                               ! coupling (MAT_A3_ENTRY), so donor and receiver stay consistent.
                                mat_r_don = veget_max(ipts,ipft) / &
-                                    MAX(mat_target_frac(iagec) * mat_a_grp, min_stomate)
+                                    MAX(mat_target_frac_eff(ipts, ipft, iagec) * mat_a_grp, min_stomate)
                                mat_r_rec = veget_max(ipts,ac12_rec) / &
-                                    MAX(mat_target_frac(iagec_rec) * mat_a_grp, min_stomate)
+                                    MAX(mat_target_frac_eff(ipts, ipft, iagec_rec) * mat_a_grp, min_stomate)
                                IF (mat_r_rec < mat_band_low .OR. &
                                     mat_r_rec > mat_band_high) THEN
                                   ! Guillaume M. -- An empty receiver sends the raw ratio to
@@ -3413,6 +3431,17 @@ CONTAINS
                         circ_class_n(ipts,new_pft,:)) * veget_max(ipts,new_pft)
                    bm_w_old = SUM(SUM(circ_class_biomass(ipts,old_pft,:,:,icarbon),2) * &
                         circ_class_n(ipts,old_pft,:)) * veget_max(ipts,old_pft)
+                   ! Guillaume M. -- On a PARTIAL transfer only the moved parcel carries its
+                   ! age into the blend: the parcel is a proportional slice, so its standing
+                   ! carbon is ac12_frac times the class total. Weighting by the WHOLE donor
+                   ! class dragged the receiver ~1/ac12_frac (15-30x) too hard every year and
+                   ! collapsed the four class ages onto each other (1-2 yr apart).
+                   IF (ac12_partial) bm_w_old = ac12_frac * bm_w_old
+                   ! Guillaume M. -- AREA weights for the age_stand_area mirror: receiver
+                   ! area and MOVED area (the parcel, not the whole donor class), both
+                   ! captured pre-merge for the same reason as bm_w_*.
+                   aw_new = veget_max(ipts,new_pft)
+                   aw_old = ac12_v_mov
 
 
                    IF (trusting_hack_age_class) THEN
@@ -3631,12 +3660,41 @@ CONTAINS
                       ! Guillaume M. -- No biomass on either side: no age to carry.
                       age_stand_bm(ipts,new_pft) = zero
                    ENDIF
+                   ! Guillaume M. -- AREA-weighted mirror. A BARE parcel (no standing carbon,
+                   ! e.g. clearcut area sent back to class 1) carries the class-0 conveyor
+                   ! residence time, n_class0 - 1 years, not the donor age: by the time that
+                   ! area stands again it has sat in the conveyor for that long.
+                   IF (aw_new + aw_old .GT. min_stomate) THEN
+                      age_stand_area(ipts,new_pft) = (aw_new * age_stand_area(ipts,new_pft) + &
+                           aw_old * MERGE(age_stand_area(ipts,old_pft), &
+                                          MAX(REAL(n_class0,r_std) - un, zero), &
+                                          bm_w_old .GT. min_stomate)) / (aw_new + aw_old)
+                   ELSE
+                      age_stand_area(ipts,new_pft) = zero
+                   ENDIF
+                   ! Guillaume M. -- MAT_AGE_ENTRY: on an UPWARD move the parcel's age is the age at
+                   ! which area reaches the bound of the receiving class, a cohort quantity. Leaky
+                   ! mean per receiving slot; a bare parcel carries the class-0 residence, as above.
+                   ! Downward moves (clearcut area back to class 1) are not entries into maturity.
+                   IF (ALLOCATED(mat_age_entry) .AND. new_pft .GT. old_pft .AND. &
+                        aw_old .GT. min_stomate) THEN
+                      mae_age = MERGE(age_stand_area(ipts,old_pft), &
+                           MAX(REAL(n_class0,r_std) - un, zero), bm_w_old .GT. min_stomate)
+                      mae_decay = EXP(- un / MAX(mat_age_entry_tau, un))
+                      IF (mat_age_entry(ipts,new_pft) .GT. zero) THEN
+                         mat_age_entry(ipts,new_pft) = mae_decay * mat_age_entry(ipts,new_pft) + &
+                              (un - mae_decay) * mae_age
+                      ELSE
+                         mat_age_entry(ipts,new_pft) = mae_age
+                      ENDIF
+                   ENDIF
                    ! Guillaume M. -- /!\ Same rule as for circ_class_*: on a PARTIAL transfer the
                    ! donor survives and has not become younger, so its age is left unchanged.
                    ! The downward path already carries this reasoning; the upward one never
                    ! needed it before, having never had a survivor.
                    IF (.NOT. ac12_partial) THEN
                       age_stand_bm(ipts,old_pft) = zero
+                      age_stand_area(ipts,old_pft) = zero
                    ENDIF
 
                    !! 2.3 Calculate the PFT characteristics of the merged PFT
@@ -3962,8 +4020,8 @@ CONTAINS
     !! max_dia is a local of this routine, and this block sits under ts_annual_proc while
     !! set_management_intensity runs at the daily cadence. Putting it there would have
     !! integrated 365 times a year -- the trap that once made N_CLASS0 = 4 mean 4 DAYS.
-    IF (rotation_growth_weight > zero .AND. ALLOCATED(dia_growth)) THEN
-       CALL update_rotation_growth(npts, circ_class_biomass, circ_class_n)
+    IF (rotation_growth_weight > zero .AND. ALLOCATED(rotation_growth)) THEN
+       CALL update_rotation_growth(npts)
     ENDIF
 
   END SUBROUTINE age_class_distr
@@ -3972,180 +4030,76 @@ CONTAINS
 ! ================================================================================================================================
 !! SUBROUTINE   : update_rotation_growth
 !!
-!>\BRIEF        Rotation that the STAND can deliver, from the realised diameter increment.
+!>\BRIEF        Rotation that the STAND can deliver, from the ages at which its area entered the classes.
 !!
-!! DESCRIPTION  : Annual. Two steps.
-!!   1. Leaky mean of the annual increment of max_dia, per slot. Carried in the restart:
-!!      libIGCM restarts the binary every period, so a decades-long memory kept in RAM
-!!      would be wiped every single year.
-!!   2. R_growth = SUM_k (bound_k - bound_{k-1}) / g_k, the sum of TRANSIT TIMES over the
-!!      maturity classes of the group, the last bound being the cut diameter.
+!! DESCRIPTION  : Guillaume M. -- Annual. The class bounds are diameters; mat_age_entry holds the age
+!!                at which area reached each of them, so the last measured leg gives a cohort growth
+!!                g = (D_{n-1} - D_{n-2}) / (a_n - a_{n-1}) and the rotation is the age at the cut
+!!                diameter, R = a_n + (D_cut - D_{n-1}) / g. No diameter velocity is read on a slot:
+!!                the earlier estimators (slot max_dia, stable-area filter, circumference bins) all
+!!                failed because a slot is not a cohort. See design/MODULE_DESIGN_MAT_AGE_ENTRY.md.
 !!
-!! /!\ Why not simply the age of the stands that reach the cut diameter: that estimator is
-!! CIRCULAR. Too fast a cadence empties the terminal class, so no stand ever gets there and
-!! the sample is empty exactly where the estimator is needed. The transit sum measures each
-!! leg where it IS populated, so it survives an unbalanced structure.
-!!
-!! /!\ Everything here is in max_dia, the variable the cut criterion uses. Building the
-!! increment on qm_dia would bias it -- the two do not grow at the same rate.
-!!
-!! RECENT CHANGE(S): None
-!!
-!! MAIN OUTPUT VARIABLE(S): dia_growth, max_dia_last, rotation_growth
-!!
-!! REFERENCE(S) : design/MODULE_DESIGN_ROTATION_GROWTH.md
-!!
-!! FLOWCHART    : None
-!! \n
-!_ ================================================================================================================================
+!! MAIN OUTPUT VARIABLE(S): rotation_growth
+!!_ ================================================================================================================================
 
-  SUBROUTINE update_rotation_growth(npts, circ_class_biomass, circ_class_n)
+  SUBROUTINE update_rotation_growth(npts)
 
     IMPLICIT NONE
 
     !! 0.1 Input variables
     INTEGER(i_std), INTENT(in)                       :: npts            !! Number of grid cells
-    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(in)    :: circ_class_biomass !! Biomass per circ class (gC m-2)
-    REAL(r_std), DIMENSION(:,:,:), INTENT(in)        :: circ_class_n    !! Stems per circ class (m-2)
 
     !! 0.4 Local variables
-    INTEGER(i_std)                                   :: ipts, ivma, iagec, ipft, k, ic
-    REAL(r_std)                                      :: decay           !! Leak of the integrator (-)
-    REAL(r_std)                                      :: inc             !! Annual increment of max_dia (m/yr)
-    REAL(r_std)                                      :: g_fallback      !! Mean increment of the group (m/yr)
-    REAL(r_std)                                      :: g_use           !! Increment used for a leg (m/yr)
-    REAL(r_std)                                      :: b_low, b_up     !! Bounds of a leg (m)
-    REAL(r_std)                                      :: r_sum           !! Accumulated transit time (yr)
-    INTEGER(i_std)                                   :: n_ok            !! Slots carrying a usable increment
-    LOGICAL                                          :: leg_ok          !! Every leg of the group could be estimated
-    LOGICAL                                          :: n_stable        !! The circ class kept the SAME trees this year
-    REAL(r_std)                                      :: dnow            !! Diameter of a circ class now (m)
-    REAL(r_std)                                      :: wsum, gsum      !! Stem-weighted accumulators
-    REAL(r_std), DIMENSION(ncirc)                    :: dia_c           !! Diameter of each circ class (m)
+    INTEGER(i_std)                                   :: ipts, ivma, iagec, ipft, n, kn, kn1
+    REAL(r_std)                                      :: dfac            !! Cut-diameter modulation of the cell (-)
+    REAL(r_std)                                      :: a_n, a_n1       !! Entry ages of the last two classes (yr)
+    REAL(r_std)                                      :: d_n1, d_n2      !! Diameter bounds entered at those ages (m)
+    REAL(r_std)                                      :: d_cut           !! Cut diameter (m)
+    REAL(r_std)                                      :: g               !! Cohort diameter growth on the last leg (m/yr)
+    REAL(r_std)                                      :: r_est           !! Growth-derived rotation (yr)
 
 !_ ================================================================================================================================
 
-    decay = EXP(- un / MAX(dia_growth_tau, un))
-
-    !! 1. Leaky mean of the realised increment, read PER CIRCUMFERENCE CLASS.
-    !!    A circ class whose stem count did not move contains the SAME trees as last year,
-    !!    so its diameter change is growth and nothing else. The slot's max_dia could not
-    !!    give that: it moves when trees enter or leave, with nobody having grown.
-    DO ipts = 1, npts
-       DO ipft = 2, nvm
-          IF (.NOT. is_tree(ipft)) CYCLE
-          !! Guillaume M. -- /!\ MEME GARDE QUE age_class_distr : wood_to_dia n'est appelee
-          !! que sur un creneau qui PORTE des tiges. Sans elle l'appel se fait aussi sur les
-          !! creneaux vides, ou l'allometrie inverse n'est pas definie -- mort silencieuse,
-          !! et tardive puisqu'un creneau ne se vide qu'apres quelques annees.
-          IF (SUM(circ_class_n(ipts,ipft,:)) <= min_stomate) THEN
-             circ_dia_last(ipts,ipft,:) = zero
-             circ_n_last(ipts,ipft,:)   = circ_class_n(ipts,ipft,:)
-             CYCLE
-          ENDIF
-
-          dia_c(:) = wood_to_dia(circ_class_biomass(ipts,ipft,:,:,icarbon), ipft, &
-               pipe_tune2(ipts,ipft))
-
-          wsum = zero ; gsum = zero
-          DO ic = 1, ncirc
-             dnow = dia_c(ic)
-             !! Guillaume M. -- Stability is judged on the STEM COUNT, not on the area:
-             !! it is the population of the bin that must be unchanged for its mean
-             !! diameter to describe growth. Filtering whole slots on area starved the
-             !! upper classes -- 0 usable slot in class 4 -- because those are precisely
-             !! the ones that exchange area every year.
-             n_stable = ABS(circ_class_n(ipts,ipft,ic) - circ_n_last(ipts,ipft,ic)) <= &
-                  dia_growth_area_tol * MAX(circ_class_n(ipts,ipft,ic), min_stomate)
-             IF (n_stable .AND. circ_class_n(ipts,ipft,ic) > min_stomate .AND. &
-                  circ_dia_last(ipts,ipft,ic) > min_stomate) THEN
-                inc = dnow - circ_dia_last(ipts,ipft,ic)
-                !! Guillaume M. -- Only positive increments: a cut lowers the mean diameter
-                !! of a bin, and counting that as growth would lengthen the very rotation
-                !! that caused the cut.
-                IF (inc > zero) THEN
-                   wsum = wsum + circ_class_n(ipts,ipft,ic)
-                   gsum = gsum + circ_class_n(ipts,ipft,ic) * inc
-                ENDIF
-             ENDIF
-             circ_dia_last(ipts,ipft,ic) = dnow
-             circ_n_last(ipts,ipft,ic)   = circ_class_n(ipts,ipft,ic)
-          ENDDO
-
-          !! Guillaume M. -- Stem-weighted mean over the usable bins: what moves the stand
-          !! up the diameter scale is the bulk of its trees, not the single largest bin.
-          IF (wsum > min_stomate) THEN
-             inc = gsum / wsum
-             IF (dia_growth(ipts,ipft) > zero) THEN
-                dia_growth(ipts,ipft) = decay * dia_growth(ipts,ipft) + (un - decay) * inc
-             ELSE
-                dia_growth(ipts,ipft) = inc          ! amorce
-             ENDIF
-          ENDIF
-
-       ENDDO
-    ENDDO
-
-    !! 2. Sum of transit times, per group.
-    ! /!\ PAS de remise a zero globale : rotation_growth est persistee, et un groupe non
-    ! estimable cette annee doit GARDER sa derniere valeur valide plutot que de retomber a
-    ! zero -- sinon le melange clignote d'une annee sur l'autre au gre des creneaux vides.
     IF (nagec <= 1) RETURN
+    IF (.NOT. ALLOCATED(mat_age_entry)) RETURN
 
+    ! /!\ No global reset: rotation_growth is persisted and a group without a sample this
+    ! year keeps its last valid value, otherwise the blend would flicker year to year.
     DO ipts = 1, npts
+       dfac = un
+       IF (ALLOCATED(dia_factor)) dfac = dia_factor(ipts)
        DO ivma = 1, nvmap
           ipft = start_index(ivma)
           IF (.NOT. is_tree(ipft)) CYCLE
-          IF (nagec_pft(ivma) <= 1) CYCLE
+          n = nagec_pft(ivma)
+          IF (n <= 1) CYCLE
           IF (largest_tree_dia(ipft) <= zero) CYCLE
-
-          !! Guillaume M. -- Group fallback: a leg whose own slot carries no usable
-          !! increment borrows the mean of the group rather than being skipped. Skipping
-          !! would SHORTEN the rotation by dropping a leg, i.e. bias it the wrong way.
-          g_fallback = zero ; n_ok = 0
-          DO iagec = 1, nagec_pft(ivma)
-             k = ipft + iagec - 1
-             IF (dia_growth(ipts,k) > zero) THEN
-                g_fallback = g_fallback + dia_growth(ipts,k) ; n_ok = n_ok + 1
-             ENDIF
-          ENDDO
-          IF (n_ok == 0) CYCLE                    ! rien d'estimable : R_reco reste seule
-          g_fallback = g_fallback / REAL(n_ok, r_std)
-
-          r_sum = zero ; leg_ok = .TRUE.
-          DO iagec = 1, nagec_pft(ivma)
-             k = ipft + iagec - 1
-             b_low = zero
-             IF (iagec > 1) b_low = age_class_bound(iagec-1, k)
-             !! Guillaume M. -- The LAST bound is the cut diameter, not a class bound: the
-             !! rotation ends when the stand is harvestable, which is where CONDITION 2
-             !! fires. Using age_class_bound(nagec) would stop the count short.
-             IF (iagec < nagec_pft(ivma)) THEN
-                b_up = age_class_bound(iagec, k)
-             ELSE
-                b_up = largest_tree_dia(k) * (un - dia_rotation_tol)
-             ENDIF
-             IF (b_up <= b_low) CYCLE
-             g_use = dia_growth(ipts,k)
-             IF (g_use <= zero) g_use = g_fallback
-             IF (g_use <= zero) THEN
-                leg_ok = .FALSE. ; EXIT
-             ENDIF
-             r_sum = r_sum + (b_up - b_low) / g_use
-          ENDDO
-
-          IF (leg_ok .AND. r_sum > zero) THEN
-             r_sum = MIN(rotation_growth_max, MAX(rotation_growth_min, r_sum))
-             DO iagec = 1, nagec_pft(ivma)
-                rotation_growth(ipts, ipft + iagec - 1) = r_sum
-             ENDDO
+          kn  = ipft + n - 1
+          kn1 = ipft + n - 2
+          a_n = mat_age_entry(ipts,kn)
+          IF (a_n <= zero) CYCLE                       ! nothing has reached the terminal class yet
+          d_n1  = age_class_bound(n-1, kn) * dfac
+          d_cut = largest_tree_dia(kn) * dfac * (un - dia_rotation_tol)
+          ! Guillaume M. -- Growth on the last measured leg (entry into class n-1 -> entry into
+          ! class n). Fallback: mean growth from age 0 when class n-1 has no sample (n = 2 or
+          ! not yet fed). Both are cohort quantities: ages of moved area, not slot velocities.
+          g = zero
+          IF (n >= 3) THEN
+             a_n1 = mat_age_entry(ipts,kn1)
+             d_n2 = age_class_bound(n-2, kn1) * dfac
+             IF (a_n1 > zero .AND. a_n > a_n1 .AND. d_n1 > d_n2) g = (d_n1 - d_n2) / (a_n - a_n1)
           ENDIF
-
+          IF (g <= zero .AND. d_n1 > zero) g = d_n1 / a_n
+          IF (g <= zero) CYCLE
+          r_est = a_n + MAX(zero, d_cut - d_n1) / g
+          r_est = MIN(rotation_growth_max, MAX(rotation_growth_min, r_est))
+          DO iagec = 1, n
+             rotation_growth(ipts, ipft + iagec - 1) = r_est
+          ENDDO
        ENDDO
     ENDDO
 
   END SUBROUTINE update_rotation_growth
-
 
 ! ================================================================================================================================
 !! SUBROUTINE   : merge_biomass_pfts

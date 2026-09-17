@@ -3104,6 +3104,30 @@ CONTAINS
     management_intensity_file = 'NONE'
     CALL getin_p('MANAGEMENT_INTENSITY_FILE', management_intensity_file)
     !
+    ! Guillaume M. -- ROTATION_REF_FILE: the reference rotation gets a REGIONAL axis (McGrath
+    ! et al. 2015 table 4). The map replaces ROTATION_REF(pft) upstream of the intensity
+    ! factor; it is not the TARGET_ROTATION_AGE_FILE removed above, which sat downstream.
+    ! See design/MODULE_DESIGN_ROTATION_REGION.md.
+    !
+    !Config Key   = ROTATION_REF_FILE
+    !Config Desc  = NetCDF map of the reference rotation per PFT (field "rotation_ref", veget x lat x lon)
+    !Config If    = OK_MANAGEMENT_INTENSITY
+    !Config Def   = NONE
+    !Config Help  = Regional reference rotation under MULTIFUNCTIONAL management (years), read
+    !Config         once and interpolated to the model grid. Where it carries a value > 0 it
+    !Config         replaces ROTATION_REF(pft) in set_management_intensity and is still divided
+    !Config         by the intensity factor; values <= 0 and points outside the map keep the
+    !Config         namelist scalar. Built by scripts/build_rotation_ref_map.py from McGrath
+    !Config         et al. 2015 table 4 (Kuusela 1994), normalised by the 1990 intensity map.
+    !Config         NONE = bit-neutral. [CATEGORIE : OPTION SCIENTIFIQUE -- permanent]
+    !Config Units = [FILE]
+    rotation_ref_file = 'NONE'
+    CALL getin_p('ROTATION_REF_FILE', rotation_ref_file)
+    IF (TRIM(rotation_ref_file) /= 'NONE' .AND. .NOT. ok_management_intensity) THEN
+       CALL ipslerr_p(3, 'constantes', 'ROTATION_REF_FILE requires OK_MANAGEMENT_INTENSITY=y', &
+            'the map is consumed by set_management_intensity only', '')
+    ENDIF
+    !
     !Config Key   = MI_CLEARCUT_SIZE
     !Config Desc  = Clearcut patch size (m2) per management-intensity class 1..5
     !Config If    = OK_MANAGEMENT_INTENSITY
@@ -3648,6 +3672,30 @@ CONTAINS
     mi_clearcut_size_max = 250000.
     CALL getin_p('MI_CLEARCUT_SIZE_MAX', mi_clearcut_size_max)
     !
+    !Config Key   = MI_DEFAULT_CLASS
+    !Config Desc  = Management-intensity class applied where the intensity map is silent
+    !Config If    = OK_MANAGEMENT_INTENSITY
+    !Config Def   = 3
+    !Config Help  = The intensity map stops at the EFDA footprint. Beyond it (Turkey,
+    !Config         north-western Russia, Belarus, Ukraine) the cells carry forest but no
+    !Config         class fractions, and the former hard-coded fallback was class 1,
+    !Config         unmanaged, which multiplies the reference rotation by 20 and switches
+    !Config         harvest edge off. [MESURE 2026-09-15] that covers 230 cells and
+    !Config         42.9 Mha, 17.7 percent of the forest of the domain, at a median applied
+    !Config         rotation of 2200 years against 79 years where the map speaks. Those
+    !Config         forests are managed, so the multifunctional reference (class 3, factor
+    !Config         1.0 on both the rotation and the diameter) is the weaker claim.
+    !Config         Set to 1 to restore the previous behaviour.
+    !Config         [CATEGORIE : OPTION SCIENTIFIQUE -- choix de modelisation, permanent]
+    !Config Units = [-]
+    mi_default_class = 3
+    CALL getin_p('MI_DEFAULT_CLASS', mi_default_class)
+    IF (mi_default_class < 1 .OR. mi_default_class > nmiclass) THEN
+       WRITE(numout,*) 'MI_DEFAULT_CLASS must lie in 1..', nmiclass, ' : ', mi_default_class
+       CALL ipslerr_p(3,'constantes.f90','MI_DEFAULT_CLASS out of range',&
+            'Fallback class used where the intensity map is silent','')
+    ENDIF
+    !
     !Config Key   = PEST_BIOMASS_REF
     !Config Desc  = Standing biomass density used to convert beetle kill (gC/m²) to area
     !Config If    = OK_AED_FEEDBACK
@@ -3703,6 +3751,23 @@ CONTAINS
     !Config Units = [FILE]
     road_length_file = 'NONE'
     CALL getin_p('ROAD_LENGTH_FILE', road_length_file)
+    !
+    !Config Key   = EDGE_HYDRO_FILE
+    !Config Desc  = Permanent hydrographic edge (lakes, coastline, rivers), NetCDF; NONE = off
+    !Config If    = OK_AED_FEEDBACK
+    !Config Def   = NONE
+    !Config Help  = Guillaume M. -- Third piece of the PERMANENT term, beside the roads. The
+    !Config         meso term is built from veget_max on area_land, so it sees only TERRESTRIAL
+    !Config         non-forest: the model has no channel by which a lake, a coast or a river
+    !Config         could cut forest. This map supplies it. Field `edge_hydro` (m per cell),
+    !Config         already restricted to forest and carrying its geometric factors -- the two
+    !Config         banks of a river are already counted. It is added AS IS: no weighting by
+    !Config         the forest fraction, no factor 2. Pan-EU map:
+    !Config         /scratch/gmarie/EFDA/edge_permanent_1deg_panEU.nc
+    !Config         [CATEGORIE : OPTION SCIENTIFIQUE -- choix de modelisation, permanent]
+    !Config Units = [FILE]
+    edge_hydro_file = 'NONE'
+    CALL getin_p('EDGE_HYDRO_FILE', edge_hydro_file)
     !
     !Config Key   = ROAD_GRIP_CORRECTION
     !Config Desc  = GRIP under-reporting correction applied to the road length
@@ -6233,6 +6298,20 @@ CONTAINS
        CALL ipslerr_p(3,'constantes','MAT_TARGET_FRAC must sum to one', &
             'the entries are area shares of the age-class group','')
     ENDIF
+    !
+    !Config Key   = MAT_A3_FRAC_MAX
+    !Config Desc  = Cap of the rotation-derived terminal-class setpoint 1 - MAT_A3_ENTRY/R
+    !Config If    = MAT_A3_ENTRY > 0
+    !Config Def   = 0.80
+    !Config Help  = Above this share of the group area in the terminal class no room is left
+    !Config         for the younger classes. The floor is MAT_TARGET_FRAC(nagec) itself.
+    !Config         See design/MODULE_DESIGN_MAT_TARGET_A3.md.
+    !Config Units = [-]
+    mat_a3_frac_max = 0.80_r_std
+    CALL getin_p('MAT_A3_FRAC_MAX', mat_a3_frac_max)
+    IF (mat_a3_frac_max <= zero .OR. mat_a3_frac_max >= un) THEN
+       CALL ipslerr_p(3,'constantes','MAT_A3_FRAC_MAX must lie in (0,1)','','')
+    ENDIF
 
     !
     ! Guillaume M. -- AGE_CLASS_BOUNDS_PFT: see design/MODULE_DESIGN_AGE_CLASS_BOUNDS_PFT.md
@@ -6508,34 +6587,31 @@ CONTAINS
             'it is the weight of a CONVEX combination', '')
     ENDIF
     !
-    !Config Key   = DIA_GROWTH_TAU
-    !Config Desc  = Memory of the diameter-increment integrator feeding R_growth
-    !Config If    = ROTATION_GROWTH_WEIGHT > 0
+    !Config Key   = MAT_AGE_ENTRY_TAU
+    !Config Desc  = Memory of the entry-age integrator (online a3 and age-based R_growth)
+    !Config If    = MAT_A3_ONLINE or ROTATION_GROWTH_WEIGHT > 0
     !Config Def   = 30.
-    !Config Help  = Guillaume M. -- The increment is averaged over decades so the cadence
-    !Config         does not chase interannual noise: a rotation is a slow quantity, and
-    !Config         feeding it a noisy growth signal would make the harvest oscillate on
-    !Config         top of the age structure it is meant to stabilise.
+    !Config Help  = Guillaume M. -- The age at which area enters each maturity class is
+    !Config         averaged over decades, so that neither the setpoint nor the rotation
+    !Config         chases one year's transfers. See design/MODULE_DESIGN_MAT_AGE_ENTRY.md.
     !Config Units = [yr]
-    dia_growth_tau = 30._r_std
-    CALL getin_p('DIA_GROWTH_TAU', dia_growth_tau)
-    dia_growth_tau = MAX(dia_growth_tau, un)
+    mat_age_entry_tau = 30._r_std
+    CALL getin_p('MAT_AGE_ENTRY_TAU', mat_age_entry_tau)
+    mat_age_entry_tau = MAX(mat_age_entry_tau, un)
     !
-    !Config Key   = DIA_GROWTH_AREA_TOL
-    !Config Desc  = Relative area change above which a slot's increment is rejected
-    !Config If    = ROTATION_GROWTH_WEIGHT > 0
-    !Config Def   = 0.01
-    !Config Help  = Guillaume M. -- A slot that exchanged area this year did not GROW, it
-    !Config         was mixed: promotions bring in trees and merge_biomass_pfts dilutes the
-    !Config         per-tree biomass, so max_dia barely moves. Measured, class 3 came out at
-    !Config         0.097 cm/yr against 0.577 in class 1, giving a single 126-yr leg and a
-    !Config         rotation of 165 yr for 85-87 observed. Only slots whose area held still
-    !Config         carry a cohort, so only they feed the integrator. Raising this admits
-    !Config         more samples at the cost of reintroducing the dilution bias.
-    !Config Units = [-]
-    dia_growth_area_tol = 0.01_r_std
-    CALL getin_p('DIA_GROWTH_AREA_TOL', dia_growth_area_tol)
-    dia_growth_area_tol = MAX(dia_growth_area_tol, zero)
+    !Config Key   = MAT_A3_ONLINE
+    !Config Desc  = Terminal-class setpoint from the entry age the model measures, not from MAT_A3_ENTRY
+    !Config If    = OK_MATURITY_TRANSFER or OK_HARVEST_FEED_COUPLING
+    !Config Def   = n
+    !Config Help  = Guillaume M. -- With y, a3 in the setpoint 1 - a3/R is the leaky mean of
+    !Config         the age of the area that entered the terminal class (mat_age_entry),
+    !Config         so the age structure follows the realised growth (e.g. under rising CO2);
+    !Config         MAT_A3_ENTRY seeds it and remains the fallback where no area has entered
+    !Config         yet. n = the namelist a3 alone (bit-neutral).
+    !Config         [CATEGORIE : OPTION SCIENTIFIQUE -- choix de modelisation, permanent]
+    !Config Units = [FLAG]
+    mat_a3_online = .FALSE.
+    CALL getin_p('MAT_A3_ONLINE', mat_a3_online)
     !
     !Config Key   = ROTATION_GROWTH_MIN
     !Config Desc  = Lower bound of the growth-derived rotation
@@ -7263,6 +7339,23 @@ CONTAINS
     KC_ini=3.35E-5
     CALL getin_p('KC_INI',KC_ini)
     
+
+    !Config Key   = SOIL_INIT_FILE
+    !Config Desc  = Reference soil-pool file read at cold start (NONE = off)
+    !Config If    = OK_STOMATE
+    !Config Def   = NONE
+    !Config Help  = Soil reservoirs (SOM, litter, lignin, microbial, deep soil, soil
+    !Config         temperature memory) of a reference spinup, on a regular lon/lat grid,
+    !Config         one entry per reference PFT, built by scripts/prepare_soil_init_file.py.
+    !Config         Read ONLY for the reservoirs the restart does not provide (cold start,
+    !Config         OverRule=n in libIGCM). Interpolated on the model grid (area-weighted
+    !Config         mean), mapped to the model PFTs by MTC (weighted by the reference
+    !Config         veget_max), zeroed where the model PFT has no area. Reservoirs are
+    !Config         intensive (per m2 of PFT): the grid-cell total follows the vegetation
+    !Config         map of THIS run, not the reference one. Incompatible with USE_INITSOM.
+    !Config Units = [FILE]
+    soil_init_file = 'NONE'
+    CALL getin_p('SOIL_INIT_FILE', soil_init_file)
 
   END SUBROUTINE config_stomate_parameters
 

@@ -3801,6 +3801,9 @@ CONTAINS
     ALLOCATE(rotation_ref(nvm),stat=ier)
     IF (ier /= 0) CALL ipslerr_p(3,'pft_parameters','Pb alloc rotation_ref','','')
     rotation_ref(:) = -un                      ! sentinelle : inactif => bit-neutre
+    ALLOCATE(mat_a3_entry(nvm),stat=ier)
+    IF (ier /= 0) CALL ipslerr_p(3,'pft_parameters','Pb alloc mat_a3_entry','','')
+    mat_a3_entry(:) = -un                      ! sentinel: inactive => bit-neutral
     ALLOCATE(fm_src_pft(nvm),stat=ier)
     IF (ier /= 0) CALL ipslerr_p(3,'pft_parameters','Pb alloc fm_src_pft','','')
     fm_src_pft(:) = .FALSE.
@@ -6340,6 +6343,23 @@ CONTAINS
     !Config         Valeur <= 0 => pas de rotation definie pour ce PFT.
     !Config Units = [an]
     CALL getin_p("ROTATION_REF",rotation_ref)
+    !
+    ! Guillaume M. -- MAT_TARGET_A3: the terminal age class is entered by DIAMETER, so its
+    ! entry age a3 does not move with the rotation and the equilibrium terminal share is
+    ! 1 - a3/R. Measured on 100-yr single-pixel benches: ~52 yr conifers, ~58 yr oak/beech.
+    ! See design/MODULE_DESIGN_MAT_TARGET_A3.md.
+    !Config Key   = MAT_A3_ENTRY
+    !Config Desc  = Age of entry into the terminal age class, per PFT; sets the terminal setpoint to 1 - a3/R
+    !Config If    = OK_MATURITY_TRANSFER or OK_HARVEST_FEED_COUPLING
+    !Config Def   = -1 (inactive) for every PFT
+    !Config Help  = When > 0, the maturity regulator and the harvest-feed coupling read a
+    !Config         terminal-class setpoint 1 - MAT_A3_ENTRY/target_rotation_age instead of
+    !Config         MAT_TARGET_FRAC(nagec), floored by it and capped by MAT_A3_FRAC_MAX; the
+    !Config         lower classes are rescaled so that the shares still sum to one. One lever
+    !Config         (the rotation) then sets both the cut pace and the age structure.
+    !Config         <= 0 keeps MAT_TARGET_FRAC unchanged (bit-neutral).
+    !Config Units = [yr]
+    CALL getin_p("MAT_A3_ENTRY",mat_a3_entry)
     !Config Key   = FM_SRC_PFT
     !Config Desc  = Force le regime taillis a courte rotation (ifm_src) sur ces PFT
     !Config If    = OK_READ_FM_MAP

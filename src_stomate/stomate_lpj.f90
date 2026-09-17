@@ -200,7 +200,7 @@ CONTAINS
        circ_class_n, circ_class_biomass, forest_managed, &
        longevity_eff_leaf, longevity_eff_sap, longevity_eff_root, &
        species_change_map, fm_change_map, lpft_replant, &
-       age_stand, age_stand_bm, rotation_n, last_cut, mai, pai, previous_wood_volume, &
+       age_stand, age_stand_bm, age_stand_area, rotation_n, last_cut, mai, pai, previous_wood_volume, &
        mai_count, coppice_dens, &
        harvest_pool_bound, harvest_pool_acc, &
        harvest_type, harvest_cut, harvest_area_acc, &
@@ -538,6 +538,7 @@ CONTAINS
                                                                                        !! being managed?)
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)              :: age_stand            !! Age of stand (years)
     REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: age_stand_bm         !! Biomass-weighted conserved mean stand age (years) - STAND_AGE
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: age_stand_area       !! AREA-weighted conserved mean stand age (years) - STAND_AGE
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)              :: rotation_n           !! Rotation number (number of rotation since pft is managed)
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)              :: last_cut             !! Years since last thinning (years)
     LOGICAL, DIMENSION(:,:), INTENT(inout)                     :: lpft_replant         !! Set to true if a PFT has been clearcut
@@ -1270,12 +1271,14 @@ CONTAINS
                 ! prescribed non-zero DIAMETER: the stand is born already aged. The floor
                 ! applies only to slots CARRYING biomass, an empty slot stays at zero.
                 age_stand_bm(ipts,ivm) = MAX(age_stand_bm(ipts,ivm) + un, age_stand_estab)
+                age_stand_area(ipts,ivm) = MAX(age_stand_area(ipts,ivm) + un, age_stand_estab)
 
              ELSE
 
                 age_stand(ipts,ivm) = 0
                 last_cut(ipts,ivm) = 0
                 age_stand_bm(ipts,ivm) = zero
+                age_stand_area(ipts,ivm) = zero
 
              ENDIF
           ENDDO
@@ -1320,6 +1323,7 @@ CONTAINS
              age_stand(ipts,ivm) = 0
              last_cut(ipts,ivm) = 0
              age_stand_bm(ipts,ivm) = zero
+             age_stand_area(ipts,ivm) = zero
           ENDDO
        ENDDO
     ENDIF
@@ -1795,7 +1799,7 @@ CONTAINS
             resp_maint, resp_growth, npp_daily, &
             rue_longterm, mai, pai, &
             mai_count, previous_wood_volume, vegstress_season,&
-            matrixA, matrixV, VectorB, VectorU, age_stand, age_stand_bm, last_cut, &
+            matrixA, matrixV, VectorB, VectorU, age_stand, age_stand_bm, age_stand_area, last_cut, &
             k_latosa_adapt, fm_change_map, lpft_replant, cn_leaf_min_season,&
             cn_leaf_init_2D, nstress_season, soil_n_min, p_O2, bact, &
             CN_som_litter_longterm, sugar_load, &
@@ -2212,6 +2216,7 @@ CONTAINS
             harvest_pool_bound,   bm_to_litter,         turnover_daily,             leaf_age, &
             longevity_eff_leaf,   longevity_eff_sap,          longevity_eff_root, &
             veget_max_new,        loss_gain,            age_stand,                  last_cut, &
+            age_stand_bm, age_stand_area, &
             k_latosa_adapt,       losses,               light_tran_to_floor_season, lpft_replant, &
             soil_n_min,           bact,                 species_change_map,         cn_leaf_init_2D, &
             bm_sapl_2D,           tree_bm_to_litter,    fLulccResidue,              fDeforestToProduct, &
@@ -2498,6 +2503,7 @@ CONTAINS
             harvest_pool_bound,   bm_to_litter,       turnover_daily,    leaf_age, &
             longevity_eff_leaf, longevity_eff_sap, longevity_eff_root, &
             veget_max_disturb,    loss_gain,          age_stand,         last_cut, &
+            age_stand_bm, age_stand_area, &
             k_latosa_adapt,       losses, light_tran_to_floor_season,    lpft_replant, &
             soil_n_min,           bact,               species_change_map, &
             cn_leaf_init_2D,      bm_sapl_2D,         tree_bm_to_litter, fLulccResidue, &
@@ -3088,6 +3094,7 @@ CONTAINS
             harvest_pool_bound,   bm_to_litter,       turnover_daily,    leaf_age, &
             longevity_eff_leaf, longevity_eff_sap, longevity_eff_root, &
             veget_max_disturb,    loss_gain,          age_stand,         last_cut, &
+            age_stand_bm, age_stand_area, &
             k_latosa_adapt,       losses, light_tran_to_floor_season,    lpft_replant, &
             soil_n_min,           bact,               species_change_map, &
             cn_leaf_init_2D,      bm_sapl_2D,         tree_bm_to_litter, fLulccResidue, &
@@ -4416,6 +4423,7 @@ CONTAINS
     CALL xios_orchidee_send_field("AGE",age)
     ! Guillaume M. -- STAND_AGE: conserved biomass-weighted mean stand age (per PFT slot)
     CALL xios_orchidee_send_field("AGE_STAND_BM", age_stand_bm)
+    CALL xios_orchidee_send_field("AGE_STAND_AREA", age_stand_area)
     CALL xios_orchidee_send_field("HEIGHT",qm_height)
     CALL xios_orchidee_send_field("PIPE_TUNE2",pipe_tune2)
     CALL xios_orchidee_send_field("PRE_INDUST_REF_GPP",pre_indust_ref_gpp)

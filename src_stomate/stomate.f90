@@ -751,6 +751,8 @@ MODULE stomate
 !$OMP THREADPRIVATE(age_stand)
   REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:)     :: age_stand_bm     !! Biomass-weighted mean stand age, conserved through the diameter age-class conveyor (years) - STAND_AGE, Marie 2026
 !$OMP THREADPRIVATE(age_stand_bm)
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:)     :: age_stand_area   !! AREA-weighted mean stand age, strict mirror of age_stand_bm to expose the weighting-basis gap (years) - STAND_AGE
+!$OMP THREADPRIVATE(age_stand_area)
   
   INTEGER(i_std), ALLOCATABLE, SAVE, DIMENSION(:,:)  :: rotation_n       !! Rotation number (number of rotation since pft is managed)
 !$OMP THREADPRIVATE(rotation_n)
@@ -1272,6 +1274,13 @@ SUBROUTINE stomate_initialize &
        ENDIF
     ENDIF
 
+    ! Guillaume M. -- Regional reference rotation (design/MODULE_DESIGN_ROTATION_REGION.md):
+    ! static map, read ONCE here, before the first set_management_intensity below, which
+    ! substitutes it to ROTATION_REF(pft) where it carries a value. NONE = never allocated.
+    IF (ok_management_intensity .AND. TRIM(rotation_ref_file) /= 'NONE') THEN
+       CALL rotation_ref_from_file(kjpindex, lalo, neighbours, resolution, contfrac)
+    ENDIF
+
     ! Guillaume M. -- MACRO edge term (design/MODULE_DESIGN_FRAGMENTATION_3TERMES.md 3.3):
     ! road length per grid cell, read ONCE since the map is static. Two fields are available:
     ! road_length_forest, already restricted to forest and finer than the model fraction but
@@ -1295,6 +1304,27 @@ SUBROUTINE stomate_initialize &
                   MINVAL(road_length_map), &
                   SUM(road_length_map)/REAL(MAX(kjpindex,1),r_std), &
                   MAXVAL(road_length_map)
+          ENDIF
+       ENDIF
+    ENDIF
+
+    ! Guillaume M. -- FRAG_3TERMS permanent: lakes, coastline and rivers. The map already
+    ! carries its geometric factors (a river's two banks) and is already restricted to forest,
+    ! so it is added AS IS in calculate_aed -- no factor 2, no forest weighting.
+    IF (TRIM(edge_hydro_file) /= 'NONE') THEN
+       IF (ALLOCATED(edge_hydro_map)) THEN
+          filename   = edge_hydro_file
+          field_name = 'edge_hydro'
+          CALL spitfire_annual_input(kjpindex, lalo, neighbours, resolution, &
+               contfrac, edge_hydro_map(:), filename, field_name)
+          ! Guillaume M. -- A length cannot be negative; the interpolation can be.
+          edge_hydro_map(:) = MAX(zero, edge_hydro_map(:))
+          IF (printlev >= 2) THEN
+             WRITE(numout,*) 'AED permanent : ', TRIM(field_name), ' lue depuis ', TRIM(filename)
+             WRITE(numout,*) 'AED permanent : lisiere eau+rivieres (m) min/moy/max = ', &
+                  MINVAL(edge_hydro_map), &
+                  SUM(edge_hydro_map)/REAL(MAX(kjpindex,1),r_std), &
+                  MAXVAL(edge_hydro_map)
           ENDIF
        ENDIF
     ENDIF
@@ -1342,7 +1372,7 @@ SUBROUTINE stomate_initialize &
          soil_n_min, p_O2, bact, forest_managed, &
          species_change_map, fm_change_map, lpft_replant, lai_per_level, &
          laieff_fit, wstress_season, wstress_month, &
-         age_stand, age_stand_bm, rotation_n, last_cut, mai, pai, &
+         age_stand, age_stand_bm, age_stand_area, rotation_n, last_cut, mai, pai, &
          previous_wood_volume, mai_count, coppice_dens, &
          light_tran_to_floor_season,daylight_count, veget_max, gap_area_save, &
          deepSOM_a, deepSOM_s, deepSOM_p, O2_soil, CH4_soil, O2_snow, CH4_snow, & 
@@ -1386,6 +1416,7 @@ SUBROUTINE stomate_initialize &
                    age_stand_bm(ji,j) = age_class_age_frac(iage_st) &
                                         * MIN(target_rotation_age(ji,j), &
                                               stand_age_rotation_max)
+                   age_stand_area(ji,j) = age_stand_bm(ji,j)
                 ENDIF
              ENDDO
           ENDDO
@@ -3405,7 +3436,7 @@ SUBROUTINE stomate_initialize &
             &             circ_class_n, circ_class_biomass, forest_managed, &
             &             longevity_eff_leaf, longevity_eff_sap, longevity_eff_root, &
             &             species_change_map, fm_change_map, lpft_replant, &
-            &             age_stand, age_stand_bm, rotation_n, last_cut, mai, pai, &
+            &             age_stand, age_stand_bm, age_stand_area, rotation_n, last_cut, mai, pai, &
             &             previous_wood_volume, mai_count, coppice_dens, &
             &             harvest_pool_bound, harvest_pool_acc, & 
             &             harvest_type, harvest_cut, harvest_area_acc, &
@@ -4189,7 +4220,7 @@ SUBROUTINE stomate_initialize &
          forest_managed, &
          species_change_map, fm_change_map, lpft_replant, lai_per_level, &
          laieff_fit, wstress_season, wstress_month, &
-         age_stand, age_stand_bm, rotation_n, last_cut, mai, pai, &
+         age_stand, age_stand_bm, age_stand_area, rotation_n, last_cut, mai, pai, &
          previous_wood_volume, mai_count, coppice_dens, &
          light_tran_to_floor_season, daylight_count, gap_area_save, &
          deepSOM_a, deepSOM_s, deepSOM_p, O2_soil, CH4_soil, O2_snow, CH4_snow, &
@@ -5975,6 +6006,14 @@ SUBROUTINE stomate_initialize &
        CALL ipslerr_p (3,'stomate_init', 'Memory allocation issue','','')
     ENDIF
 
+    ALLOCATE(age_stand_area(kjpindex,nvm),stat=ier)
+    l_error = l_error .OR. (ier /= 0)
+    IF (l_error) THEN
+       WRITE(numout,*) 'Memory allocation error for age_stand_area. We stop. We need kjpindex*nvm words',  &
+       &     kjpindex, nvm
+       CALL ipslerr_p (3,'stomate_init', 'Memory allocation issue','','')
+    ENDIF
+
     ALLOCATE(rotation_n(kjpindex,nvm),stat=ier)
     l_error = l_error .OR. (ier /= 0)
     IF (l_error) THEN
@@ -6240,21 +6279,6 @@ SUBROUTINE stomate_initialize &
     ! Guillaume M. -- AED_EDGE_RDI_WEIGHT is allocated as soon as the weight is requested,
     ! outside the ok_management_intensity block: the two concepts are independent.
     IF (ok_aed_edge_rdi_weight) THEN
-       ! Guillaume M. -- ROTATION_GROWTH: allocated unconditionally alongside rdi_stand.
-       ! The blend is gated by rotation_growth_weight, not by allocation -- an unallocated
-       ! array would make the flag silently inert, the trap this repository keeps paying.
-       ALLOCATE(dia_growth(kjpindex, nvm), stat=ier)
-       IF (ier == 0) ALLOCATE(circ_dia_last(kjpindex, nvm, ncirc), stat=ier)
-       IF (ier == 0) ALLOCATE(circ_n_last(kjpindex, nvm, ncirc), stat=ier)
-       IF (ier == 0) ALLOCATE(rotation_growth(kjpindex, nvm), stat=ier)
-       IF (ier /= 0) THEN
-          CALL ipslerr_p(3,'stomate_init','Memory allocation error for ROTATION_GROWTH arrays','','')
-       ENDIF
-       dia_growth(:,:)      = zero
-       circ_dia_last(:,:,:) = zero
-       circ_n_last(:,:,:)   = zero
-       rotation_growth(:,:) = zero
-
        ALLOCATE(rdi_stand(kjpindex, nvm), stat=ier)
        IF (ier /= 0) THEN
           WRITE(numout,*) 'Memory allocation error for rdi_stand. We stop. kjpindex x nvm = ',&
@@ -6273,7 +6297,27 @@ SUBROUTINE stomate_initialize &
        road_length_map(:) = zero
     ENDIF
 
+    ! Guillaume M. -- FRAG_3TERMS permanent: lake, coast and river edge. Same pattern as the
+    ! road map -- static, read once, added as is.
+    IF (TRIM(edge_hydro_file) /= 'NONE') THEN
+       ALLOCATE(edge_hydro_map(kjpindex), stat=ier)
+       IF (ier /= 0) CALL ipslerr_p(3,'stomate_init','Pb alloc edge_hydro_map','','')
+       edge_hydro_map(:) = zero
+    ENDIF
+
     IF (ok_management_intensity) THEN
+       ! Guillaume M. -- ROTATION_GROWTH output, allocated with the management it blends
+       ! into (it used to hide under OK_AED_EDGE_RDI_WEIGHT, an unrelated flag). The blend
+       ! itself is gated by rotation_growth_weight. mat_age_entry is allocated only when a
+       ! consumer asks for it, so that the default restart keeps its variable list.
+       ALLOCATE(rotation_growth(kjpindex, nvm), stat=ier)
+       l_error = l_error .OR. (ier /= 0)
+       IF (ier == 0) rotation_growth(:,:) = zero
+       IF (mat_a3_online .OR. rotation_growth_weight > zero) THEN
+          ALLOCATE(mat_age_entry(kjpindex, nvm), stat=ier)
+          l_error = l_error .OR. (ier /= 0)
+          IF (ier == 0) mat_age_entry(:,:) = -un
+       ENDIF
        ALLOCATE(mi_frac(kjpindex, nmiclass), stat=ier)
        l_error = l_error .OR. (ier /= 0)
        ALLOCATE(clearcut_area(kjpindex), stat=ier)
@@ -6684,6 +6728,7 @@ SUBROUTINE stomate_initialize &
     IF (ALLOCATED(sigma)) DEALLOCATE (sigma) 
     IF (ALLOCATED(age_stand)) DEALLOCATE (age_stand)
     IF (ALLOCATED(age_stand_bm)) DEALLOCATE (age_stand_bm)
+    IF (ALLOCATED(age_stand_area)) DEALLOCATE (age_stand_area)
     IF (ALLOCATED(rotation_n)) DEALLOCATE (rotation_n)
     IF (ALLOCATED(last_cut)) DEALLOCATE (last_cut)
     IF (ALLOCATED(CN_som_litter_longterm)) DEALLOCATE(CN_som_litter_longterm) 

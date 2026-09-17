@@ -3742,6 +3742,12 @@ STOMATE_DIAGPT =  1
 # INITSOC_FILE ([FILE]) :  File with soil carbon stocks for initialization 	{OK_SOIL_CARBON_DISCRETIZATION, USE_INITSOM}
 INITSOC_FILE =  initSOC.nc 
 
+# SOIL_INIT_FILE ([FILE]) :  Reference soil-pool file read at cold start (NONE = off) 	{OK_STOMATE}
+SOIL_INIT_FILE =  NONE
+
+# SOIL_INIT_PFT_MAP ([-]) :  Source reference PFT of each model PFT for SOIL_INIT_FILE (0 = MTC rule) 	{OK_STOMATE}
+SOIL_INIT_PFT_MAP =  0 (nvm values)
+
 # INITSON_FILE ([FILE]) :  File with soil nitrogen stocks 	{OK_SOIL_CARBON_DISCRETIZATION, USE_INITSOM}
 INITSON_FILE =  initSON.nc 
 
@@ -3974,6 +3980,18 @@ EDGE_PGAP_FACTOR =  0.225
 
 # MANAGEMENT_INTENSITY_FILE ([FILE]) :  NetCDF map of management-intensity class fractions (fields "f_class1".."f_class5") 	{OK_MANAGEMENT_INTENSITY}
 MANAGEMENT_INTENSITY_FILE =  NONE 
+
+# ROTATION_REF_FILE ([FILE]) :  NetCDF map of the reference rotation per PFT (field "rotation_ref", veget x lat x lon) 	{OK_MANAGEMENT_INTENSITY}
+ROTATION_REF_FILE =  NONE 
+
+# MAT_A3_FRAC_MAX ([-]) :  Cap of the rotation-derived terminal-class setpoint 1 - MAT_A3_ENTRY/R 	{MAT_A3_ENTRY > 0}
+MAT_A3_FRAC_MAX =  0.80 
+
+# MAT_AGE_ENTRY_TAU ([yr]) :  Memory of the entry-age integrator (online a3 and age-based R_growth) 	{MAT_A3_ONLINE or ROTATION_GROWTH_WEIGHT > 0}
+MAT_AGE_ENTRY_TAU =  30. 
+
+# MAT_A3_ONLINE ([FLAG]) :  Terminal-class setpoint from the entry age the model measures, not from MAT_A3_ENTRY 	{OK_MATURITY_TRANSFER or OK_HARVEST_FEED_COUPLING}
+MAT_A3_ONLINE =  n 
 
 # MIN_DENSITY_RDI_FLOOR ([-]) :  RDI sous lequel un peuplement est tenu pour effondre 	{OK_MIN_DENSITY_RDI}
 MIN_DENSITY_RDI_FLOOR =  0.02 

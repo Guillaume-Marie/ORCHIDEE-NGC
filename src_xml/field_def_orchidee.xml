@@ -132,7 +132,7 @@
     <field id="frac_snow" name="frac_snow" long_name="Snow fraction on total area including snow on vegetated and bare soil and nobio area" unit="%" > this*100 </field>
     <field id="frac_snow_veg" name="frac_snow_veg" long_name="Snow fraction on vegetated area" unit="1"/>
     <field id="frac_snow_nobio" name="frac_snow_nobio" long_name="Snow fraction on nobio area" unit="1" grid_ref="grid_nnobio"/>
-    <field id="pgflux" name="pgflux" long_name="Extra energy used for melting top snow layer" unit="W^m2" />
+    <field id="pgflux" name="pgflux" long_name="Extra energy used for melting top snow layer" unit="W/m^2" />
     <field id="vegetfrac" name="vegetfrac" long_name="Fraction of vegetation" unit="1" grid_ref="grid_nvm"/>
     <field id="maxvegetfrac" name="maxvegetfrac" long_name="Maximum fraction of vegetation" unit="1" grid_ref="grid_nvm"/>
     <field id="tot_bare_soil" name="tot_bare_soil" long_name="Total Bare Soil Fraction" unit="%"/>
@@ -597,9 +597,9 @@
     <field id="TMIN_SPRING_TIME" name="TMIN_SPRING_TIME" long_name="Number of days after onset" unit="-" grid_ref="grid_nvm"/>
     <field id="FPC_MAX" name="FPC_MAX" long_name="Foliage projective cover" unit="-" grid_ref="grid_nvm"/>
     <field id="MAXFPC_LASTYEAR" name="MAXFPC_LASTYEAR" long_name="Foliage projective cover of last year" unit="-" grid_ref="grid_nvm"/>
-    <field id="HET_RESP" name="HET_RESP" long_name="heterotr. resp. from ground" unit="gC/m^2 tot/pft/day" grid_ref="grid_nvm"/>
-    <field id="HET_RESP_SOIL" name="HET_RESP_SOIL" long_name="heterotr. resp. from soil" unit="gC/m^2 tot/pft/day" grid_ref="grid_nvm"/>
-    <field id="HET_RESP_LITTER" name="HET_RESP_LITTER" long_name="heterotr. resp. from litter" unit="gC/m^2 tot/pft/day" grid_ref="grid_nvm"/>
+    <field id="HET_RESP" name="HET_RESP" long_name="heterotr. resp. from ground" unit="gC/day/m^2/pft" grid_ref="grid_nvm"/>
+    <field id="HET_RESP_SOIL" name="HET_RESP_SOIL" long_name="heterotr. resp. from soil" unit="gC/day/m^2/pft" grid_ref="grid_nvm"/>
+    <field id="HET_RESP_LITTER" name="HET_RESP_LITTER" long_name="heterotr. resp. from litter" unit="gC/day/m^2/pft" grid_ref="grid_nvm"/>
     <field id="firefrac" name="FIREFRAC" long_name="Fire fraction on ground " unit="1/day" grid_ref="grid_nvm"/>
     <field id="AREA_BURNT_PFT" name="AREA_BURNT_PFT" long_name="Burned area per day on PFT level" unit="ha/day" grid_ref="grid_nvm"/>
     <field id="AREA_BURNT" name="AREA_BURNT" long_name="Burned area per day" unit="ha/day"/>
@@ -628,6 +628,8 @@
     <field id="EDGE_LENGTH_DYN" name="EDGE_LENGTH_DYN" long_name="Dynamic edge length (AED_FEEDBACK)" unit="m"/>
     <field id="EDGE_MESO" name="EDGE_MESO" long_name="Meso-scale edge: forest/non-forest boundary, A*4*f*(1-f)/r" unit="m"/>
     <field id="EDGE_MACRO" name="EDGE_MACRO" long_name="Macro-scale edge: roads in forest, 2*RL*c_GRIP (GRIP4)" unit="m"/>
+    <field id="EDGE_HYDRO" name="EDGE_HYDRO" long_name="Permanent edge: lakes, coastline and rivers in forest, read from EDGE_HYDRO_FILE" unit="m"/>
+    <field id="EDGE_MICRO" name="EDGE_MICRO" long_name="Micro-scale edge: disturbance and harvest openings, excess over the prescribed base" unit="m"/>
     <field id="RDI_THIN_LIMIT" name="RDI_THIN_LIMIT" long_name="RDI target actually handed to thinning, after the band override (RDI_TARGET_LOWER is recomputed for output without it and does NOT report this)" unit="1" grid_ref="grid_nvm"/>
     <field id="AC12_R" name="AC12_R" long_name="Maturity conveyor: height ratio h1/h_ref, class 1 to first non-empty class above" unit="1" grid_ref="grid_nvm"/>
     <field id="AC12_F_REAL" name="AC12_F_REAL" long_name="Maturity conveyor: donor area fraction REALLY moved this year, read after the veget_max write" unit="1" grid_ref="grid_nvm"/>
@@ -637,6 +639,10 @@
          une mosaique, un scalaire ne pouvait pas porter 10 ans (eucalyptus) et 150 ans
          (chene) a la fois. -->
     <field id="TARGET_ROTATION_AGE" name="TARGET_ROTATION_AGE" long_name="Target rotation age per PFT, derived from ROTATION_REF(pft) x MI_ROTATION_FACTOR(class) - the only channel acting on model dynamics" unit="yr" grid_ref="grid_nvm"/>
+    <field id="MAT_AGE_ENTRY" name="MAT_AGE_ENTRY" long_name="Leaky mean of the age at which area entered the slot on an upward class transfer (MAT_AGE_ENTRY); -1 = off or no sample" unit="yr" grid_ref="grid_nvm"/>
+    <field id="ROTATION_GROWTH" name="ROTATION_GROWTH" long_name="Rotation the stand can deliver, from the entry ages and the cut diameter (age-based R_growth); -1 = off, 0 = no estimate" unit="yr" grid_ref="grid_nvm"/>
+    <field id="MAT_TARGET_TERM" name="MAT_TARGET_TERM" long_name="Effective terminal age-class setpoint seen by the maturity regulator and the harvest-feed coupling: 1 - MAT_A3_ENTRY/R where active, MAT_TARGET_FRAC(n) elsewhere" unit="-" grid_ref="grid_nvm"/>
+    <field id="ROTATION_REF_MAP" name="ROTATION_REF_MAP" long_name="Reference rotation per PFT actually used, before the intensity factor: ROTATION_REF_FILE where covered, namelist ROTATION_REF elsewhere" unit="yr" grid_ref="grid_nvm"/>
     <field id="DA_FIRE"    name="DA_FIRE"    long_name="Area perturbed by fire over the timestep (AED_FEEDBACK accumulator)" unit="m2"/>
     <field id="DA_STORM"   name="DA_STORM"   long_name="Area perturbed by storm over the timestep (AED_FEEDBACK accumulator)" unit="m2"/>
     <field id="DA_PEST"    name="DA_PEST"    long_name="Area perturbed by pest over the timestep (AED_FEEDBACK accumulator)" unit="m2"/>
@@ -667,8 +673,8 @@
     <field id="DOY_END_GS" name="DOY_END_GS" long_name="Day of year for the end of growing season and complete defoliation" unit="day" operation="maximum" grid_ref="grid_nvm"/>
     <field id="MEAN_START_GS" name="MEAN_START_GS" long_name="Mean day of year for the start of growing season and leaf onset" unit="day" grid_ref="grid_nvm"/>
     <field id="VEGET_MAX" name="VEGET_MAX" long_name="Maximum vegetation fraction (incl. no bio fraction) " unit="-" grid_ref="grid_nvm"/>
-    <field id="NPP_STOMATE" name="NPP" long_name="Net primary productivity (positive from atm to land)" unit="gC/day/(m^2 tot)" grid_ref="grid_nvm"/>
-    <field id="GPP" name="GPP" long_name="Gross primary productivity (positive from atm to land, inc. atm_to_bm)" unit="gC/day/m^2" grid_ref="grid_nvm"/>
+    <field id="NPP_STOMATE" name="NPP" long_name="Net primary productivity (positive from atm to land)" unit="gC/day/m^2/pft" grid_ref="grid_nvm"/>
+    <field id="GPP" name="GPP" long_name="Gross primary productivity (positive from atm to land, inc. atm_to_bm)" unit="gC/day/m^2/pft" grid_ref="grid_nvm"/>
     <field id="NBP_pool_c" name="NBP_pool_c" long_name="Pool-based net biome production" unit="kgC/s/m^2"/>
     <field id="NBP_flux_c" name="NBP_flux_c" long_name="Flux-based net biome production" unit="kgC/s/m^2"/>
     <field id="NBP_pool_n" name="NBP_pool_n" long_name="Pool-based net biome production" unit="kgN/s/m^2"/>
@@ -1049,6 +1055,7 @@
     <field id="AGE" name="AGE" long_name="age" unit="years" grid_ref="grid_nvm"/>
     <field id="AGE_STAND" name="AGE_STAND" long_name="age" unit="years" grid_ref="grid_nvm"/>
     <field id="AGE_STAND_BM" name="AGE_STAND_BM" long_name="biomass-weighted conserved mean stand age (STAND_AGE)" unit="years" grid_ref="grid_nvm"/>
+    <field id="AGE_STAND_AREA" name="AGE_STAND_AREA" long_name="area-weighted conserved mean stand age, mirror of AGE_STAND_BM (STAND_AGE)" unit="years" grid_ref="grid_nvm"/>
     <field id="HEIGHT" name="HEIGHT" long_name="Quadratic mean height of all diameter classes" unit="m" grid_ref="grid_nvm"/>
     <field id="HEIGHT_DOM" name="HEIGHT_DOM" long_name="Height of the largest diameter class of the stand" unit="m" grid_ref="grid_nvm"/>
     <field id="HEIGHT_INV" name="HEIGHT_INV" long_name="Quadratic mean height equivalent to forest inventory" unit="m" grid_ref="grid_nvm"/>

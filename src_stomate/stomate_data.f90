@@ -161,10 +161,19 @@ MODULE stomate_data
   INTEGER(i_std), PARAMETER :: IDX_HARVEST  = 4
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: mi_frac         !! fractions de classe d'intensite (npts, nmiclass), lues annuellement
 !$OMP THREADPRIVATE(mi_frac)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: rotation_ref_map !! ROTATION_REF_FILE: reference rotation per point and PFT (yr),
+                                                                  !! <= 0 = namelist ROTATION_REF(pft). Allocated only when the file is read.
+!$OMP THREADPRIVATE(rotation_ref_map)
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: road_length_map    !! FRAG_3TERMS macro: longueur de ROUTE par maille (m), statique.
                                                                   !! Guillaume M. -- NOT an edge length: update_edge_length derives
                                                                   !! EL_macro = 2 * RL * road_grip_correction from it.
 !$OMP THREADPRIVATE(road_length_map)
+
+  ! Guillaume M. -- FRAG_3TERMS permanent: lake, coast and river edge, read from a map.
+  ! The meso term is built from veget_max on area_land, so its non-forest side is
+  ! TERRESTRIAL ONLY: no channel exists by which water could cut forest. Static, like roads.
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: edge_hydro_map     !! FRAG_3TERMS permanent: lisiere foret/eau et foret/riviere par maille (m), statique.
+!$OMP THREADPRIVATE(edge_hydro_map)
   !! Guillaume M. -- AED_EDGE_RDI_WEIGHT: relative density index N/Nmax(D) per slot,
   !! PRODUCED by stomate_lpj_vegetation, where it is already computed, and CONSUMED by
   !! update_edge_length; stomate.f90 guarantees that order. rdi was recomputed locally in
@@ -177,21 +186,16 @@ MODULE stomate_data
 !$OMP THREADPRIVATE(dia_factor)
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: rdi_stand       !! Relative density index N/Nmax(D) per (point, PFT slot) (-)
 !$OMP THREADPRIVATE(rdi_stand)
-  ! Guillaume M. -- ROTATION_GROWTH: the rotation the STAND can actually deliver, against
-  ! the published itinerary which has no spatial dependence. dia_growth and max_dia_last
-  ! are PERSISTED -- libIGCM restarts the binary every period, so a 30-year integrator
-  ! would be wiped each year. See design/MODULE_DESIGN_ROTATION_GROWTH.md.
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: dia_growth      !! Leaky mean of the annual max_dia increment (m/yr)
-!$OMP THREADPRIVATE(dia_growth)
-  ! Guillaume M. -- The increment is read PER CIRCUMFERENCE CLASS, not per slot. A slot's
-  ! max_dia moves when trees enter or leave, with nobody having grown; a circumference
-  ! class whose stem count held still contains the SAME trees, so its diameter change is
-  ! growth and nothing else. Measuring on the slot gave 0.097 cm/yr in class 3 (a 126-yr
-  ! leg), and filtering slots on area starved the upper classes outright.
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:,:) :: circ_dia_last !! Diameter of each circ class at the previous annual pass (m)
-!$OMP THREADPRIVATE(circ_dia_last)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:,:) :: circ_n_last   !! Stem count of each circ class at the previous annual pass (m-2)
-!$OMP THREADPRIVATE(circ_n_last)
+  ! Guillaume M. -- MAT_AGE_ENTRY: leaky mean of the age of the area that enters each slot on
+  ! an upward class transfer (yr), -1 = never fed. A cohort attribute carried by the moved
+  ! parcel, not a slot velocity. PERSISTED (libIGCM restarts the binary every period).
+  ! Feeds the online a3 of the terminal setpoint and the age-based R_growth.
+  ! See design/MODULE_DESIGN_MAT_AGE_ENTRY.md.
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: mat_age_entry   !! Age of the area entering the slot, leaky mean (yr); <= 0 = no sample
+!$OMP THREADPRIVATE(mat_age_entry)
+  ! Guillaume M. -- ROTATION_GROWTH: the rotation the STAND can actually deliver, against the
+  ! published itinerary. Derived from mat_age_entry once a year, persisted because it is only
+  ! recomputed on 31 December. Blended with a weight w in set_management_intensity.
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: rotation_growth !! Rotation derived from realised growth (yr), <=0 = undefined
 !$OMP THREADPRIVATE(rotation_growth)
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: clearcut_area     !! taille de parcelle de REALISATION (m2). ATTENTION : geometrie de lisiere
@@ -845,8 +849,10 @@ CONTAINS
     REAL(r_std)                       :: ftot, s_wmean, a_wmean, hmod, d_wmean
     REAL(r_std)                       :: acls_tot, jmat
     REAL(r_std), DIMENSION(nmiclass)  :: alpha_c    !! alpha par classe = k/sqrt(S_c) (m/m2)
+    REAL(r_std), DIMENSION(nmiclass)  :: fc         !! fractions de classe de la maille, repli applique (-)
     REAL(r_std), DIMENSION(nagec)     :: acls       !! surface par classe d'age dans la maille
     REAL(r_std)                       :: r_wmean    !! moyenne ponderee de 1/mi_rotation_factor (-)
+    REAL(r_std), DIMENSION(nvm)       :: rref       !! reference rotation of this cell: map where covered, namelist elsewhere (yr)
 
     IF (.NOT. ok_management_intensity) RETURN
     IF (.NOT. ALLOCATED(mi_frac)) RETURN
@@ -864,48 +870,55 @@ CONTAINS
 
     DO ji = 1, npts
 
+       !! Guillaume M. -- Regional reference where ROTATION_REF_FILE has one, namelist scalar
+       !! elsewhere (design/MODULE_DESIGN_ROTATION_REGION.md). The map replaces the REFERENCE
+       !! only: the intensity factor still applies below. Not allocated = NONE = bit-neutral.
+       rref(:) = rotation_ref(:)
+       IF (ALLOCATED(rotation_ref_map)) THEN
+          WHERE (rotation_ref_map(ji,:) > zero) rref(:) = rotation_ref_map(ji,:)
+       ENDIF
+
        !! --- 1. Guillaume M. -- Normalise the class fractions: their sum can differ from 1
        !!        after interpolation, or on a cell holding no managed forest.
        ftot = zero
        DO ic = 1, nmiclass
-          ftot = ftot + MAX(mi_frac(ji,ic), zero)
+          fc(ic) = MAX(mi_frac(ji,ic), zero)
+          ftot   = ftot + fc(ic)
        END DO
+       !! Guillaume M. -- Silent map: the gap is the edge of the EFDA footprint, where the
+       !! cells still carry managed forest, so fall back to MI_DEFAULT_CLASS instead of
+       !! claiming no harvest. Routed through the normal path, so the rotation, the edge
+       !! coefficient, the patch size and the diameter stay consistent with each other.
        IF (ftot <= min_stomate) THEN
-          !! Guillaume M. -- Unmanaged cell: no reachable rotation, no harvest edge. Zero
-          !! means "no rotation defined". Only tree PFTs ever read this map, and they take
-          !! the sentinel of the unmanaged class just below.
-          target_rotation_age(ji,:) = zero
-          WHERE (rotation_ref(:) > zero) &
-               target_rotation_age(ji,:) = rotation_ref(:) * mi_rotation_factor(1)
-          alpha_harvest(ji)       = zero
-          clearcut_area(ji)           = mi_clearcut_size_max
-          IF (ALLOCATED(dia_factor)) dia_factor(ji) = un
-          CYCLE
+          fc(:)                 = zero
+          fc(mi_default_class) = un
+          ftot                  = un
        END IF
 
        !! --- 2. Guillaume M. -- Means weighted by the managed area.
        a_wmean = zero
        s_wmean = zero
        DO ic = 1, nmiclass
-          a_wmean = a_wmean + MAX(mi_frac(ji,ic), zero) * alpha_c(ic)          ! moyenne LINEAIRE de alpha
-          s_wmean = s_wmean + MAX(mi_frac(ji,ic), zero) * mi_clearcut_size(ic)
+          a_wmean = a_wmean + fc(ic) * alpha_c(ic)          ! moyenne LINEAIRE de alpha
+          s_wmean = s_wmean + fc(ic) * mi_clearcut_size(ic)
        END DO
        !!
        !! Guillaume M. -- Harvest cadence is PER PFT: the rate is an absolute flux, so a
        !! class-only rate would turn an oak stand (100-150 yr) and a eucalypt (10-35 yr) at
        !! the same speed. /!\ The additive quantity is the RATE, not the rotation.
-       !!   rate(ji,jv) = (1/rotation_ref(jv)) * Sigma_c f_c/mi_rotation_factor(c) / ftot
+       !!   rate(ji,jv) = (1/rref(jv)) * Sigma_c f_c/mi_rotation_factor(c) / ftot
+       !!   with rref = ROTATION_REF(jv), or the regional map where ROTATION_REF_FILE covers the cell.
        !! The class factor is PFT independent: averaged ONCE, then divided per PFT.
        r_wmean = zero
        DO ic = 1, nmiclass
-          r_wmean = r_wmean + MAX(mi_frac(ji,ic), zero) / mi_rotation_factor(ic)
+          r_wmean = r_wmean + fc(ic) / mi_rotation_factor(ic)
        END DO
        r_wmean = r_wmean / ftot
        !! Guillaume M. -- Zero means "no rotation defined": only tree PFTs read this map,
        !! and every tree has rotation_ref > 0, so they all take the WHERE branch below.
        target_rotation_age(ji,:) = zero
-       WHERE (rotation_ref(:) > zero .AND. r_wmean > min_stomate) &
-            target_rotation_age(ji,:) = rotation_ref(:) / r_wmean
+       WHERE (rref(:) > zero .AND. r_wmean > min_stomate) &
+            target_rotation_age(ji,:) = rref(:) / r_wmean
        !! Guillaume M. -- ROTATION_GROWTH: blend the published itinerary with the rotation
        !! the stand can actually deliver. w = 0 keeps the recommendation alone (bit-neutral
        !! default), w = 1 follows the site. A CONVEX combination, so the result can never
@@ -926,7 +939,7 @@ CONTAINS
        IF (ALLOCATED(dia_factor)) THEN
           d_wmean = zero
           DO ic = 1, nmiclass
-             d_wmean = d_wmean + MAX(mi_frac(ji,ic), zero) * mi_dia_factor(ic)
+             d_wmean = d_wmean + fc(ic) * mi_dia_factor(ic)
           END DO
           dia_factor(ji) = d_wmean / ftot
        END IF
@@ -989,8 +1002,13 @@ CONTAINS
     REAL(r_std)                                   :: w_for, w_rec       !! per-point forest veget sum and recovery-weighted sum
     REAL(r_std), DIMENSION(npts)                  :: A_open, alpha_eff, flux_tot   !! AED_REGROWTH v2 (A_open from young age class)
     REAL(r_std), DIMENSION(npts)                  :: f_class1                      !! Age-class-1 cover fraction, openness-weighted if asked (-)
+    REAL(r_std), DIMENSION(npts,nvm)              :: rref_out                      !! ROTATION_REF_MAP diagnostic: reference rotation used (yr)
+    REAL(r_std), DIMENSION(npts,nvm)              :: mtt_out                       !! MAT_TARGET_TERM diagnostic: effective terminal setpoint (-)
+    REAL(r_std), DIMENSION(npts,nvm)              :: mae_out                       !! MAT_AGE_ENTRY / ROTATION_GROWTH diagnostics (yr)
     REAL(r_std), DIMENSION(npts)                  :: edge_meso, grain_eff          !! FRAG_3TERMS: meso edge (m) and per-cell grain (m)
     REAL(r_std), DIMENSION(npts)                  :: edge_macro                    !! FRAG_3TERMS: macro edge from roads (m)
+    REAL(r_std), DIMENSION(npts)                  :: edge_hydro                    !! FRAG_3TERMS: permanent edge from lakes, coast and rivers (m)
+    REAL(r_std), DIMENSION(npts)                  :: edge_micro                    !! FRAG_3TERMS: micro edge, what the dynamics add above the prescribed base (m)
     REAL(r_std)                                   :: w_grain                       !! FRAG_3TERMS: veget_max-weighted grain accumulator
     REAL(r_std), DIMENSION(npts)                  :: alpha_bg                      !! v2 piste B: climatological background α per cell
     REAL(r_std)                                   :: decay_mix                     !! v2 agent-flux decay
@@ -1057,6 +1075,16 @@ CONTAINS
        ENDIF
     ENDIF
     edge_length_base(:) = edge_length_base(:) + edge_macro(:)
+
+    !! 0quater. Guillaume M. -- PERMANENT term, water. Lakes, coastline and rivers cut the
+    !!   forest exactly as roads do, and the meso term cannot see them: it is built from
+    !!   veget_max on area_land, whose non-forest side is TERRESTRIAL only.
+    !!   /!\ Added AS IS. The map already carries its geometric factors -- the two banks of a
+    !!   river are counted in it -- and is already restricted to forest. Re-applying a factor 2
+    !!   or a forest weighting here would double-count, as for the roads above.
+    edge_hydro(:) = zero
+    IF (ALLOCATED(edge_hydro_map)) edge_hydro(:) = edge_hydro_map(:)
+    edge_length_base(:) = edge_length_base(:) + edge_hydro(:)
 
 
     !! 1. Guillaume M. -- Per-agent edge-production coefficients alpha (m/m2). Harvest alpha
@@ -1171,6 +1199,14 @@ CONTAINS
     !!     triggered. Convergence is judged on the age-structure and edge figures
     !!     (scripts/plot_spinup_ageclass_edge.py).
 
+    !! 4.7 Guillaume M. -- MICRO term as a diagnostic. Computed HERE, after the cap, as the
+    !!     excess over the prescribed base: that definition holds on BOTH paths, whereas
+    !!     edge_src exists only on the regrowth one and is undefined on the legacy tau_rec
+    !!     path. On the regrowth path and away from the cap it equals edge_src exactly.
+    !!     /!\ Without this field the micro term can only be recovered by subtraction, and
+    !!     that subtraction silently breaks as soon as another base term is switched on.
+    edge_micro(:) = MAX(zero, edge_length_dyn(:) - edge_length_base(:))
+
     !! 5. Diagnostics XIOS
     CALL xios_orchidee_send_field("EDGE_LENGTH_DYN", edge_length_dyn)
     ! Guillaume M. -- The scales are output SEPARATELY: without them the decomposition is
@@ -1178,6 +1214,8 @@ CONTAINS
     ! term -- which is what the decomposition is for.
     CALL xios_orchidee_send_field("EDGE_MESO",  edge_meso)
     CALL xios_orchidee_send_field("EDGE_MACRO", edge_macro)
+    CALL xios_orchidee_send_field("EDGE_HYDRO", edge_hydro)
+    CALL xios_orchidee_send_field("EDGE_MICRO", edge_micro)
     ! Guillaume M. -- Management intensity: edge coefficient and patch size actually used
     ! at this step (MODULE_DESIGN_MANAGEMENT_INTENSITY.md).
     CALL xios_orchidee_send_field("ALPHA_HARVEST_EFF", alpha_harvest_use)
@@ -1188,6 +1226,33 @@ CONTAINS
     ! (scripts/plot_realised_rotation.py).
     IF (ALLOCATED(target_rotation_age)) THEN
        CALL xios_orchidee_send_field("TARGET_ROTATION_AGE", target_rotation_age)
+       ! Guillaume M. -- Reference rotation actually used, BEFORE the intensity factor: the
+       ! regional map where ROTATION_REF_FILE covers the cell, the namelist scalar elsewhere.
+       ! Lets one check that the map was read without going through the harvest cadence.
+       rref_out(:,:) = SPREAD(rotation_ref(:), 1, npts)
+       IF (ALLOCATED(rotation_ref_map)) THEN
+          WHERE (rotation_ref_map(:,:) > zero) rref_out(:,:) = rotation_ref_map(:,:)
+       ENDIF
+       CALL xios_orchidee_send_field("ROTATION_REF_MAP", rref_out)
+       ! Guillaume M. -- Effective terminal-class setpoint seen by the regulators, on every
+       ! slot of the group: 1 - a3/R where MAT_A3_ENTRY is active, MAT_TARGET_FRAC(n) elsewhere.
+       mtt_out(:,:) = zero
+       DO jv = 1, nvm
+          IF (.NOT. is_tree(jv)) CYCLE
+          IF (nagec_pft(agec_group(jv)) <= 1) CYCLE
+          DO ji = 1, npts
+             mtt_out(ji,jv) = mat_target_frac_eff(ji, jv, nagec_pft(agec_group(jv)))
+          ENDDO
+       ENDDO
+       CALL xios_orchidee_send_field("MAT_TARGET_TERM", mtt_out)
+       ! Guillaume M. -- Online entry ages and the age-based growth rotation; -1 where the
+       ! machinery is off or has no sample yet, so the field is always sent.
+       mae_out(:,:) = -un
+       IF (ALLOCATED(mat_age_entry)) mae_out(:,:) = mat_age_entry(:,:)
+       CALL xios_orchidee_send_field("MAT_AGE_ENTRY", mae_out)
+       mae_out(:,:) = -un
+       IF (ALLOCATED(rotation_growth)) mae_out(:,:) = rotation_growth(:,:)
+       CALL xios_orchidee_send_field("ROTATION_GROWTH", mae_out)
     ENDIF
     ! Guillaume M. -- A_open is published as CLASS0_AREA below and nowhere else: once the
     ! landscape term left A_open the former EDGE_REGEN carried the very same values, and two
@@ -1233,6 +1298,57 @@ CONTAINS
 
   END SUBROUTINE update_edge_length
 
+
+
+!! ================================================================================================
+!! FUNCTION   : mat_target_frac_eff
+!!
+!>\BRIEF        Effective target area share of age class ic within the group of PFT jv, on point ipts.
+!!
+!! DESCRIPTION: Guillaume M. -- The terminal age class is entered by DIAMETER, so its entry age a3
+!!              does not follow the rotation: at equilibrium its share is 1 - a3/R. With
+!!              MAT_A3_ENTRY > 0 the terminal setpoint becomes MIN(MAT_A3_FRAC_MAX, MAX(MAT_TARGET_FRAC(n),
+!!              1 - a3/target_rotation_age)) and the lower classes are rescaled so the shares sum to
+!!              one. Inactive (a3 <= 0, no rotation) = MAT_TARGET_FRAC(ic) untouched, bit-neutral.
+!!              See design/MODULE_DESIGN_MAT_TARGET_A3.md.
+!! ================================================================================================
+  FUNCTION mat_target_frac_eff(ipts, jv, ic)
+
+    IMPLICIT NONE
+
+    INTEGER(i_std), INTENT(in) :: ipts                !! Grid point (local index)
+    INTEGER(i_std), INTENT(in) :: jv                  !! Any PFT of the age-class group
+    INTEGER(i_std), INTENT(in) :: ic                  !! Age class rank within the group (1..nagec_pft)
+    REAL(r_std)                :: mat_target_frac_eff !! Target share of class ic (-)
+
+    INTEGER(i_std) :: jterm, nlast   !! terminal PFT of the group, its class rank
+    REAL(r_std)    :: f4, base4      !! effective and namelist terminal setpoints
+    REAL(r_std)    :: a3             !! entry age used: online sample or namelist (yr)
+
+    mat_target_frac_eff = mat_target_frac(ic)
+    nlast = nagec_pft(agec_group(jv))
+    IF (nlast <= 1) RETURN
+    jterm = start_index(agec_group(jv)) + nlast - 1
+    ! Guillaume M. -- a3 measured by the model itself where MAT_A3_ONLINE has a sample
+    ! (age of the area that entered the terminal slot), the namelist parameter otherwise
+    ! (seed and fallback). See design/MODULE_DESIGN_MAT_AGE_ENTRY.md.
+    a3 = mat_a3_entry(jterm)
+    IF (mat_a3_online .AND. ALLOCATED(mat_age_entry)) THEN
+       IF (mat_age_entry(ipts,jterm) > zero) a3 = mat_age_entry(ipts,jterm)
+    ENDIF
+    IF (a3 <= zero) RETURN
+    IF (.NOT. ALLOCATED(target_rotation_age)) RETURN
+    IF (target_rotation_age(ipts,jterm) <= min_stomate) RETURN
+
+    base4 = mat_target_frac(nlast)
+    f4 = MIN(mat_a3_frac_max, MAX(base4, un - a3 / target_rotation_age(ipts,jterm)))
+    IF (ic == nlast) THEN
+       mat_target_frac_eff = f4
+    ELSE IF (base4 < un) THEN
+       mat_target_frac_eff = mat_target_frac(ic) * (un - f4) / (un - base4)
+    ENDIF
+
+  END FUNCTION mat_target_frac_eff
 
 !! ================================================================================================
 !! FUNCTION   : edge_grain_mtc_of

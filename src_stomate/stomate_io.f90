@@ -37,6 +37,7 @@ MODULE stomate_io
   USE ioipsl_para
   USE structures
   USE interpol_help
+  USE interpweight
   USE time, ONLY : one_year
   USE xios_orchidee
   USE sapiens_forestry,   ONLY : sapiens_forestry_set_fm, sapiens_forestry_set_species_change, sapiens_forestry_set_desired_fm
@@ -44,12 +45,36 @@ MODULE stomate_io
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC readrestart, writerestart
+  PUBLIC readrestart, writerestart, soil_init_from_reference, rotation_ref_from_file
+
+  ! Guillaume M. -- soil_init_from_reference for arrays whose PFT axis is not next to npts
+  ! (som, litter, litterfuel): one specific per rank, assumed-shape so that array sections
+  ! such as som(:,:,:,icarbon) can be passed without a copy.
+  INTERFACE soil_init_pft_mid
+     MODULE PROCEDURE soil_init_pft_mid3, soil_init_pft_mid4, soil_init_pft_mid5
+  END INTERFACE
 
   
 
   REAL(r_std),ALLOCATABLE,DIMENSION(:),SAVE       :: trefe         !! reference temperature (K)
 !$OMP THREADPRIVATE(trefe)
+  ! Guillaume M. -- SOIL_INIT_FILE cache, filled once by soil_init_ref_setup on the first
+  ! reservoir taken from the reference file (cold start only). nvm_src is the PFT count
+  ! of the reference run; w_src its veget_max brought onto this grid (MTC weights).
+  LOGICAL, SAVE                                   :: soil_init_ready = .FALSE. !! Cache filled
+!$OMP THREADPRIVATE(soil_init_ready)
+  INTEGER(i_std), SAVE                            :: nvm_src = 0    !! Number of PFTs of the reference file
+!$OMP THREADPRIVATE(nvm_src)
+  INTEGER(i_std), ALLOCATABLE, DIMENSION(:), SAVE :: pft_to_mtc_src !! MTC of each reference PFT (nvm_src)
+!$OMP THREADPRIVATE(pft_to_mtc_src)
+  LOGICAL, ALLOCATABLE, DIMENSION(:), SAVE        :: is_tree_src    !! Tree flag of each reference PFT (nvm_src)
+!$OMP THREADPRIVATE(is_tree_src)
+  REAL(r_std), ALLOCATABLE, DIMENSION(:,:), SAVE  :: w_src          !! Reference veget_max on this grid (npts, nvm_src) (-)
+!$OMP THREADPRIVATE(w_src)
+  INTEGER(i_std), ALLOCATABLE, DIMENSION(:), SAVE :: map_src        !! Explicit source PFT per model PFT, 0 = MTC rule (nvm)
+!$OMP THREADPRIVATE(map_src)
+  LOGICAL, ALLOCATABLE, DIMENSION(:), SAVE        :: mtc_warned     !! Fallback warning already issued for this model PFT (nvm)
+!$OMP THREADPRIVATE(mtc_warned)
 CONTAINS
 
 
@@ -107,7 +132,7 @@ CONTAINS
        &  forest_managed, &
        &  species_change_map, fm_change_map, lpft_replant, lai_per_level, &
        &  laieff_fit, wstress_season, wstress_month, &
-       &  age_stand, age_stand_bm, rotation_n, last_cut, mai, pai, &
+       &  age_stand, age_stand_bm, age_stand_area, rotation_n, last_cut, mai, pai, &
        &  previous_wood_volume, mai_count, coppice_dens, &
        &  light_tran_to_floor_season, daylight_count, veget_max, gap_area_save, &
        &  deepSOM_a, deepSOM_s, deepSOM_p, O2_soil, CH4_soil, O2_snow, CH4_snow, &
@@ -260,6 +285,7 @@ CONTAINS
     REAL(r_std), DIMENSION(:,:), INTENT(out)               :: rue_longterm             !! longterm radiation use efficiency
     INTEGER(i_std), DIMENSION(:,:), INTENT(out)            :: age_stand                !! Age of stand (years)
     REAL(r_std), DIMENSION(:,:), INTENT(out)               :: age_stand_bm             !! Biomass-weighted conserved mean stand age (years) - STAND_AGE
+    REAL(r_std), DIMENSION(:,:), INTENT(out)               :: age_stand_area           !! AREA-weighted conserved mean stand age (years) - STAND_AGE
     INTEGER(i_std), DIMENSION(:,:), INTENT(out)            :: rotation_n               !! Rotation number (number of rotation since pft is managed)
     INTEGER(i_std), DIMENSION(:,:), INTENT(out)            :: last_cut                 !! Years since last thinning (years)
     REAL(r_std), DIMENSION(:,:), INTENT(out)               :: cn_leaf_min_season       !! Seasonal min CN ratio of leaves 
@@ -382,6 +408,8 @@ CONTAINS
     REAL(r_std),DIMENSION(npts,nvm)                                     :: need_adjacent_real      !! in order for this PFT to be introduced,
                                                                                                    !! does it have to be present in an adjacent grid box? - real
     CHARACTER(LEN=80)                                                   :: var_name                !! To store variables names for I/O
+    LOGICAL, DIMENSION(npts)                                            :: si_cov                  !! SOIL_INIT_FILE: point taken from the reference file
+    REAL(r_std), ALLOCATABLE, DIMENSION(:,:)                            :: si_tmp                  !! SOIL_INIT_FILE: reservoir flattened to (npts, nk)
     CHARACTER(LEN=10)                                                   :: part_st                 !! string suffix indicating an index
     CHARACTER(LEN=10)                                                   :: circ_str                !! string suffix indicating an index            
     REAL(r_std),DIMENSION(1)                                            :: xtmp                    !! temporary storage
@@ -532,7 +560,13 @@ CONTAINS
     var_name = 'tsoil_daily'
     CALL restget_p (rest_id_stomate, var_name, nbp_glo,   nslm, 1, itime, &
          &                .TRUE., tsoil_daily, 'gather', nbp_glo, index_g)
-    IF (ALL(tsoil_daily(:,:) == val_exp)) tsoil_daily(:,:) = zero
+    IF (ALL(tsoil_daily(:,:) == val_exp)) THEN
+       tsoil_daily(:,:) = zero
+       ! Guillaume M. -- SOIL_INIT_FILE: the historical default is applied first, then the
+       ! reference file overwrites the points it covers. Same pattern at every reservoir.
+       IF (TRIM(soil_init_file) /= 'NONE') CALL soil_init_from_reference('tsoil_daily', npts, &
+            lalo, neighbours, resolution, contfrac, veget_max, .FALSE., nslm, tsoil_daily, si_cov)
+    ENDIF
     !-
     precip_daily(:) = val_exp
     var_name = 'precip_daily'
@@ -685,6 +719,8 @@ CONTAINS
        DO l=1,nslm
           tsoil_month(:,l) = temp_air(:)
        ENDDO
+       IF (TRIM(soil_init_file) /= 'NONE') CALL soil_init_from_reference('tsoil_month', npts, &
+            lalo, neighbours, resolution, contfrac, veget_max, .FALSE., nslm, tsoil_month, si_cov)
     ENDIF
     !-
     precip_month(:) = val_exp
@@ -728,7 +764,11 @@ CONTAINS
     var_name = 'firelitter'
     CALL restget_p (rest_id_stomate, var_name, nbp_glo, nvm, 1, itime, &
          &              .TRUE., firelitter, 'gather', nbp_glo, index_g)
-    IF (ALL(firelitter(:,:) == val_exp)) firelitter(:,:) = zero
+    IF (ALL(firelitter(:,:) == val_exp)) THEN
+       firelitter(:,:) = zero
+       IF (TRIM(soil_init_file) /= 'NONE') CALL soil_init_from_reference('firelitter', npts, &
+            lalo, neighbours, resolution, contfrac, veget_max, .TRUE., 1, firelitter, si_cov)
+    ENDIF
     !-
     ! 7 maximum and minimum moisture availabilities for tropic phenology
     !-
@@ -1075,12 +1115,16 @@ CONTAINS
          &                     .TRUE., litter(:,:,:,:,icarbon), 'gather', nbp_glo, index_g)
     IF (ALL(litter(:,:,:,:,icarbon) == val_exp)) THEN
        litter(:,:,:,:,icarbon) = zero
+       IF (TRIM(soil_init_file) /= 'NONE') CALL soil_init_pft_mid('litter_c', npts, lalo, &
+            neighbours, resolution, contfrac, veget_max, litter(:,:,:,:,icarbon), si_cov)
     ENDIF
 
     CALL restget_p (rest_id_stomate, 'litter_n', nbp_glo, nlitt, nvm, nlevs,itime, &
          &                     .TRUE., litter(:,:,:,:,initrogen), 'gather', nbp_glo,index_g)
     IF (ALL(litter(:,:,:,:,initrogen) == val_exp)) THEN
        litter(:,:,:,:,initrogen) = zero
+       IF (TRIM(soil_init_file) /= 'NONE') CALL soil_init_pft_mid('litter_n', npts, lalo, &
+            neighbours, resolution, contfrac, veget_max, litter(:,:,:,:,initrogen), si_cov)
     ENDIF
     
     !spitfire
@@ -1089,11 +1133,23 @@ CONTAINS
          &                     .TRUE., litterfuel(:,:,:,:,:), 'gather', nbp_glo, index_g)
     IF (ALL(litterfuel(:,:,:,:,:) == val_exp)) THEN
        litterfuel(:,:,:,:,:)= zero
+       IF (TRIM(soil_init_file) /= 'NONE') CALL soil_init_pft_mid('litterfuel', npts, lalo, &
+            neighbours, resolution, contfrac, veget_max, litterfuel, si_cov)
     ENDIF
     
     CALL restget_p (rest_id_stomate, 'dead_leaves', nbp_glo, nvm, nlitt, itime, &
           &                   .TRUE., dead_leaves, 'gather', nbp_glo, index_g)
-    IF (ALL(dead_leaves == val_exp)) dead_leaves = zero
+    IF (ALL(dead_leaves == val_exp)) THEN
+       dead_leaves = zero
+       IF (TRIM(soil_init_file) /= 'NONE') THEN
+          ALLOCATE(si_tmp(npts,nvm*nlitt))
+          si_tmp = RESHAPE(dead_leaves, (/npts, nvm*nlitt/))
+          CALL soil_init_from_reference('dead_leaves', npts, lalo, neighbours, resolution, &
+               contfrac, veget_max, .TRUE., nlitt, si_tmp, si_cov)
+          dead_leaves = RESHAPE(si_tmp, (/npts, nvm, nlitt/))
+          DEALLOCATE(si_tmp)
+       ENDIF
+    ENDIF
 
     CALL restget_p (rest_id_stomate, 'soil_carbon', nbp_glo, ncarb, nvm, itime, &
          &                   .TRUE., som(:,:,:,icarbon), 'gather', nbp_glo, index_g) 
@@ -1104,14 +1160,16 @@ CONTAINS
        ! Initialize all PFTs that are present. Note that PFT1 is
        ! left at zero.
        DO ivm = 2,nvm
-          WHERE (veget_max(:,ivm) .GT. min_stomate) 
-             ! Set the initial values for PFTs that are present.  
-             som(:,iactive,ivm,icarbon) = som_init_active 
-             som(:,isurface,ivm,icarbon) = som_init_surface 
+          WHERE (veget_max(:,ivm) .GT. min_stomate)
+             ! Set the initial values for PFTs that are present.
+             som(:,iactive,ivm,icarbon) = som_init_active
+             som(:,isurface,ivm,icarbon) = som_init_surface
              som(:,islow,ivm,icarbon) = som_init_slow
              som(:,ipassive,ivm,icarbon) = som_init_passive
           END WHERE
-       ENDDO  
+       ENDDO
+       IF (TRIM(soil_init_file) /= 'NONE') CALL soil_init_pft_mid('soil_carbon', npts, lalo, &
+            neighbours, resolution, contfrac, veget_max, som(:,:,:,icarbon), si_cov)
     ENDIF
 
     CALL restget_p (rest_id_stomate, 'soil_nitrogen', nbp_glo, ncarb, nvm, itime, & 
@@ -1120,19 +1178,51 @@ CONTAINS
        som(:,iactive,:,initrogen) = som(:,iactive,:,icarbon) / CN_target_iactive_ref 
        som(:,isurface,:,initrogen) = som(:,isurface,:,icarbon) / CN_target_isurface_ref 
        som(:,islow,:,initrogen) = som(:,islow,:,icarbon) / CN_target_islow_ref 
-       som(:,ipassive,:,initrogen) =  som(:,ipassive,:,icarbon) / CN_target_ipassive_ref 
+       som(:,ipassive,:,initrogen) =  som(:,ipassive,:,icarbon) / CN_target_ipassive_ref
+       IF (TRIM(soil_init_file) /= 'NONE') CALL soil_init_pft_mid('soil_nitrogen', npts, lalo, &
+            neighbours, resolution, contfrac, veget_max, som(:,:,:,initrogen), si_cov)
     ENDIF
     CALL restget_p (rest_id_stomate, 'lignin_struc', nbp_glo, nvm, nlevs, itime, &
          &     .TRUE., lignin_struc, 'gather', nbp_glo, index_g)
-    IF (ALL(lignin_struc == val_exp)) lignin_struc(:,:,:) = zero
+    IF (ALL(lignin_struc == val_exp)) THEN
+       lignin_struc(:,:,:) = zero
+       IF (TRIM(soil_init_file) /= 'NONE') THEN
+          ALLOCATE(si_tmp(npts,nvm*nlevs))
+          si_tmp = RESHAPE(lignin_struc, (/npts, nvm*nlevs/))
+          CALL soil_init_from_reference('lignin_struc', npts, lalo, neighbours, resolution, &
+               contfrac, veget_max, .TRUE., nlevs, si_tmp, si_cov)
+          lignin_struc = RESHAPE(si_tmp, (/npts, nvm, nlevs/))
+          DEALLOCATE(si_tmp)
+       ENDIF
+    ENDIF
 
     CALL restget_p (rest_id_stomate, 'lignin_wood', nbp_glo, nvm, nlevs, itime, &
          &     .TRUE., lignin_wood, 'gather', nbp_glo, index_g)
-    IF (ALL(lignin_wood == val_exp)) lignin_wood(:,:,:) = zero
+    IF (ALL(lignin_wood == val_exp)) THEN
+       lignin_wood(:,:,:) = zero
+       IF (TRIM(soil_init_file) /= 'NONE') THEN
+          ALLOCATE(si_tmp(npts,nvm*nlevs))
+          si_tmp = RESHAPE(lignin_wood, (/npts, nvm*nlevs/))
+          CALL soil_init_from_reference('lignin_wood', npts, lalo, neighbours, resolution, &
+               contfrac, veget_max, .TRUE., nlevs, si_tmp, si_cov)
+          lignin_wood = RESHAPE(si_tmp, (/npts, nvm, nlevs/))
+          DEALLOCATE(si_tmp)
+       ENDIF
+    ENDIF
     
     CALL restget_p (rest_id_stomate, 'lignin_snag', nbp_glo, nvm, nlevs, itime, &
          &     .TRUE., lignin_snag, 'gather', nbp_glo, index_g)
-    IF (ALL(lignin_snag == val_exp)) lignin_snag(:,:,:) = zero
+    IF (ALL(lignin_snag == val_exp)) THEN
+       lignin_snag(:,:,:) = zero
+       IF (TRIM(soil_init_file) /= 'NONE') THEN
+          ALLOCATE(si_tmp(npts,nvm*nlevs))
+          si_tmp = RESHAPE(lignin_snag, (/npts, nvm*nlevs/))
+          CALL soil_init_from_reference('lignin_snag', npts, lalo, neighbours, resolution, &
+               contfrac, veget_max, .TRUE., nlevs, si_tmp, si_cov)
+          lignin_snag = RESHAPE(si_tmp, (/npts, nvm, nlevs/))
+          DEALLOCATE(si_tmp)
+       ENDIF
+    ENDIF
 
 
     ! 18 Product use and LCC
@@ -1455,25 +1545,65 @@ CONTAINS
     var_name = 'burried_litter'
     CALL restget_p (rest_id_stomate, var_name, nbp_glo, nlitt, nlevs, nelements, itime, &
          &   .TRUE., burried_litter, 'gather', nbp_glo, index_g)
-    IF (ALL(burried_litter(:,:,:,:) ==val_exp)) burried_litter(:,:,:,:) = zero
+    IF (ALL(burried_litter ==val_exp)) THEN
+       burried_litter = zero
+       IF (TRIM(soil_init_file) /= 'NONE') THEN
+          ALLOCATE(si_tmp(npts,nlitt*nlevs*nelements))
+          si_tmp = RESHAPE(burried_litter, (/npts, nlitt*nlevs*nelements/))
+          CALL soil_init_from_reference('burried_litter', npts, lalo, neighbours, resolution, &
+               contfrac, veget_max, .FALSE., nlitt*nlevs*nelements, si_tmp, si_cov)
+          burried_litter = RESHAPE(si_tmp, (/npts, nlitt, nlevs, nelements/))
+          DEALLOCATE(si_tmp)
+       ENDIF
+    ENDIF
 
     burried_fresh_ltr(:,:,:) = val_exp
     var_name = 'burried_fresh_ltr'
     CALL restget_p (rest_id_stomate, var_name, nbp_glo, nparts, nelements, itime, &
          &   .TRUE., burried_fresh_ltr, 'gather', nbp_glo, index_g)
-    IF (ALL(burried_fresh_ltr(:,:,:) ==val_exp)) burried_fresh_ltr(:,:,:) = zero
+    IF (ALL(burried_fresh_ltr ==val_exp)) THEN
+       burried_fresh_ltr = zero
+       IF (TRIM(soil_init_file) /= 'NONE') THEN
+          ALLOCATE(si_tmp(npts,nparts*nelements))
+          si_tmp = RESHAPE(burried_fresh_ltr, (/npts, nparts*nelements/))
+          CALL soil_init_from_reference('burried_fresh_ltr', npts, lalo, neighbours, resolution, &
+               contfrac, veget_max, .FALSE., nparts*nelements, si_tmp, si_cov)
+          burried_fresh_ltr = RESHAPE(si_tmp, (/npts, nparts, nelements/))
+          DEALLOCATE(si_tmp)
+       ENDIF
+    ENDIF
 
     burried_fresh_som(:,:,:) = val_exp
     var_name = 'burried_fresh_som'
     CALL restget_p (rest_id_stomate, var_name, nbp_glo, nparts, nelements, itime, &
          &   .TRUE., burried_fresh_som, 'gather', nbp_glo, index_g)
-    IF (ALL(burried_fresh_som(:,:,:) ==val_exp)) burried_fresh_som(:,:,:) = zero
+    IF (ALL(burried_fresh_som ==val_exp)) THEN
+       burried_fresh_som = zero
+       IF (TRIM(soil_init_file) /= 'NONE') THEN
+          ALLOCATE(si_tmp(npts,nparts*nelements))
+          si_tmp = RESHAPE(burried_fresh_som, (/npts, nparts*nelements/))
+          CALL soil_init_from_reference('burried_fresh_som', npts, lalo, neighbours, resolution, &
+               contfrac, veget_max, .FALSE., nparts*nelements, si_tmp, si_cov)
+          burried_fresh_som = RESHAPE(si_tmp, (/npts, nparts, nelements/))
+          DEALLOCATE(si_tmp)
+       ENDIF
+    ENDIF
 
     burried_bact(:) = val_exp
     var_name = 'burried_bact'
     CALL restget_p (rest_id_stomate, var_name, nbp_glo, 1, 1, itime, &
          &   .TRUE., burried_bact, 'gather', nbp_glo, index_g)
-    IF (ALL(burried_bact(:) ==val_exp)) burried_bact(:) = zero
+    IF (ALL(burried_bact ==val_exp)) THEN
+       burried_bact = zero
+       IF (TRIM(soil_init_file) /= 'NONE') THEN
+          ALLOCATE(si_tmp(npts,1))
+          si_tmp = RESHAPE(burried_bact, (/npts, 1/))
+          CALL soil_init_from_reference('burried_bact', npts, lalo, neighbours, resolution, &
+               contfrac, veget_max, .FALSE., 1, si_tmp, si_cov)
+          burried_bact = RESHAPE(si_tmp, (/npts/))
+          DEALLOCATE(si_tmp)
+       ENDIF
+    ENDIF
     
     !spitfire
     ni_acc(:) = val_exp
@@ -1486,31 +1616,75 @@ CONTAINS
     var_name = 'burried_min_nitro'
     CALL restget_p (rest_id_stomate, var_name, nbp_glo, nnspec, 1, itime, &
          &   .TRUE., burried_min_nitro, 'gather', nbp_glo, index_g)
-    IF (ALL(burried_min_nitro(:,:) ==val_exp)) burried_min_nitro(:,:) = zero
+    IF (ALL(burried_min_nitro(:,:) ==val_exp)) THEN
+       burried_min_nitro(:,:) = zero
+       IF (TRIM(soil_init_file) /= 'NONE') CALL soil_init_from_reference('burried_min_nitro', npts, &
+            lalo, neighbours, resolution, contfrac, veget_max, .FALSE., nnspec, burried_min_nitro, si_cov)
+    ENDIF
 
     burried_som(:,:,:) = val_exp
     var_name = 'burried_som'
     CALL restget_p (rest_id_stomate, var_name, nbp_glo, ncarb, nelements, itime, &
          &   .TRUE., burried_som, 'gather', nbp_glo, index_g)
-    IF (ALL(burried_som(:,:,:) ==val_exp)) burried_som(:,:,:) = zero
+    IF (ALL(burried_som ==val_exp)) THEN
+       burried_som = zero
+       IF (TRIM(soil_init_file) /= 'NONE') THEN
+          ALLOCATE(si_tmp(npts,ncarb*nelements))
+          si_tmp = RESHAPE(burried_som, (/npts, ncarb*nelements/))
+          CALL soil_init_from_reference('burried_som', npts, lalo, neighbours, resolution, &
+               contfrac, veget_max, .FALSE., ncarb*nelements, si_tmp, si_cov)
+          burried_som = RESHAPE(si_tmp, (/npts, ncarb, nelements/))
+          DEALLOCATE(si_tmp)
+       ENDIF
+    ENDIF
 
     burried_deepSOM_a(:,:,:) = val_exp
     var_name = 'burried_deepSOM_a'
     CALL restget_p (rest_id_stomate, var_name, nbp_glo, ngrnd, nelements, itime, &
          &   .TRUE., burried_deepSOM_a, 'gather', nbp_glo, index_g)
-    IF (ALL(burried_deepSOM_a(:,:,:) ==val_exp)) burried_deepSOM_a(:,:,:) = zero
+    IF (ALL(burried_deepSOM_a ==val_exp)) THEN
+       burried_deepSOM_a = zero
+       IF (TRIM(soil_init_file) /= 'NONE') THEN
+          ALLOCATE(si_tmp(npts,ngrnd*nelements))
+          si_tmp = RESHAPE(burried_deepSOM_a, (/npts, ngrnd*nelements/))
+          CALL soil_init_from_reference('burried_deepSOM_a', npts, lalo, neighbours, resolution, &
+               contfrac, veget_max, .FALSE., ngrnd*nelements, si_tmp, si_cov)
+          burried_deepSOM_a = RESHAPE(si_tmp, (/npts, ngrnd, nelements/))
+          DEALLOCATE(si_tmp)
+       ENDIF
+    ENDIF
 
     burried_deepSOM_s(:,:,:) = val_exp
     var_name = 'burried_deepSOM_s'
     CALL restget_p (rest_id_stomate, var_name, nbp_glo, ngrnd, nelements, itime, &
          &   .TRUE., burried_deepSOM_s, 'gather', nbp_glo, index_g)
-    IF (ALL(burried_deepSOM_s(:,:,:) ==val_exp)) burried_deepSOM_s(:,:,:) = zero
+    IF (ALL(burried_deepSOM_s ==val_exp)) THEN
+       burried_deepSOM_s = zero
+       IF (TRIM(soil_init_file) /= 'NONE') THEN
+          ALLOCATE(si_tmp(npts,ngrnd*nelements))
+          si_tmp = RESHAPE(burried_deepSOM_s, (/npts, ngrnd*nelements/))
+          CALL soil_init_from_reference('burried_deepSOM_s', npts, lalo, neighbours, resolution, &
+               contfrac, veget_max, .FALSE., ngrnd*nelements, si_tmp, si_cov)
+          burried_deepSOM_s = RESHAPE(si_tmp, (/npts, ngrnd, nelements/))
+          DEALLOCATE(si_tmp)
+       ENDIF
+    ENDIF
 
     burried_deepSOM_p(:,:,:) = val_exp
     var_name = 'burried_deepSOM_p'
     CALL restget_p (rest_id_stomate, var_name, nbp_glo, ngrnd, nelements, itime, &
          &   .TRUE., burried_deepSOM_p, 'gather', nbp_glo, index_g)
-    IF (ALL(burried_deepSOM_p(:,:,:) ==val_exp)) burried_deepSOM_p(:,:,:) = zero
+    IF (ALL(burried_deepSOM_p ==val_exp)) THEN
+       burried_deepSOM_p = zero
+       IF (TRIM(soil_init_file) /= 'NONE') THEN
+          ALLOCATE(si_tmp(npts,ngrnd*nelements))
+          si_tmp = RESHAPE(burried_deepSOM_p, (/npts, ngrnd*nelements/))
+          CALL soil_init_from_reference('burried_deepSOM_p', npts, lalo, neighbours, resolution, &
+               contfrac, veget_max, .FALSE., ngrnd*nelements, si_tmp, si_cov)
+          burried_deepSOM_p = RESHAPE(si_tmp, (/npts, ngrnd, nelements/))
+          DEALLOCATE(si_tmp)
+       ENDIF
+    ENDIF
 
     ! If the variable is not in the restart file, then zero will be used as default value
     CALL restget_p (rest_id_stomate, 'Global_years', itime, .TRUE., zero, global_years)
@@ -1646,6 +1820,8 @@ CONTAINS
        WHERE(veget_max(:,:).LT.min_stomate)
           p_O2(:,:) = zero
        END WHERE
+       IF (TRIM(soil_init_file) /= 'NONE') CALL soil_init_from_reference('p_O2', npts, &
+            lalo, neighbours, resolution, contfrac, veget_max, .TRUE., 1, p_O2, si_cov)
     END IF
 
     bact(:,:) = val_exp 
@@ -1657,6 +1833,8 @@ CONTAINS
        WHERE(veget_max(:,:).LT.min_stomate)
           bact(:,:) = zero
        END WHERE
+       IF (TRIM(soil_init_file) /= 'NONE') CALL soil_init_from_reference('bact', npts, &
+            lalo, neighbours, resolution, contfrac, veget_max, .TRUE., 1, bact, si_cov)
     END IF
 
     var_name = 'age_stand'
@@ -1679,6 +1857,16 @@ CONTAINS
        stand_age_bm_in_restart = .FALSE.   ! absent -> file-init (mode file) may set it
     ELSE
        stand_age_bm_in_restart = .TRUE.    ! present -> do NOT override (keep the aged value)
+    ENDIF
+    !-
+    ! Guillaume M. -- AREA-weighted mirror of age_stand_bm. Absent from an older
+    ! restart -> seeded from the biomass-weighted value: both estimators then
+    ! diverge from a common state, which is the comparison the variable exists for.
+    var_name = 'age_stand_area'
+    CALL restget_p (rest_id_stomate, var_name, nbp_glo, nvm  , 1, itime, &
+         &              .TRUE., age_stand_area, 'gather', nbp_glo, index_g)
+    IF ( ALL(age_stand_area(:,:) == val_exp) ) THEN
+       age_stand_area(:,:) = age_stand_bm(:,:)
     ENDIF
     !-
     ! PROGRESSIVE_HARVEST (Marie 2026): the fractional clearcut is marked by
@@ -1941,7 +2129,11 @@ CONTAINS
       CALL restget_p &
             &    (rest_id_stomate, 'woody_litter_to_use', nbp_glo, nvm,1, itime, &
             &     .TRUE.,woody_litter_to_use(:,:),'gather',nbp_glo,index_g)
-      IF (ALL(woody_litter_to_use(:,:) == val_exp)) woody_litter_to_use(:,:)= zero
+      IF (ALL(woody_litter_to_use(:,:) == val_exp)) THEN
+         woody_litter_to_use(:,:)= zero
+         IF (TRIM(soil_init_file) /= 'NONE') CALL soil_init_from_reference('woody_litter_to_use', npts, &
+              lalo, neighbours, resolution, contfrac, veget_max, .TRUE., 1, woody_litter_to_use, si_cov)
+      ENDIF
 
       beetle_diapause(:,:) = val_exp
       CALL restget_p &
@@ -2155,23 +2347,16 @@ CONTAINS
     ! CHAQUE ANNEE et n'accumulerait jamais rien. Repli sur zero = "pas d'historique",
     ! ce que update_rotation_growth traite comme non estimable.
     !-
-    IF (ALLOCATED(dia_growth)) THEN
-       dia_growth(:,:) = val_exp
-       var_name = 'dia_growth'
+    ! Guillaume M. -- MAT_AGE_ENTRY: leaky mean of entry ages, -1 = no sample yet (a warm
+    ! start from an older restart seeds from the namelist a3 until the first transfers).
+    IF (ALLOCATED(mat_age_entry)) THEN
+       mat_age_entry(:,:) = val_exp
+       var_name = 'mat_age_entry'
        CALL restget_p (rest_id_stomate, var_name, nbp_glo, nvm, 1, itime, &
-            &              .TRUE., dia_growth, 'gather', nbp_glo, index_g)
-       IF (ALL(dia_growth(:,:) == val_exp)) dia_growth(:,:) = zero
-
-       circ_dia_last(:,:,:) = val_exp
-       CALL restget_p (rest_id_stomate, 'circ_dia_last', nbp_glo, nvm, ncirc, itime, &
-            &              .TRUE., circ_dia_last, 'gather', nbp_glo, index_g)
-       IF (ALL(circ_dia_last == val_exp)) circ_dia_last(:,:,:) = zero
-
-       circ_n_last(:,:,:) = val_exp
-       CALL restget_p (rest_id_stomate, 'circ_n_last', nbp_glo, nvm, ncirc, itime, &
-            &              .TRUE., circ_n_last, 'gather', nbp_glo, index_g)
-       IF (ALL(circ_n_last == val_exp)) circ_n_last(:,:,:) = zero
-
+            &              .TRUE., mat_age_entry, 'gather', nbp_glo, index_g)
+       IF (ALL(mat_age_entry(:,:) == val_exp)) mat_age_entry(:,:) = -un
+    ENDIF
+    IF (ALLOCATED(rotation_growth)) THEN
        ! /!\ rotation_growth est DERIVEE, mais elle doit quand meme etre persistee : elle
        ! n'est recalculee que le 31 decembre par age_class_distr, alors qu'une periode vaut
        ! un an. Sans reprise elle vaut ZERO du 1er janvier au 30 decembre, donc le melange
@@ -2304,7 +2489,7 @@ CONTAINS
        &  forest_managed, &
        &  species_change_map, fm_change_map, lpft_replant, lai_per_level, &
        &  laieff_fit, wstress_season, wstress_month,&
-       &  age_stand, age_stand_bm, rotation_n, last_cut, mai, pai, &
+       &  age_stand, age_stand_bm, age_stand_area, rotation_n, last_cut, mai, pai, &
        &  previous_wood_volume, mai_count, coppice_dens, &
        &  light_tran_to_floor_season,daylight_count, gap_area_save, &
        &  deepSOM_a, deepSOM_s, deepSOM_p, O2_soil, CH4_soil, O2_snow, CH4_snow, &
@@ -2446,6 +2631,7 @@ CONTAINS
     REAL(r_std), DIMENSION(:,:), INTENT(in)               :: rue_longterm             !! longterm radiation use efficiency
     INTEGER(i_std), DIMENSION(:,:), INTENT(in)            :: age_stand                !! Age of stand (years)
     REAL(r_std), DIMENSION(:,:), INTENT(in)               :: age_stand_bm             !! Biomass-weighted conserved mean stand age (years) - STAND_AGE
+    REAL(r_std), DIMENSION(:,:), INTENT(in)               :: age_stand_area           !! AREA-weighted conserved mean stand age (years) - STAND_AGE
     INTEGER(i_std), DIMENSION(:,:), INTENT(in)            :: rotation_n               !! Rotation number (number of rotation since pft is managed)
     INTEGER(i_std), DIMENSION(:,:), INTENT(in)            :: last_cut                 !! Years since last thinning (years)
     REAL(r_std), DIMENSION(:,:), INTENT(in)               :: cn_leaf_min_season       !! Seasonal min CN ratio of leaves 
@@ -3444,6 +3630,10 @@ CONTAINS
     CALL restput_p (rest_id_stomate, var_name, nbp_glo, nvm, 1, itime, &
          &              age_stand_bm, 'scatter', nbp_glo, index_g)
     !-
+    var_name = 'age_stand_area'                          ! STAND_AGE area-weighted mirror
+    CALL restput_p (rest_id_stomate, var_name, nbp_glo, nvm, 1, itime, &
+         &              age_stand_area, 'scatter', nbp_glo, index_g)
+    !-
     ! PROGRESSIVE_HARVEST (Marie 2026): pending fractional clearcut, consumed by
     ! age_class_distr at the start of next year. See the readrestart counterpart.
     IF (ok_progressive_harvest .AND. ALLOCATED(ph_cut_frac)) THEN
@@ -3612,16 +3802,13 @@ CONTAINS
     !-
     ! ROTATION_GROWTH (2026-08-17) — ecrire l'integrateur d'accroissement. Sans cette
     ! ecriture la lecture ne trouverait jamais rien : une periode vaut un an, donc la
-    ! memoire de plusieurs decennies serait perdue a chaque pas. rotation_growth n'est PAS
-    ! ecrite, elle est derivee de ces deux-la a chaque passage annuel.
-    IF (ALLOCATED(dia_growth)) THEN
-       var_name = 'dia_growth'
+    ! memoire de plusieurs decennies serait perdue a chaque pas.
+    IF (ALLOCATED(mat_age_entry)) THEN
+       var_name = 'mat_age_entry'
        CALL restput_p (rest_id_stomate, var_name, nbp_glo, nvm, 1, itime, &
-            &              dia_growth, 'scatter', nbp_glo, index_g)
-       CALL restput_p (rest_id_stomate, 'circ_dia_last', nbp_glo, nvm, ncirc, itime, &
-            &              circ_dia_last, 'scatter', nbp_glo, index_g)
-       CALL restput_p (rest_id_stomate, 'circ_n_last', nbp_glo, nvm, ncirc, itime, &
-            &              circ_n_last, 'scatter', nbp_glo, index_g)
+            &              mat_age_entry, 'scatter', nbp_glo, index_g)
+    ENDIF
+    IF (ALLOCATED(rotation_growth)) THEN
        var_name = 'rotation_growth'
        CALL restput_p (rest_id_stomate, var_name, nbp_glo, nvm, 1, itime, &
             &              rotation_growth, 'scatter', nbp_glo, index_g)
@@ -4096,5 +4283,526 @@ CONTAINS
     DEALLOCATE (sub_index)
 
   END SUBROUTINE read_initson_file  
+
+
+
+!! ================================================================================================================================
+!! SUBROUTINE   : soil_init_from_reference
+!!
+!>\BRIEF        Initialise one soil reservoir from the reference file SOIL_INIT_FILE (cold start only).
+!!
+!! DESCRIPTION  : Called by readrestart right after the historical default of a reservoir the
+!!                restart does not provide. The reference field is brought onto the model grid
+!!                by interpweight_4Dcont (area-weighted mean over the reference cells that
+!!                overlap each model cell), mapped from the reference PFTs to the model PFTs
+!!                (explicit SOIL_INIT_PFT_MAP pair first, else the reference PFTs of the same
+!!                MTC weighted by the reference veget_max, else the tree/non-tree mean), and
+!!                zeroed where the model PFT has no area. Reservoirs are intensive (per m2 of
+!!                PFT). Only the covered points are written, so the caller's default survives
+!!                elsewhere.
+!!                Layout: pool is (npts, nk). With has_pft, nk = nvm*np and the PFT index runs
+!!                fastest, k = jv + nvm*(ip-1) -- the order RESHAPE gives for an array whose
+!!                PFT axis comes right after npts. Without, nk = np. np is the column-major
+!!                flattening of the non-PFT axes; the file holds the same layout with nvm_src.
+!!                Design: design/MODULE_DESIGN_SOIL_INIT_REFERENCE.md
+!!
+!! MAIN OUTPUT VARIABLE(S): pool (covered points), covered
+!! \n
+!_ ================================================================================================================================
+
+  SUBROUTINE soil_init_from_reference(varname, npts, lalo, neighbours, resolution, contfrac, &
+       veget_max, has_pft, np, pool, covered)
+
+    !! 0. Variable and parameter declaration
+
+    !! 0.1 Input variables
+    CHARACTER(LEN=*), INTENT(in)                          :: varname     !! Variable name in SOIL_INIT_FILE (restart name)
+    INTEGER(i_std), INTENT(in)                            :: npts        !! Number of grid points (this rank)
+    REAL(r_std), DIMENSION(npts,2), INTENT(in)            :: lalo        !! Latitude, longitude (degrees)
+    INTEGER(i_std), DIMENSION(npts,NbNeighb), INTENT(in)  :: neighbours  !! Neighbouring grid points (unitless)
+    REAL(r_std), DIMENSION(npts,2), INTENT(in)            :: resolution  !! Grid-cell size in x and y (m)
+    REAL(r_std), DIMENSION(npts), INTENT(in)              :: contfrac    !! Continental fraction (unitless)
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(in)          :: veget_max   !! Model PFT fractions (unitless)
+    LOGICAL, INTENT(in)                                   :: has_pft     !! The reservoir carries a PFT axis
+    INTEGER(i_std), INTENT(in)                            :: np          !! Flattened size of the non-PFT axes (unitless)
+
+    !! 0.2 Modified variables
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)            :: pool        !! Reservoir, (npts, nvm*np) or (npts, np)
+
+    !! 0.3 Output variables
+    LOGICAL, DIMENSION(npts), INTENT(out)                 :: covered     !! Point received reference data
+
+    !! 0.4 Local variables
+    INTEGER(i_std)                                        :: nk, ip, js, jv, ipt, nsel, ier !! Sizes and indices
+    REAL(r_std)                                           :: wsum        !! Sum of the MTC weights (unitless)
+    REAL(r_std), ALLOCATABLE, DIMENSION(:,:,:)            :: raw         !! Interpolated reference field (npts, nk, 1)
+    REAL(r_std), ALLOCATABLE, DIMENSION(:,:)              :: defv        !! interpweight default for uncovered points (nk, 1)
+    REAL(r_std), ALLOCATABLE, DIMENSION(:)                :: aout        !! interpweight availability (npts)
+    REAL(r_std), ALLOCATABLE, DIMENSION(:)                :: acc         !! Accumulator over the source PFTs (np)
+    LOGICAL, ALLOCATABLE, DIMENSION(:)                    :: sel         !! Source PFTs feeding the current model PFT (nvm_src)
+    CHARACTER(LEN=80)                                     :: filename, vname, lonname, latname !! interpweight arguments
+    CHARACTER(LEN=50)                                     :: masktype, fractype               !! interpweight arguments
+    CHARACTER(LEN=250)                                    :: maskvarname                      !! interpweight arguments
+    REAL(r_std), DIMENSION(3)                             :: maskvals                         !! interpweight arguments
+!_ ================================================================================================================================
+
+    IF (.NOT. soil_init_ready) CALL soil_init_ref_setup(npts, lalo, neighbours, resolution, contfrac)
+
+    nk = np
+    IF (has_pft) nk = nvm_src * np
+    IF (SIZE(pool,1) /= npts .OR. SIZE(pool,2) /= MERGE(nvm*np, np, has_pft)) THEN
+       WRITE(numout,*) '[SOIL_INIT] ', TRIM(varname), ' pool shape ', SIZE(pool,1), SIZE(pool,2), &
+            ' expected ', npts, MERGE(nvm*np, np, has_pft)
+       CALL ipslerr_p(3,'soil_init_from_reference','unexpected pool shape for '//TRIM(varname),'','')
+    ENDIF
+
+    ALLOCATE(raw(npts,nk,1), defv(nk,1), aout(npts), acc(np), sel(nvm_src), stat=ier)
+    IF (ier /= 0) CALL ipslerr_p(3,'soil_init_from_reference','allocation failed for '//TRIM(varname),'','')
+
+    ! Guillaume M. -- Continuous field, area-weighted mean (interpweight_provide_interpolation4D,
+    ! 'default'): no renormalisation of stocks. The 'var' mask restricts the overlap to the
+    ! land cells of the reference file. varmin/varmax are inert for this path.
+    defv(:,:) = zero
+    filename = soil_init_file
+    vname = varname
+    lonname = 'lon'
+    latname = 'lat'
+    masktype = 'var'
+    maskvarname = 'mask'
+    maskvals(:) = zero
+    fractype = 'default'
+    CALL interpweight_4Dcont(npts, nk, 1, lalo, resolution, neighbours, contfrac, filename, vname, &
+         lonname, latname, zero, zero, .FALSE., masktype, maskvals, maskvarname, -1, fractype, &
+         defv, zero, raw, aout)
+    covered(:) = (aout(:) > zero)
+
+    IF (.NOT. has_pft) THEN
+       DO ip = 1, np
+          WHERE (covered(:)) pool(:,ip) = raw(:,ip,1)
+       ENDDO
+    ELSE
+       DO jv = 1, nvm
+          ! Guillaume M. -- Source set of this model PFT: explicit pair, else same MTC, else
+          ! same tree/non-tree class (warned once per PFT, never per point).
+          IF (map_src(jv) > 0) THEN
+             sel(:) = .FALSE.
+             sel(map_src(jv)) = .TRUE.
+          ELSE
+             sel(:) = (pft_to_mtc_src(:) == pft_to_mtc(jv))
+             IF (.NOT. ANY(sel)) THEN
+                sel(:) = (is_tree_src(:) .EQV. is_tree(jv))
+                IF (.NOT. mtc_warned(jv)) THEN
+                   WRITE(numout,*) '[SOIL_INIT] no reference PFT with MTC ', pft_to_mtc(jv), &
+                        ' for model PFT ', jv, ': mean of the reference PFTs of the same tree/non-tree class'
+                   CALL ipslerr_p(2,'soil_init_from_reference', &
+                        'no reference PFT with the MTC of a model PFT', &
+                        'its soil is the mean over the reference tree/non-tree PFTs', &
+                        'see [SOIL_INIT] lines in out_orchidee')
+                   mtc_warned(jv) = .TRUE.
+                ENDIF
+             ENDIF
+          ENDIF
+          nsel = COUNT(sel)
+          IF (nsel == 0) CALL ipslerr_p(3,'soil_init_from_reference', &
+               'the reference file has no PFT of the class of model PFT', TRIM(varname),'')
+
+          DO ipt = 1, npts
+             IF (.NOT. covered(ipt)) CYCLE
+             wsum = zero
+             DO js = 1, nvm_src
+                IF (sel(js)) wsum = wsum + w_src(ipt,js)
+             ENDDO
+             acc(:) = zero
+             IF (wsum > min_stomate) THEN
+                DO js = 1, nvm_src
+                   IF (.NOT. sel(js)) CYCLE
+                   DO ip = 1, np
+                      acc(ip) = acc(ip) + w_src(ipt,js) * raw(ipt, js + nvm_src*(ip-1), 1)
+                   ENDDO
+                ENDDO
+                acc(:) = acc(:) / wsum
+             ELSE
+                ! Guillaume M. -- The source PFTs exist but have no area here: plain mean.
+                DO js = 1, nvm_src
+                   IF (.NOT. sel(js)) CYCLE
+                   DO ip = 1, np
+                      acc(ip) = acc(ip) + raw(ipt, js + nvm_src*(ip-1), 1)
+                   ENDDO
+                ENDDO
+                acc(:) = acc(:) / REAL(nsel, r_std)
+             ENDIF
+             ! Guillaume M. -- Masked on THIS run's map: a slot without area carries no
+             ! reservoir, otherwise it respires with veget_max = 0 and the nep check stops.
+             IF (veget_max(ipt,jv) < min_stomate) acc(:) = zero
+             DO ip = 1, np
+                pool(ipt, jv + nvm*(ip-1)) = acc(ip)
+             ENDDO
+          ENDDO
+       ENDDO
+    ENDIF
+
+    IF (printlev >= 1) WRITE(numout,'(A,A,A,I0,A,I0,A)') '[SOIL_INIT] ', TRIM(varname), ': ', &
+         COUNT(covered), ' / ', npts, ' points taken from the reference file'
+
+    DEALLOCATE(raw, defv, aout, acc, sel)
+
+  END SUBROUTINE soil_init_from_reference
+
+
+!! ================================================================================================================================
+!! SUBROUTINE   : soil_init_pft_mid3 / _mid4 / _mid5  (generic soil_init_pft_mid)
+!!
+!>\BRIEF        soil_init_from_reference for an array laid out (npts, n1, nvm[, n3[, n4]]): the
+!!              PFT axis is brought next to npts in a flattened copy (PFT fastest, then the
+!!              other axes in their order), the copy is initialised, covered points are copied
+!!              back. Used for som (rank 3), litter (rank 4) and litterfuel (rank 5).
+!_ ================================================================================================================================
+
+  SUBROUTINE soil_init_pft_mid3(varname, npts, lalo, neighbours, resolution, contfrac, veget_max, arr, covered)
+    CHARACTER(LEN=*), INTENT(in)                          :: varname     !! Variable name in SOIL_INIT_FILE
+    INTEGER(i_std), INTENT(in)                            :: npts        !! Number of grid points (this rank)
+    REAL(r_std), DIMENSION(npts,2), INTENT(in)            :: lalo        !! Latitude, longitude (degrees)
+    INTEGER(i_std), DIMENSION(npts,NbNeighb), INTENT(in)  :: neighbours  !! Neighbouring grid points (unitless)
+    REAL(r_std), DIMENSION(npts,2), INTENT(in)            :: resolution  !! Grid-cell size in x and y (m)
+    REAL(r_std), DIMENSION(npts), INTENT(in)              :: contfrac    !! Continental fraction (unitless)
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(in)          :: veget_max   !! Model PFT fractions (unitless)
+    REAL(r_std), DIMENSION(:,:,:), INTENT(inout)          :: arr         !! Reservoir (npts, n1, nvm)
+    LOGICAL, DIMENSION(npts), INTENT(out)                 :: covered     !! Point received reference data
+    INTEGER(i_std)                                        :: n1, i1, jv, ik, ier !! Sizes and indices
+    REAL(r_std), ALLOCATABLE, DIMENSION(:,:)              :: tmp         !! (npts, nvm*n1)
+!_ ================================================================================================================================
+    n1 = SIZE(arr,2)
+    ALLOCATE(tmp(npts, nvm*n1), stat=ier)
+    IF (ier /= 0) CALL ipslerr_p(3,'soil_init_pft_mid3','allocation failed for '//TRIM(varname),'','')
+    DO i1 = 1, n1
+       DO jv = 1, nvm
+          ik = jv + nvm*(i1-1)
+          tmp(:,ik) = arr(:,i1,jv)
+       ENDDO
+    ENDDO
+    CALL soil_init_from_reference(varname, npts, lalo, neighbours, resolution, contfrac, &
+         veget_max, .TRUE., n1, tmp, covered)
+    DO i1 = 1, n1
+       DO jv = 1, nvm
+          ik = jv + nvm*(i1-1)
+          WHERE (covered(:)) arr(:,i1,jv) = tmp(:,ik)
+       ENDDO
+    ENDDO
+    DEALLOCATE(tmp)
+  END SUBROUTINE soil_init_pft_mid3
+
+
+  SUBROUTINE soil_init_pft_mid4(varname, npts, lalo, neighbours, resolution, contfrac, veget_max, arr, covered)
+    CHARACTER(LEN=*), INTENT(in)                          :: varname     !! Variable name in SOIL_INIT_FILE
+    INTEGER(i_std), INTENT(in)                            :: npts        !! Number of grid points (this rank)
+    REAL(r_std), DIMENSION(npts,2), INTENT(in)            :: lalo        !! Latitude, longitude (degrees)
+    INTEGER(i_std), DIMENSION(npts,NbNeighb), INTENT(in)  :: neighbours  !! Neighbouring grid points (unitless)
+    REAL(r_std), DIMENSION(npts,2), INTENT(in)            :: resolution  !! Grid-cell size in x and y (m)
+    REAL(r_std), DIMENSION(npts), INTENT(in)              :: contfrac    !! Continental fraction (unitless)
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(in)          :: veget_max   !! Model PFT fractions (unitless)
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)        :: arr         !! Reservoir (npts, n1, nvm, n3)
+    LOGICAL, DIMENSION(npts), INTENT(out)                 :: covered     !! Point received reference data
+    INTEGER(i_std)                                        :: n1, n3, i1, i3, jv, ik, ier !! Sizes and indices
+    REAL(r_std), ALLOCATABLE, DIMENSION(:,:)              :: tmp         !! (npts, nvm*n1*n3)
+!_ ================================================================================================================================
+    n1 = SIZE(arr,2)
+    n3 = SIZE(arr,4)
+    ALLOCATE(tmp(npts, nvm*n1*n3), stat=ier)
+    IF (ier /= 0) CALL ipslerr_p(3,'soil_init_pft_mid4','allocation failed for '//TRIM(varname),'','')
+    DO i3 = 1, n3
+       DO i1 = 1, n1
+          DO jv = 1, nvm
+             ik = jv + nvm*((i1-1) + n1*(i3-1))
+             tmp(:,ik) = arr(:,i1,jv,i3)
+          ENDDO
+       ENDDO
+    ENDDO
+    CALL soil_init_from_reference(varname, npts, lalo, neighbours, resolution, contfrac, &
+         veget_max, .TRUE., n1*n3, tmp, covered)
+    DO i3 = 1, n3
+       DO i1 = 1, n1
+          DO jv = 1, nvm
+             ik = jv + nvm*((i1-1) + n1*(i3-1))
+             WHERE (covered(:)) arr(:,i1,jv,i3) = tmp(:,ik)
+          ENDDO
+       ENDDO
+    ENDDO
+    DEALLOCATE(tmp)
+  END SUBROUTINE soil_init_pft_mid4
+
+
+  SUBROUTINE soil_init_pft_mid5(varname, npts, lalo, neighbours, resolution, contfrac, veget_max, arr, covered)
+    CHARACTER(LEN=*), INTENT(in)                          :: varname     !! Variable name in SOIL_INIT_FILE
+    INTEGER(i_std), INTENT(in)                            :: npts        !! Number of grid points (this rank)
+    REAL(r_std), DIMENSION(npts,2), INTENT(in)            :: lalo        !! Latitude, longitude (degrees)
+    INTEGER(i_std), DIMENSION(npts,NbNeighb), INTENT(in)  :: neighbours  !! Neighbouring grid points (unitless)
+    REAL(r_std), DIMENSION(npts,2), INTENT(in)            :: resolution  !! Grid-cell size in x and y (m)
+    REAL(r_std), DIMENSION(npts), INTENT(in)              :: contfrac    !! Continental fraction (unitless)
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(in)          :: veget_max   !! Model PFT fractions (unitless)
+    REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(inout)      :: arr         !! Reservoir (npts, n1, nvm, n3, n4)
+    LOGICAL, DIMENSION(npts), INTENT(out)                 :: covered     !! Point received reference data
+    INTEGER(i_std)                                        :: n1, n3, n4, i1, i3, i4, jv, ik, ier !! Sizes and indices
+    REAL(r_std), ALLOCATABLE, DIMENSION(:,:)              :: tmp         !! (npts, nvm*n1*n3*n4)
+!_ ================================================================================================================================
+    n1 = SIZE(arr,2)
+    n3 = SIZE(arr,4)
+    n4 = SIZE(arr,5)
+    ALLOCATE(tmp(npts, nvm*n1*n3*n4), stat=ier)
+    IF (ier /= 0) CALL ipslerr_p(3,'soil_init_pft_mid5','allocation failed for '//TRIM(varname),'','')
+    DO i4 = 1, n4
+       DO i3 = 1, n3
+          DO i1 = 1, n1
+             DO jv = 1, nvm
+                ik = jv + nvm*((i1-1) + n1*((i3-1) + n3*(i4-1)))
+                tmp(:,ik) = arr(:,i1,jv,i3,i4)
+             ENDDO
+          ENDDO
+       ENDDO
+    ENDDO
+    CALL soil_init_from_reference(varname, npts, lalo, neighbours, resolution, contfrac, &
+         veget_max, .TRUE., n1*n3*n4, tmp, covered)
+    DO i4 = 1, n4
+       DO i3 = 1, n3
+          DO i1 = 1, n1
+             DO jv = 1, nvm
+                ik = jv + nvm*((i1-1) + n1*((i3-1) + n3*(i4-1)))
+                WHERE (covered(:)) arr(:,i1,jv,i3,i4) = tmp(:,ik)
+             ENDDO
+          ENDDO
+       ENDDO
+    ENDDO
+    DEALLOCATE(tmp)
+  END SUBROUTINE soil_init_pft_mid5
+
+
+!! ================================================================================================================================
+!! SUBROUTINE   : soil_init_ref_setup
+!!
+!>\BRIEF        One-off reading of the SOIL_INIT_FILE metadata: reference PFT count, MTC and
+!!              tree flag of each reference PFT, reference veget_max brought onto this grid
+!!              (weights of the MTC rule), explicit SOIL_INIT_PFT_MAP pairs.
+!_ ================================================================================================================================
+
+  SUBROUTINE soil_init_ref_setup(npts, lalo, neighbours, resolution, contfrac)
+
+    !! 0.1 Input variables
+    INTEGER(i_std), INTENT(in)                            :: npts        !! Number of grid points (this rank)
+    REAL(r_std), DIMENSION(npts,2), INTENT(in)            :: lalo        !! Latitude, longitude (degrees)
+    INTEGER(i_std), DIMENSION(npts,NbNeighb), INTENT(in)  :: neighbours  !! Neighbouring grid points (unitless)
+    REAL(r_std), DIMENSION(npts,2), INTENT(in)            :: resolution  !! Grid-cell size in x and y (m)
+    REAL(r_std), DIMENSION(npts), INTENT(in)              :: contfrac    !! Continental fraction (unitless)
+
+    !! 0.4 Local variables
+    INTEGER(i_std)                                        :: fid, nb_coord, nb_var, nb_gat, nb_dim !! File handles
+    LOGICAL                                               :: l_ex        !! Variable exists in the file
+    INTEGER, DIMENSION(flio_max_var_dims)                 :: l_d_w       !! Dimension lengths of a variable
+    INTEGER(i_std)                                        :: ier, jv     !! Indices
+    INTEGER(i_std), ALLOCATABLE, DIMENSION(:)             :: itree_src   !! Tree flag read as integers (nvm_src)
+    REAL(r_std), ALLOCATABLE, DIMENSION(:)                :: rvec        !! Read buffer (nvm_src)
+    REAL(r_std), ALLOCATABLE, DIMENSION(:,:,:)            :: raw         !! Interpolated reference veget_max (npts, nvm_src, 1)
+    REAL(r_std), ALLOCATABLE, DIMENSION(:,:)              :: defv        !! interpweight default (nvm_src, 1)
+    REAL(r_std), ALLOCATABLE, DIMENSION(:)                :: aout        !! interpweight availability (npts)
+    CHARACTER(LEN=80)                                     :: filename, vname, lonname, latname !! interpweight arguments
+    CHARACTER(LEN=50)                                     :: masktype, fractype               !! interpweight arguments
+    CHARACTER(LEN=250)                                    :: maskvarname                      !! interpweight arguments
+    REAL(r_std), DIMENSION(3)                             :: maskvals                         !! interpweight arguments
+!_ ================================================================================================================================
+
+    IF (use_initsom) CALL ipslerr_p(3,'soil_init_ref_setup', &
+         'SOIL_INIT_FILE and USE_INITSOM are both active', &
+         'two sources for the same soil reservoirs','switch one of them off')
+
+    ! Reference PFT metadata, read on the root process and broadcast
+    nvm_src = 0
+    IF (is_root_prc) THEN
+       CALL flioopfd(TRIM(soil_init_file), fid, nb_dim=nb_coord, nb_var=nb_var, nb_gat=nb_gat)
+       CALL flioinqv(fid, v_n='pft_to_mtc', l_ex=l_ex, nb_dims=nb_dim, len_dims=l_d_w)
+       IF (.NOT. l_ex) CALL ipslerr(3,'soil_init_ref_setup', &
+            'variable pft_to_mtc missing in SOIL_INIT_FILE', TRIM(soil_init_file), &
+            'build the file with scripts/prepare_soil_init_file.py')
+       nvm_src = l_d_w(1)
+    ENDIF
+    CALL bcast(nvm_src)
+    IF (nvm_src < 1) CALL ipslerr_p(3,'soil_init_ref_setup','no reference PFT found in SOIL_INIT_FILE','','')
+
+    ALLOCATE(pft_to_mtc_src(nvm_src), is_tree_src(nvm_src), itree_src(nvm_src), rvec(nvm_src), stat=ier)
+    IF (ier /= 0) CALL ipslerr_p(3,'soil_init_ref_setup','allocation failed (reference PFT metadata)','','')
+    pft_to_mtc_src(:) = 0
+    itree_src(:) = 0
+    IF (is_root_prc) THEN
+       CALL fliogetv(fid, 'pft_to_mtc', rvec, start=(/ 1 /), count=(/ nvm_src /))
+       pft_to_mtc_src(:) = NINT(rvec(:))
+       CALL fliogetv(fid, 'is_tree', rvec, start=(/ 1 /), count=(/ nvm_src /))
+       itree_src(:) = NINT(rvec(:))
+       CALL flioclo(fid)
+    ENDIF
+    CALL bcast(pft_to_mtc_src)
+    CALL bcast(itree_src)
+    is_tree_src(:) = (itree_src(:) == 1)
+
+    ! Reference veget_max on this grid: weights of the MTC rule
+    ALLOCATE(w_src(npts,nvm_src), raw(npts,nvm_src,1), defv(nvm_src,1), aout(npts), stat=ier)
+    IF (ier /= 0) CALL ipslerr_p(3,'soil_init_ref_setup','allocation failed (reference veget_max)','','')
+    defv(:,:) = zero
+    filename = soil_init_file
+    vname = 'veget_max'
+    lonname = 'lon'
+    latname = 'lat'
+    masktype = 'var'
+    maskvarname = 'mask'
+    maskvals(:) = zero
+    fractype = 'default'
+    CALL interpweight_4Dcont(npts, nvm_src, 1, lalo, resolution, neighbours, contfrac, filename, vname, &
+         lonname, latname, zero, zero, .FALSE., masktype, maskvals, maskvarname, -1, fractype, &
+         defv, zero, raw, aout)
+    w_src(:,:) = MAX(raw(:,:,1), zero)
+
+    ! Guillaume M. -- Explicit source PFT per model PFT, 0 = MTC rule. Read here, not in
+    ! constantes: the vector is sized with nvm and checked against nvm_src, and IOIPSL getin
+    ! splits a value on commas, so a "target:source" string could not carry a list.
+    ALLOCATE(map_src(nvm), mtc_warned(nvm), stat=ier)
+    IF (ier /= 0) CALL ipslerr_p(3,'soil_init_ref_setup','allocation failed (PFT map)','','')
+    map_src(:) = 0
+    mtc_warned(:) = .FALSE.
+    !Config Key   = SOIL_INIT_PFT_MAP
+    !Config Desc  = Source reference PFT of each model PFT for SOIL_INIT_FILE (0 = MTC rule)
+    !Config If    = OK_STOMATE, SOIL_INIT_FILE
+    !Config Def   = 0 for every PFT
+    !Config Help  = nvm integers, one per model PFT in order, numbering the reference PFT
+    !Config         (1..nvm of the reference run) whose soil that model PFT takes. 0 keeps the
+    !Config         MTC rule (mean of the reference PFTs of the same MTC, weighted by the
+    !Config         reference veget_max). Fewer values than nvm: the rest stay 0. Example, a
+    !Config         51-PFT run whose four eucalyptus slots 48-51 inherit the holm oak 18-21:
+    !Config         47 zeros then 18,19,20,21.
+    !Config Units = [-]
+    CALL getin_p('SOIL_INIT_PFT_MAP', map_src)
+    DO jv = 1, nvm
+       IF (map_src(jv) < 0 .OR. map_src(jv) > nvm_src) THEN
+          WRITE(numout,*) '[SOIL_INIT] SOIL_INIT_PFT_MAP(', jv, ') = ', map_src(jv), ' nvm_src=', nvm_src
+          CALL ipslerr_p(3,'soil_init_ref_setup','SOIL_INIT_PFT_MAP value out of range 0..nvm_src','','')
+       ENDIF
+    ENDDO
+
+    WRITE(numout,*) '[SOIL_INIT] reference file ', TRIM(soil_init_file), ': ', nvm_src, ' PFTs'
+    WRITE(numout,*) '[SOIL_INIT] reference pft_to_mtc = ', pft_to_mtc_src(:)
+    DO jv = 1, nvm
+       IF (map_src(jv) > 0) WRITE(numout,*) '[SOIL_INIT] model PFT ', jv, ' <- reference PFT ', map_src(jv), ' (explicit)'
+    ENDDO
+    soil_init_ready = .TRUE.
+
+    DEALLOCATE(itree_src, rvec, raw, defv, aout)
+
+  END SUBROUTINE soil_init_ref_setup
+!! ================================================================================================================================
+!! SUBROUTINE   : rotation_ref_from_file
+!!
+!>\BRIEF        Read ROTATION_REF_FILE, the regional reference rotation per PFT, onto the model grid.
+!!
+!! DESCRIPTION  : Guillaume M. -- One static field rotation_ref(veget, lat, lon) in years, area-weighted
+!!                onto the model grid by interpweight_4Dcont (same path as SOIL_INIT_FILE). Values <= 0 and
+!!                points outside the file mask keep the sentinel -1: set_management_intensity then falls
+!!                back to the namelist ROTATION_REF(pft). Called once at initialisation, before the first
+!!                set_management_intensity. See design/MODULE_DESIGN_ROTATION_REGION.md.
+!!
+!! MAIN OUTPUT VARIABLE(S): rotation_ref_map (stomate_data), allocated here
+!!_ ================================================================================================================================
+  SUBROUTINE rotation_ref_from_file(npts, lalo, neighbours, resolution, contfrac)
+
+    !! 0.1 Input variables
+    INTEGER(i_std), INTENT(in)                            :: npts        !! Number of grid points (this rank)
+    REAL(r_std), DIMENSION(npts,2), INTENT(in)            :: lalo        !! Latitude, longitude (degrees)
+    INTEGER(i_std), DIMENSION(npts,NbNeighb), INTENT(in)  :: neighbours  !! Neighbouring grid points (unitless)
+    REAL(r_std), DIMENSION(npts,2), INTENT(in)            :: resolution  !! Grid-cell size in x and y (m)
+    REAL(r_std), DIMENSION(npts), INTENT(in)              :: contfrac    !! Continental fraction (unitless)
+
+    !! 0.4 Local variables
+    INTEGER(i_std)                                        :: fid, nb_coord, nb_var, nb_gat, nb_dim !! File handles
+    LOGICAL                                               :: l_ex        !! Variable exists in the file
+    INTEGER, DIMENSION(flio_max_var_dims)                 :: l_d_w       !! Dimension lengths of a variable
+    INTEGER(i_std)                                        :: ier, jv, nvm_file, ncov, npos !! Indices and counters
+    REAL(r_std), ALLOCATABLE, DIMENSION(:,:,:)            :: raw         !! Interpolated field (npts, nvm, 1)
+    REAL(r_std), ALLOCATABLE, DIMENSION(:,:)              :: defv        !! interpweight default for uncovered points (nvm, 1)
+    REAL(r_std), ALLOCATABLE, DIMENSION(:)                :: aout        !! interpweight availability (npts)
+    CHARACTER(LEN=80)                                     :: filename, vname, lonname, latname !! interpweight arguments
+    CHARACTER(LEN=50)                                     :: masktype, fractype               !! interpweight arguments
+    CHARACTER(LEN=250)                                    :: maskvarname                      !! interpweight arguments
+    REAL(r_std), DIMENSION(3)                             :: maskvals                         !! interpweight arguments
+!_ ================================================================================================================================
+
+    IF (TRIM(rotation_ref_file) == 'NONE') RETURN
+    IF (LEN_TRIM(rotation_ref_file) > LEN(filename)) CALL ipslerr_p(3,'rotation_ref_from_file', &
+         'ROTATION_REF_FILE path longer than 80 characters', TRIM(rotation_ref_file), &
+         'interpweight takes a CHARACTER(LEN=80) file name')
+
+    ! Guillaume M. -- The veget axis must be the model's nvm: a file built for another PFT
+    ! list would silently shift species. Checked on the root process, broadcast.
+    nvm_file = 0
+    IF (is_root_prc) THEN
+       CALL flioopfd(TRIM(rotation_ref_file), fid, nb_dim=nb_coord, nb_var=nb_var, nb_gat=nb_gat)
+       CALL flioinqv(fid, v_n='veget', l_ex=l_ex, nb_dims=nb_dim, len_dims=l_d_w)
+       IF (.NOT. l_ex) CALL ipslerr(3,'rotation_ref_from_file', &
+            'variable veget missing in ROTATION_REF_FILE', TRIM(rotation_ref_file), &
+            'build the file with scripts/build_rotation_ref_map.py')
+       nvm_file = l_d_w(1)
+       CALL flioinqv(fid, v_n='rotation_ref', l_ex=l_ex, nb_dims=nb_dim, len_dims=l_d_w)
+       IF (.NOT. l_ex) CALL ipslerr(3,'rotation_ref_from_file', &
+            'variable rotation_ref missing in ROTATION_REF_FILE', TRIM(rotation_ref_file), '')
+       CALL flioclo(fid)
+    ENDIF
+    CALL bcast(nvm_file)
+    IF (nvm_file /= nvm) THEN
+       WRITE(numout,*) '[ROTATION_REF] file veget axis ', nvm_file, ' but nvm = ', nvm
+       CALL ipslerr_p(3,'rotation_ref_from_file','ROTATION_REF_FILE veget axis differs from nvm', &
+            TRIM(rotation_ref_file), 'rebuild it with --pft-def pointing to this PFT file')
+    ENDIF
+
+    IF (.NOT. ALLOCATED(rotation_ref_map)) THEN
+       ALLOCATE(rotation_ref_map(npts,nvm), stat=ier)
+       IF (ier /= 0) CALL ipslerr_p(3,'rotation_ref_from_file','allocation failed (rotation_ref_map)','','')
+    ENDIF
+    ALLOCATE(raw(npts,nvm,1), defv(nvm,1), aout(npts), stat=ier)
+    IF (ier /= 0) CALL ipslerr_p(3,'rotation_ref_from_file','allocation failed (interpolation buffers)','','')
+
+    ! Guillaume M. -- Continuous field, area-weighted mean (interpweight 'default'): a constant
+    ! field comes back exact, a regional field is mixed only on cells straddling a boundary.
+    ! The 'var' mask restricts the overlap to the attributed cells of the file.
+    defv(:,:) = -un
+    filename = rotation_ref_file
+    vname = 'rotation_ref'
+    lonname = 'lon'
+    latname = 'lat'
+    masktype = 'var'
+    maskvarname = 'mask'
+    maskvals(:) = zero
+    fractype = 'default'
+    CALL interpweight_4Dcont(npts, nvm, 1, lalo, resolution, neighbours, contfrac, filename, vname, &
+         lonname, latname, zero, zero, .FALSE., masktype, maskvals, maskvarname, -1, fractype, &
+         defv, zero, raw, aout)
+
+    rotation_ref_map(:,:) = -un
+    DO jv = 1, nvm
+       WHERE (aout(:) > zero .AND. raw(:,jv,1) > zero) rotation_ref_map(:,jv) = raw(:,jv,1)
+    ENDDO
+
+    ! Journal: what the map changes, per tree PFT, on this rank
+    ncov = COUNT(aout(:) > zero)
+    WRITE(numout,*) '[ROTATION_REF] ', TRIM(rotation_ref_file), ' : ', ncov, ' of ', npts, ' points covered'
+    DO jv = 1, nvm
+       IF (.NOT. is_tree(jv)) CYCLE
+       npos = COUNT(rotation_ref_map(:,jv) > zero)
+       IF (npos > 0) THEN
+          WRITE(numout,'(A,I3,A,I6,A,F7.1,A,F7.1,A,F7.1)') ' [ROTATION_REF] PFT ', jv, &
+               ' regional on ', npos, ' points, min ', MINVAL(rotation_ref_map(:,jv), MASK=rotation_ref_map(:,jv) > zero), &
+               ' max ', MAXVAL(rotation_ref_map(:,jv), MASK=rotation_ref_map(:,jv) > zero), &
+               ' ; namelist ', rotation_ref(jv)
+       ELSE
+          WRITE(numout,'(A,I3,A,F7.1)') ' [ROTATION_REF] PFT ', jv, &
+               ' no regional value on this rank, namelist ROTATION_REF ', rotation_ref(jv)
+       ENDIF
+    ENDDO
+
+    DEALLOCATE(raw, defv, aout)
+
+  END SUBROUTINE rotation_ref_from_file
 
 END MODULE stomate_io

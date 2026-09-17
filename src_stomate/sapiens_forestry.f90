@@ -630,7 +630,9 @@ CONTAINS
                 ! mode); the MAX(r4, min_stomate) keeps 0**gain well defined.
                 ph_gmod = un
                 IF (nagec_pft(agec_group(ph_jv)) .GT. 1 .AND. ph_a_grp .GT. min_stomate) THEN
-                   ph_r4 = ph_a_term / (MAX(mat_target_frac(nagec_pft(agec_group(ph_jv))), &
+                   ! Guillaume M. -- Setpoint follows the rotation where MAT_A3_ENTRY is set
+                   ! (design/MODULE_DESIGN_MAT_TARGET_A3.md), MAT_TARGET_FRAC(n) elsewhere.
+                   ph_r4 = ph_a_term / (MAX(mat_target_frac_eff(ipts, ph_jv, nagec_pft(agec_group(ph_jv))), &
                         min_stomate) * ph_a_grp)
                    IF (ph_r4 .LT. mat_band_low .OR. ph_r4 .GT. mat_band_high) THEN
                       ph_gmod = MIN(harv_g_max, MAX(harv_g_min, &

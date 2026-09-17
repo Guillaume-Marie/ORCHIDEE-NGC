@@ -1072,6 +1072,10 @@
          Il a fait conclure a tort a une rotation cible de ~400 ans alors que ROTATION_REF
          vaut 30 a 120 ans selon l'essence. -->
     <field field_ref="TARGET_ROTATION_AGE" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="ROTATION_REF_MAP" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="MAT_TARGET_TERM" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="MAT_AGE_ENTRY" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="ROTATION_GROWTH" grid_ref="grid_nvm_out" level="1"/>
     <field field_ref="DA_FIRE"    level="2"/>
     <field field_ref="DA_STORM"   level="2"/>
     <field field_ref="DA_PEST"    level="2"/>
@@ -1082,6 +1086,8 @@
          ROAD_LENGTH_FILE a bien ete lue quand PRINTLEV=0. -->
     <field field_ref="EDGE_MESO"  level="1"/>
     <field field_ref="EDGE_MACRO" level="1"/>
+    <field field_ref="EDGE_HYDRO" />
+    <field field_ref="EDGE_MICRO" />
     <field field_ref="AC12_R" grid_ref="grid_nvm_out" level="1"/>
     <field field_ref="AC12_F_REAL" grid_ref="grid_nvm_out" level="1"/>
     <!-- RDI_THIN_LIMIT (2026-08-12) : cible de RDI REELLEMENT utilisee par l'eclaircie,
@@ -1413,6 +1419,7 @@
     <field field_ref="AGE" grid_ref="grid_nvm_out" level="5"/>
     <field field_ref="AGE_STAND" grid_ref="grid_nvm_out" level="0"/>
     <field field_ref="AGE_STAND_BM" grid_ref="grid_nvm_out" level="1"/>
+    <field field_ref="AGE_STAND_AREA" grid_ref="grid_nvm_out" level="1"/>
     <field field_ref="HEIGHT" grid_ref="grid_nvm_out" level="5"/>
     <field field_ref="HEIGHT_DOM" grid_ref="grid_nvm_out" level="5"/>
     <field field_ref="HEIGHT_INV" grid_ref="grid_nvm_out" level="5"/>
