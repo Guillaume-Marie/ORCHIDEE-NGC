@@ -35,7 +35,7 @@ MODULE stomate
   USE time, ONLY : one_day, one_year, dt_sechiba, &
                    dt_stomate, ts_annual_proc, LastTsMonth, &
                    FirstTsDay, FirstTsYear, year_end, month_end, &
-                   day_end, sec_end
+                   day_end, sec_end, year_start, julian_diff
   USE constantes
   USE constantes_soil
   USE vertical_soil_var
@@ -749,9 +749,7 @@ MODULE stomate
 
   INTEGER(i_std), ALLOCATABLE, SAVE, DIMENSION(:,:)  :: age_stand        !! Age of stand (years)
 !$OMP THREADPRIVATE(age_stand)
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:)     :: age_stand_bm     !! Biomass-weighted mean stand age, conserved through the diameter age-class conveyor (years) - STAND_AGE, Marie 2026
-!$OMP THREADPRIVATE(age_stand_bm)
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:)     :: age_stand_area   !! AREA-weighted mean stand age, strict mirror of age_stand_bm to expose the weighting-basis gap (years) - STAND_AGE
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:)     :: age_stand_area   !! AREA-weighted mean stand age, conserved through the diameter age-class conveyor (years) - STAND_AGE, Marie 2026. The biomass-weighted twin was removed: it measured the age of the carbon, not of the ground.
 !$OMP THREADPRIVATE(age_stand_area)
   
   INTEGER(i_std), ALLOCATABLE, SAVE, DIMENSION(:,:)  :: rotation_n       !! Rotation number (number of rotation since pft is managed)
@@ -1246,7 +1244,10 @@ SUBROUTINE stomate_initialize &
          ! Guillaume M. -- Seed from the observation ONLY off the v2 path. Under REGROWTH_V2
          ! the edge is fully recomputed each year from A_open and is seeded further down from
          ! the simulated structure: the EFDA observation stays the verification target only.
-         IF (ALLOCATED(edge_length_dyn) .AND. .NOT. ok_edge_from_age_class) THEN
+         ! Guillaume M. -- Under EDGE_SCENARIO=off the edge must stay zero: this seed would
+         ! otherwise re-import the observed edge every year and defeat the scenario.
+         IF (ALLOCATED(edge_length_dyn) .AND. .NOT. ok_edge_from_age_class &
+              .AND. edge_scenario /= edge_scen_off) THEN
             IF (ALL(edge_length_dyn(:) == zero)) edge_length_dyn(:) = edge_length(:)
          ENDIF
 
@@ -1372,7 +1373,7 @@ SUBROUTINE stomate_initialize &
          soil_n_min, p_O2, bact, forest_managed, &
          species_change_map, fm_change_map, lpft_replant, lai_per_level, &
          laieff_fit, wstress_season, wstress_month, &
-         age_stand, age_stand_bm, age_stand_area, rotation_n, last_cut, mai, pai, &
+         age_stand, age_stand_area, rotation_n, last_cut, mai, pai, &
          previous_wood_volume, mai_count, coppice_dens, &
          light_tran_to_floor_season,daylight_count, veget_max, gap_area_save, &
          deepSOM_a, deepSOM_s, deepSOM_p, O2_soil, CH4_soil, O2_snow, CH4_snow, & 
@@ -1394,12 +1395,12 @@ SUBROUTINE stomate_initialize &
          mean_start_gs, total_ba_init, &
          carbon_acro, carbon_cato, height_acro, deepSOM_peat)
 
-    ! Guillaume M. -- Cold-start stand age is derived, not prescribed: age_stand_bm(c) =
+    ! Guillaume M. -- Cold-start stand age is derived, not prescribed: age_stand_area(c) =
     ! age_class_age_frac(c) * target rotation, so one maturity scale governs area, diameter,
     ! RDI and age together. set_management_intensity is called here because
     ! target_rotation_age is filled only later in stomate_main; the call is idempotent.
     ! /!\ stomate_initialize runs every period: without the restart guard the age is frozen.
-    IF (.NOT. stand_age_bm_in_restart .AND. nagec > 1) THEN
+    IF (.NOT. stand_age_in_restart .AND. nagec > 1) THEN
        CALL set_management_intensity(kjpindex, veget_max)
        IF (ALLOCATED(target_rotation_age)) THEN
           DO j = 2, nvm
@@ -1413,15 +1414,14 @@ SUBROUTINE stomate_initialize &
                    ! which must keep its "unmanaged" sentinel for the harvest pace. Uncapped,
                    ! that sentinel gives ages of several hundred years, non-monotonic across
                    ! classes, while the conveyor assumes age grows with class index.
-                   age_stand_bm(ji,j) = age_class_age_frac(iage_st) &
-                                        * MIN(target_rotation_age(ji,j), &
-                                              stand_age_rotation_max)
-                   age_stand_area(ji,j) = age_stand_bm(ji,j)
+                   age_stand_area(ji,j) = age_class_age_frac(iage_st) &
+                                          * MIN(target_rotation_age(ji,j), &
+                                                stand_age_rotation_max)
                 ENDIF
              ENDDO
           ENDDO
           IF (printlev >= 1) WRITE(numout,*) &
-               '[STAND_AGE] age_stand_bm derive de la rotation cible, fractions = ', &
+               '[STAND_AGE] age_stand_area derive de la rotation cible, fractions = ', &
                age_class_age_frac(:)
        ENDIF
     ENDIF
@@ -1953,6 +1953,8 @@ SUBROUTINE stomate_initialize &
                                                                                    !! values u and v as given in the driver (ms-1)
     REAL(r_std), DIMENSION(kjpindex,wind_days)    :: tmp_wind                      !! Temporal variable to move window for wind_ratio_sum/max_save
     REAL(r_std), DIMENSION(kjpindex,legacy_years_wind) :: tmp_wind_yr              !! Temporal variable to move window for wind_mean
+    INTEGER(i_std)                                :: ipk, jpk                      !! Loop indices, daily peak ranking (OK_STORM_PEAK_TRIGGER)
+    REAL(r_std)                                   :: vpk, tpk                      !! Peak being inserted / swapped (m s-1)
     REAL(r_std), DIMENSION(kjpindex)              :: u_raw, v_raw                  !! Retrieved wind speed before transformation (ms-1)
     REAL(r_std), DIMENSION(ngrnd)                 :: zi_soil                       !! depths of intermediate soil levels (m)
     REAL(r_std), DIMENSION(0:ngrnd)               :: zf_soil                       !! depths of full soil levels (m)
@@ -2613,6 +2615,12 @@ SUBROUTINE stomate_initialize &
        ! lasts several days, to calculate damage once, the module calculate
        ! start and the end of the storm. Maximum wind speed over that period
        ! will be used for damage calculation. 
+       ! Guillaume M. -- OK_STORM_GUST: the day's maximum gust of STORM_GUST_FILE replaces the forcing wind in the
+       ! storm module (buffer, peak reference, damage); julian_diff counts the day ending now (1 = 1 January).
+       IF (ok_storm_gust) THEN
+          CALL storm_gust_read(kjpindex, lalo, year_start, NINT(julian_diff))
+          wind_max(:) = gust_daily(:)
+       ENDIF
        tmp_wind(:,:) = zero
        DO iday = 1, wind_days - 1
          tmp_wind(:,iday+1) = wind_speed_max_save(:,iday)
@@ -2636,6 +2644,19 @@ SUBROUTINE stomate_initialize &
           WRITE(numout,*) 'save_max', wind_speed_max_save(test_grid,:)
        ENDIF
 
+       ! Guillaume M. -- OK_STORM_PEAK_TRIGGER: rank today's raw peak among the largest of the year,
+       ! before the yearly push below so that the last day of the year counts for its own year.
+       IF (ok_storm_peak_trigger) THEN
+          DO ipk = 1, kjpindex
+             vpk = wind_max(ipk)
+             DO jpk = 1, wind_peak_ref_ntop
+                IF (vpk > peak_top(ipk,jpk)) THEN
+                   tpk = peak_top(ipk,jpk); peak_top(ipk,jpk) = vpk; vpk = tpk
+                ENDIF
+             ENDDO
+          ENDDO
+       ENDIF
+
        IF(ts_annual_proc) THEN
 
           IF(printlev_loc .GE. 4) THEN
@@ -2650,7 +2671,27 @@ SUBROUTINE stomate_initialize &
           tmp_wind_yr(:,1) = wind_sum(:)/(one_year * one_day /dt_sechiba)
           wind_mean_save = tmp_wind_yr
           wind_sum(:) = zero
+          ! Guillaume M. -- OK_STORM_PEAK_TRIGGER: push this year's n-th largest daily peak.
+          IF (ok_storm_peak_trigger) THEN
+             DO iyr = legacy_years_wind, 2, -1
+                peak_ref_save(:,iyr) = peak_ref_save(:,iyr-1)
+             ENDDO
+             peak_ref_save(:,1) = peak_top(:,wind_peak_ref_ntop)
+             peak_top(:,:) = zero
+          ENDIF
        ENDIF ! ts_annual_proc
+
+       ! Guillaume M. -- OK_STORM_PEAK_TRIGGER: reference = mean over the available years (0 = none).
+       IF (ok_storm_peak_trigger) THEN
+          DO ipk = 1, kjpindex
+             jpk = COUNT(peak_ref_save(ipk,:) > zero)
+             IF (jpk > 0) THEN
+                peak_ref(ipk) = SUM(peak_ref_save(ipk,:), MASK=peak_ref_save(ipk,:) > zero) / REAL(jpk, r_std)
+             ELSE
+                peak_ref(ipk) = zero
+             ENDIF
+          ENDDO
+       ENDIF
 
        ! wind_max_daily/soil_temp_daily will be passed to the wind_damage
        ! module. wind_max_daily/soil_max_daily reset to zero so they can be 
@@ -3436,7 +3477,7 @@ SUBROUTINE stomate_initialize &
             &             circ_class_n, circ_class_biomass, forest_managed, &
             &             longevity_eff_leaf, longevity_eff_sap, longevity_eff_root, &
             &             species_change_map, fm_change_map, lpft_replant, &
-            &             age_stand, age_stand_bm, age_stand_area, rotation_n, last_cut, mai, pai, &
+            &             age_stand, age_stand_area, rotation_n, last_cut, mai, pai, &
             &             previous_wood_volume, mai_count, coppice_dens, &
             &             harvest_pool_bound, harvest_pool_acc, & 
             &             harvest_type, harvest_cut, harvest_area_acc, &
@@ -4220,7 +4261,7 @@ SUBROUTINE stomate_initialize &
          forest_managed, &
          species_change_map, fm_change_map, lpft_replant, lai_per_level, &
          laieff_fit, wstress_season, wstress_month, &
-         age_stand, age_stand_bm, age_stand_area, rotation_n, last_cut, mai, pai, &
+         age_stand, age_stand_area, rotation_n, last_cut, mai, pai, &
          previous_wood_volume, mai_count, coppice_dens, &
          light_tran_to_floor_season, daylight_count, gap_area_save, &
          deepSOM_a, deepSOM_s, deepSOM_p, O2_soil, CH4_soil, O2_snow, CH4_snow, &
@@ -5996,16 +6037,8 @@ SUBROUTINE stomate_initialize &
        CALL ipslerr_p (3,'stomate_init', 'Memory allocation issue','','')
     ENDIF
 
-    ! Guillaume M. -- Conserved biomass-weighted stand age. Always allocated (cheap) so that
+    ! Guillaume M. -- Conserved area-weighted stand age. Always allocated (cheap) so that
     ! restart and deallocation stay unconditional; the diagnostic is always computed.
-    ALLOCATE(age_stand_bm(kjpindex,nvm),stat=ier)
-    l_error = l_error .OR. (ier /= 0)
-    IF (l_error) THEN
-       WRITE(numout,*) 'Memory allocation error for age_stand_bm. We stop. We need kjpindex*nvm words',  &
-       &     kjpindex, nvm
-       CALL ipslerr_p (3,'stomate_init', 'Memory allocation issue','','')
-    ENDIF
-
     ALLOCATE(age_stand_area(kjpindex,nvm),stat=ier)
     l_error = l_error .OR. (ier /= 0)
     IF (l_error) THEN
@@ -6249,6 +6282,40 @@ SUBROUTINE stomate_initialize &
     ! edge_length_ref are populated from edge_length(:) on the first Edge_length.nc read.
     ALLOCATE(edge_length_dyn(kjpindex), stat=ier)
     l_error = l_error .OR. (ier /= 0)
+    ! Guillaume M. -- OK_STORM_PEAK_TRIGGER: peak ranking, yearly buffer and reference (0 = empty).
+    IF (ok_storm_peak_trigger) THEN
+       ALLOCATE(peak_top(kjpindex,wind_peak_ref_ntop), peak_ref_save(kjpindex,legacy_years_wind), &
+            peak_ref(kjpindex), stat=ier)
+       l_error = l_error .OR. (ier /= 0)
+       IF (ier == 0) THEN
+          peak_top(:,:) = zero; peak_ref_save(:,:) = zero; peak_ref(:) = zero
+       ENDIF
+    ENDIF
+    ! Guillaume M. -- OK_STORM_GUST: today's gust, hours above levels, their climatology and the episode doses.
+    IF (ok_storm_gust) THEN
+       ALLOCATE(gust_levels(ngust_lev), gust_daily(kjpindex), gust_hours(kjpindex,ngust_lev), &
+            gust_hours_clim(kjpindex,ngust_lev), storm_gust_dose_closer(kjpindex,nvm), &
+            storm_gust_dose_further(kjpindex,nvm), stat=ier)
+       l_error = l_error .OR. (ier /= 0)
+       IF (ier == 0) THEN
+          gust_levels(:) = zero; gust_daily(:) = zero; gust_hours(:,:) = zero; gust_hours_clim(:,:) = zero
+          storm_gust_dose_closer(:,:) = zero; storm_gust_dose_further(:,:) = zero
+       ENDIF
+    ENDIF
+    ! Guillaume M. -- OK_BEETLE_ACUTE_DROUGHT: yearly moisture low (1 = no low yet) and its buffer.
+    IF (ok_beetle_acute_drought) THEN
+       ALLOCATE(moist_min_year(kjpindex,nvm), moist_min_legacy(kjpindex,nvm,beetle_drought_nref), stat=ier)
+       l_error = l_error .OR. (ier /= 0)
+       IF (ier == 0) THEN
+          moist_min_year(:,:) = un; moist_min_legacy(:,:,:) = zero
+       ENDIF
+    ENDIF
+    ALLOCATE(edge_fresh(kjpindex), stat=ier)   ! AED_STORM: edge along fresh class-0 openings
+    l_error = l_error .OR. (ier /= 0)
+    IF (ier == 0) edge_fresh(:) = zero
+    ALLOCATE(edge_open_conv(kjpindex), stat=ier)   ! AED_PEST_FRESH: edge per opened area
+    l_error = l_error .OR. (ier /= 0)
+    IF (ier == 0) edge_open_conv(:) = zero
     ALLOCATE(edge_length_ref(kjpindex), stat=ier)
     l_error = l_error .OR. (ier /= 0)
     ALLOCATE(dA_fire(kjpindex),  stat=ier)
@@ -6727,7 +6794,6 @@ SUBROUTINE stomate_initialize &
     IF (ALLOCATED(current_stock)) DEALLOCATE(current_stock)
     IF (ALLOCATED(sigma)) DEALLOCATE (sigma) 
     IF (ALLOCATED(age_stand)) DEALLOCATE (age_stand)
-    IF (ALLOCATED(age_stand_bm)) DEALLOCATE (age_stand_bm)
     IF (ALLOCATED(age_stand_area)) DEALLOCATE (age_stand_area)
     IF (ALLOCATED(rotation_n)) DEALLOCATE (rotation_n)
     IF (ALLOCATED(last_cut)) DEALLOCATE (last_cut)
@@ -6822,6 +6888,17 @@ SUBROUTINE stomate_initialize &
     IF (ALLOCATED(area_forest)) DEALLOCATE (area_forest)
     ! Guillaume M. -- AED_FEEDBACK dynamic state and accumulators.
     IF (ALLOCATED(edge_length_dyn)) DEALLOCATE (edge_length_dyn)
+    IF (ALLOCATED(peak_top)) DEALLOCATE (peak_top)
+    IF (ALLOCATED(peak_ref_save)) DEALLOCATE (peak_ref_save)
+    IF (ALLOCATED(peak_ref)) DEALLOCATE (peak_ref)
+    IF (ALLOCATED(gust_levels)) DEALLOCATE (gust_levels)
+    IF (ALLOCATED(gust_daily)) DEALLOCATE (gust_daily)
+    IF (ALLOCATED(gust_hours)) DEALLOCATE (gust_hours)
+    IF (ALLOCATED(gust_hours_clim)) DEALLOCATE (gust_hours_clim)
+    IF (ALLOCATED(storm_gust_dose_closer)) DEALLOCATE (storm_gust_dose_closer)
+    IF (ALLOCATED(storm_gust_dose_further)) DEALLOCATE (storm_gust_dose_further)
+    IF (ALLOCATED(moist_min_year)) DEALLOCATE (moist_min_year)
+    IF (ALLOCATED(moist_min_legacy)) DEALLOCATE (moist_min_legacy)
     IF (ALLOCATED(edge_length_ref)) DEALLOCATE (edge_length_ref)
     IF (ALLOCATED(dA_fire))    DEALLOCATE (dA_fire)
     IF (ALLOCATED(dA_storm))   DEALLOCATE (dA_storm)

@@ -45,7 +45,8 @@ MODULE stomate_io
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC readrestart, writerestart, soil_init_from_reference, rotation_ref_from_file
+  PUBLIC readrestart, writerestart, soil_init_from_reference, rotation_ref_from_file, &
+         storm_gust_read
 
   ! Guillaume M. -- soil_init_from_reference for arrays whose PFT axis is not next to npts
   ! (som, litter, litterfuel): one specific per rank, assumed-shape so that array sections
@@ -132,7 +133,7 @@ CONTAINS
        &  forest_managed, &
        &  species_change_map, fm_change_map, lpft_replant, lai_per_level, &
        &  laieff_fit, wstress_season, wstress_month, &
-       &  age_stand, age_stand_bm, age_stand_area, rotation_n, last_cut, mai, pai, &
+       &  age_stand, age_stand_area, rotation_n, last_cut, mai, pai, &
        &  previous_wood_volume, mai_count, coppice_dens, &
        &  light_tran_to_floor_season, daylight_count, veget_max, gap_area_save, &
        &  deepSOM_a, deepSOM_s, deepSOM_p, O2_soil, CH4_soil, O2_snow, CH4_snow, &
@@ -284,7 +285,6 @@ CONTAINS
     REAL(r_std), DIMENSION(:,:),INTENT(out)                :: coppice_dens             !! The density of a coppice at the first cutting. @tex $( 1 / m**2 )$ @endtex
     REAL(r_std), DIMENSION(:,:), INTENT(out)               :: rue_longterm             !! longterm radiation use efficiency
     INTEGER(i_std), DIMENSION(:,:), INTENT(out)            :: age_stand                !! Age of stand (years)
-    REAL(r_std), DIMENSION(:,:), INTENT(out)               :: age_stand_bm             !! Biomass-weighted conserved mean stand age (years) - STAND_AGE
     REAL(r_std), DIMENSION(:,:), INTENT(out)               :: age_stand_area           !! AREA-weighted conserved mean stand age (years) - STAND_AGE
     INTEGER(i_std), DIMENSION(:,:), INTENT(out)            :: rotation_n               !! Rotation number (number of rotation since pft is managed)
     INTEGER(i_std), DIMENSION(:,:), INTENT(out)            :: last_cut                 !! Years since last thinning (years)
@@ -1846,27 +1846,24 @@ CONTAINS
        age_stand = NINT(temp_real)
     ENDIF
     !-
-    ! STAND_AGE (Marie 2026): conserved biomass-weighted mean stand age (real).
-    ! Absent in restart -> fallback to age_stand, then derived from the target rotation
-    ! in stomate_initialize.
-    var_name = 'age_stand_bm'
-    CALL restget_p (rest_id_stomate, var_name, nbp_glo, nvm  , 1, itime, &
-         &              .TRUE., age_stand_bm, 'gather', nbp_glo, index_g)
-    IF ( ALL(age_stand_bm(:,:) == val_exp) ) THEN
-       age_stand_bm(:,:) = REAL(age_stand(:,:), r_std)
-       stand_age_bm_in_restart = .FALSE.   ! absent -> file-init (mode file) may set it
-    ELSE
-       stand_age_bm_in_restart = .TRUE.    ! present -> do NOT override (keep the aged value)
-    ENDIF
-    !-
-    ! Guillaume M. -- AREA-weighted mirror of age_stand_bm. Absent from an older
-    ! restart -> seeded from the biomass-weighted value: both estimators then
-    ! diverge from a common state, which is the comparison the variable exists for.
+    ! Guillaume M. -- STAND_AGE: conserved AREA-weighted mean stand age (real), the only
+    ! carried age -- the removed biomass-weighted twin measured the age of the
+    ! carbon, not of the ground, and drifted above it by construction. Read order:
+    ! age_stand_area, then the legacy age_stand_bm of older restarts, then age_stand;
+    ! absent everywhere -> derived from the target rotation in stomate_initialize.
     var_name = 'age_stand_area'
     CALL restget_p (rest_id_stomate, var_name, nbp_glo, nvm  , 1, itime, &
          &              .TRUE., age_stand_area, 'gather', nbp_glo, index_g)
     IF ( ALL(age_stand_area(:,:) == val_exp) ) THEN
-       age_stand_area(:,:) = age_stand_bm(:,:)
+       var_name = 'age_stand_bm'
+       CALL restget_p (rest_id_stomate, var_name, nbp_glo, nvm  , 1, itime, &
+            &              .TRUE., age_stand_area, 'gather', nbp_glo, index_g)
+    ENDIF
+    IF ( ALL(age_stand_area(:,:) == val_exp) ) THEN
+       age_stand_area(:,:) = REAL(age_stand(:,:), r_std)
+       stand_age_in_restart = .FALSE.   ! absent -> derived at cold start
+    ELSE
+       stand_age_in_restart = .TRUE.    ! present -> do NOT override (keep the aged value)
     ENDIF
     !-
     ! PROGRESSIVE_HARVEST (Marie 2026): the fractional clearcut is marked by
@@ -2330,6 +2327,44 @@ CONTAINS
     ! (Le test de convergence AED_SPINUP et ses scalaires ont ete retires le
     !  2026-07-26 ; les vieux restarts qui les contiennent restent lisibles.)
     !-
+    ! Guillaume M. -- OK_STORM_PEAK_TRIGGER: peak ranking and yearly reference buffer. Missing
+    ! entries (val_exp) become 0, read as "no reference year": no onset until one year is complete.
+    IF (ok_storm_peak_trigger) THEN
+       peak_top(:,:) = val_exp
+       CALL restget_p (rest_id_stomate, 'peak_top', nbp_glo, wind_peak_ref_ntop, 1, itime, &
+            &           .TRUE., peak_top, 'gather', nbp_glo, index_g)
+       WHERE (peak_top(:,:) == val_exp) peak_top(:,:) = zero
+       peak_ref_save(:,:) = val_exp
+       CALL restget_p (rest_id_stomate, 'peak_ref_save', nbp_glo, legacy_years_wind, 1, itime, &
+            &           .TRUE., peak_ref_save, 'gather', nbp_glo, index_g)
+       WHERE (peak_ref_save(:,:) == val_exp) peak_ref_save(:,:) = zero
+    ENDIF
+    ! Guillaume M. -- OK_STORM_GUST: dose of the current storm episode per zone (missing -> 0, no episode).
+    IF (ok_storm_gust) THEN
+       storm_gust_dose_closer(:,:) = val_exp
+       CALL restget_p (rest_id_stomate, 'storm_gust_dose_closer', nbp_glo, nvm, 1, itime, &
+            &           .TRUE., storm_gust_dose_closer, 'gather', nbp_glo, index_g)
+       WHERE (storm_gust_dose_closer(:,:) == val_exp) storm_gust_dose_closer(:,:) = zero
+       storm_gust_dose_further(:,:) = val_exp
+       CALL restget_p (rest_id_stomate, 'storm_gust_dose_further', nbp_glo, nvm, 1, itime, &
+            &           .TRUE., storm_gust_dose_further, 'gather', nbp_glo, index_g)
+       WHERE (storm_gust_dose_further(:,:) == val_exp) storm_gust_dose_further(:,:) = zero
+    ENDIF
+    ! Guillaume M. -- OK_BEETLE_ACUTE_DROUGHT: yearly moisture low (missing -> 1, no low yet) and its
+    ! buffer (missing -> 0, no reference year).
+    IF (ok_beetle_acute_drought) THEN
+       moist_min_year(:,:) = val_exp
+       CALL restget_p (rest_id_stomate, 'moist_min_year', nbp_glo, nvm, 1, itime, &
+            &           .TRUE., moist_min_year, 'gather', nbp_glo, index_g)
+       WHERE (moist_min_year(:,:) == val_exp) moist_min_year(:,:) = un
+       DO l = 1, beetle_drought_nref
+          WRITE(pyear_str,'(I2.2)') l
+          moist_min_legacy(:,:,l) = val_exp
+          CALL restget_p (rest_id_stomate, 'moist_min_legacy_'//pyear_str, nbp_glo, &
+               &           nvm, 1, itime, .TRUE., moist_min_legacy(:,:,l), 'gather', nbp_glo, index_g)
+       ENDDO
+       WHERE (moist_min_legacy(:,:,:) == val_exp) moist_min_legacy(:,:,:) = zero
+    ENDIF
     IF (ok_aed_feedback) THEN
        edge_length_dyn(:) = val_exp
        var_name = 'edge_length_dyn'
@@ -2489,7 +2524,7 @@ CONTAINS
        &  forest_managed, &
        &  species_change_map, fm_change_map, lpft_replant, lai_per_level, &
        &  laieff_fit, wstress_season, wstress_month,&
-       &  age_stand, age_stand_bm, age_stand_area, rotation_n, last_cut, mai, pai, &
+       &  age_stand, age_stand_area, rotation_n, last_cut, mai, pai, &
        &  previous_wood_volume, mai_count, coppice_dens, &
        &  light_tran_to_floor_season,daylight_count, gap_area_save, &
        &  deepSOM_a, deepSOM_s, deepSOM_p, O2_soil, CH4_soil, O2_snow, CH4_snow, &
@@ -2630,7 +2665,6 @@ CONTAINS
     REAL(r_std), DIMENSION(:,:),INTENT(in)                :: coppice_dens             !! The density of a coppice at the first cutting. @tex $( 1 / m**2 )$ @endtex
     REAL(r_std), DIMENSION(:,:), INTENT(in)               :: rue_longterm             !! longterm radiation use efficiency
     INTEGER(i_std), DIMENSION(:,:), INTENT(in)            :: age_stand                !! Age of stand (years)
-    REAL(r_std), DIMENSION(:,:), INTENT(in)               :: age_stand_bm             !! Biomass-weighted conserved mean stand age (years) - STAND_AGE
     REAL(r_std), DIMENSION(:,:), INTENT(in)               :: age_stand_area           !! AREA-weighted conserved mean stand age (years) - STAND_AGE
     INTEGER(i_std), DIMENSION(:,:), INTENT(in)            :: rotation_n               !! Rotation number (number of rotation since pft is managed)
     INTEGER(i_std), DIMENSION(:,:), INTENT(in)            :: last_cut                 !! Years since last thinning (years)
@@ -3626,11 +3660,7 @@ CONTAINS
     CALL restput_p (rest_id_stomate, var_name, nbp_glo, nvm, 1, itime, &
          &              temp_real, 'scatter', nbp_glo, index_g)
     !-
-    var_name = 'age_stand_bm'                            ! STAND_AGE (Marie 2026), real
-    CALL restput_p (rest_id_stomate, var_name, nbp_glo, nvm, 1, itime, &
-         &              age_stand_bm, 'scatter', nbp_glo, index_g)
-    !-
-    var_name = 'age_stand_area'                          ! STAND_AGE area-weighted mirror
+    var_name = 'age_stand_area'                          ! STAND_AGE (Marie 2026), area-weighted, real
     CALL restput_p (rest_id_stomate, var_name, nbp_glo, nvm, 1, itime, &
          &              age_stand_area, 'scatter', nbp_glo, index_g)
     !-
@@ -3793,6 +3823,30 @@ CONTAINS
 
     !-
     ! AED_FEEDBACK (Marie 2026) — write the dynamic edge_length state as a 1D field.
+    ! Guillaume M. -- OK_STORM_PEAK_TRIGGER: write the peak ranking and the yearly reference buffer.
+    IF (ok_storm_peak_trigger) THEN
+       CALL restput_p (rest_id_stomate, 'peak_top', nbp_glo, wind_peak_ref_ntop, 1, itime, &
+            &           peak_top, 'scatter', nbp_glo, index_g)
+       CALL restput_p (rest_id_stomate, 'peak_ref_save', nbp_glo, legacy_years_wind, 1, itime, &
+            &           peak_ref_save, 'scatter', nbp_glo, index_g)
+    ENDIF
+    ! Guillaume M. -- OK_STORM_GUST: write the dose of the current storm episode per zone.
+    IF (ok_storm_gust) THEN
+       CALL restput_p (rest_id_stomate, 'storm_gust_dose_closer', nbp_glo, nvm, 1, itime, &
+            &           storm_gust_dose_closer, 'scatter', nbp_glo, index_g)
+       CALL restput_p (rest_id_stomate, 'storm_gust_dose_further', nbp_glo, nvm, 1, itime, &
+            &           storm_gust_dose_further, 'scatter', nbp_glo, index_g)
+    ENDIF
+    ! Guillaume M. -- OK_BEETLE_ACUTE_DROUGHT: write the yearly moisture low and its buffer.
+    IF (ok_beetle_acute_drought) THEN
+       CALL restput_p (rest_id_stomate, 'moist_min_year', nbp_glo, nvm, 1, itime, &
+            &           moist_min_year, 'scatter', nbp_glo, index_g)
+       DO l = 1, beetle_drought_nref
+          WRITE(pyear_str,'(I2.2)') l
+          CALL restput_p (rest_id_stomate, 'moist_min_legacy_'//pyear_str, nbp_glo, &
+               &           nvm, 1, itime, moist_min_legacy(:,:,l), 'scatter', nbp_glo, index_g)
+       ENDDO
+    ENDIF
     IF (ok_aed_feedback) THEN
        var_name = 'edge_length_dyn'
        CALL restput_p (rest_id_stomate, var_name, nbp_glo, 1, 1, itime, &
@@ -4804,5 +4858,85 @@ CONTAINS
     DEALLOCATE(raw, defv, aout)
 
   END SUBROUTINE rotation_ref_from_file
+
+  !! ================================================================================================================================
+  !! SUBROUTINE   : storm_gust_read
+  !!
+  !>\BRIEF        Read today's gust (daily maximum, hours above each level) from STORM_GUST_FILE (OK_STORM_GUST).
+  !!
+  !! DESCRIPTION  : One file per year on the forcing grid (scripts/build_storm_gust_file.py), copied by the job under the name
+  !!                STORM_GUST_FILE. At the first call of each year the root opens it, reads the levels and the climatology and
+  !!                each cell takes the nearest file point (no interpolation: a maximum is not averaged). Each day the root reads
+  !!                slab iday and broadcasts it. Cells farther than 0.6 grid step from any file point get no gust (zero).
+  !! ================================================================================================================================
+  SUBROUTINE storm_gust_read(npts, lalo, year, iday)
+
+    INTEGER(i_std), INTENT(in)                    :: npts      !! Domain size (-)
+    REAL(r_std), DIMENSION(npts,2), INTENT(in)    :: lalo      !! Latitude, longitude of the cells (degrees)
+    INTEGER(i_std), INTENT(in)                    :: year      !! Year of the day read (-)
+    INTEGER(i_std), INTENT(in)                    :: iday      !! Day of the year, 1-based (-)
+
+    INTEGER(i_std), SAVE                          :: fid = -1, year_open = -1, iml, jml, lml, tml
+!$OMP THREADPRIVATE(fid, year_open, iml, jml, lml, tml)
+    INTEGER(i_std), ALLOCATABLE, SAVE             :: pi(:), pj(:)   !! Nearest file point per cell (0 = none)
+!$OMP THREADPRIVATE(pi, pj)
+    REAL(r_std), ALLOCATABLE                      :: lon_lu(:), lat_lu(:), g2(:,:), g3(:,:,:)
+    REAL(r_std)                                   :: dlon, dlat
+    INTEGER(i_std)                                :: ji, ier
+
+    IF (year /= year_open) THEN
+       IF (is_root_prc) THEN
+          IF (fid > 0) CALL flinclo(fid)
+          CALL flininfo(storm_gust_file, iml, jml, lml, tml, fid)
+       ENDIF
+       CALL bcast(iml); CALL bcast(jml); CALL bcast(lml); CALL bcast(tml)
+       IF (lml /= ngust_lev) CALL ipslerr_p(3, 'storm_gust_read', 'STORM_GUST_FILE: unexpected number of gust levels', &
+            TRIM(storm_gust_file), '')
+       IF (iday > tml) CALL ipslerr_p(3, 'storm_gust_read', 'STORM_GUST_FILE: fewer days than the current day', &
+            TRIM(storm_gust_file), '(one file per year, copied by the job)')
+       ALLOCATE(lon_lu(iml), lat_lu(jml), g3(iml,jml,lml), stat=ier)
+       IF (ier /= 0) CALL ipslerr_p(3, 'storm_gust_read', 'allocation failed', '', '')
+       IF (is_root_prc) THEN
+          CALL flinget(fid, 'lon', iml, 0, 0, 0, 1, 1, lon_lu)
+          CALL flinget(fid, 'lat', jml, 0, 0, 0, 1, 1, lat_lu)
+          CALL flinget(fid, 'level', lml, 0, 0, 0, 1, 1, gust_levels)
+          CALL flinget(fid, 'gust_hours_clim_t', iml, jml, lml, tml, 1, 1, g3)
+       ENDIF
+       CALL bcast(lon_lu); CALL bcast(lat_lu); CALL bcast(gust_levels); CALL bcast(g3)
+       IF (.NOT. ALLOCATED(pi)) ALLOCATE(pi(npts), pj(npts))
+       dlon = ABS(lon_lu(MIN(2,iml)) - lon_lu(1)); dlat = ABS(lat_lu(MIN(2,jml)) - lat_lu(1))
+       DO ji = 1, npts
+          pi(ji) = MINLOC(ABS(lon_lu(:) - lalo(ji,2)), DIM=1); pj(ji) = MINLOC(ABS(lat_lu(:) - lalo(ji,1)), DIM=1)
+          IF (ABS(lon_lu(pi(ji)) - lalo(ji,2)) > 0.6*dlon .OR. ABS(lat_lu(pj(ji)) - lalo(ji,1)) > 0.6*dlat) THEN
+             pi(ji) = 0; pj(ji) = 0
+          ENDIF
+          IF (pi(ji) > 0) THEN
+             gust_hours_clim(ji,:) = g3(pi(ji),pj(ji),:)
+          ELSE
+             gust_hours_clim(ji,:) = zero
+          ENDIF
+       ENDDO
+       WRITE(numout,*) 'storm_gust_read: ', TRIM(storm_gust_file), ' opened for ', year, ', ', tml, ' days, ', &
+            COUNT(pi > 0), ' of ', npts, ' cells covered'
+       DEALLOCATE(lon_lu, lat_lu, g3)
+       year_open = year
+    ENDIF
+    ALLOCATE(g2(iml,jml), g3(iml,jml,lml), stat=ier)
+    IF (ier /= 0) CALL ipslerr_p(3, 'storm_gust_read', 'allocation failed', '', '')
+    IF (is_root_prc) THEN
+       CALL flinget(fid, 'gust_max', iml, jml, 0, tml, iday, iday, g2)
+       CALL flinget(fid, 'gust_hours', iml, jml, lml, tml, iday, iday, g3)
+    ENDIF
+    CALL bcast(g2); CALL bcast(g3)
+    DO ji = 1, npts
+       IF (pi(ji) > 0) THEN
+          gust_daily(ji) = g2(pi(ji),pj(ji)); gust_hours(ji,:) = g3(pi(ji),pj(ji),:)
+       ELSE
+          gust_daily(ji) = zero; gust_hours(ji,:) = zero
+       ENDIF
+    ENDDO
+    DEALLOCATE(g2, g3)
+
+  END SUBROUTINE storm_gust_read
 
 END MODULE stomate_io

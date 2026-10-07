@@ -7102,8 +7102,12 @@ CONTAINS
        !Config Desc  = a parameter for the relationship between rdi and
        !beetle susceptibility 
        !Config if    = OK_STOMATE, OK_PEST
-       !Config Def   = undef, undef, undef, 15.5, undef, undef, 15.5, undef,
+       !Config Def   = undef, undef, undef, -5.0, undef, undef, -5.0, undef,
        !undef, undef, undef, undef, undef
+       ! Guillaume M. -- The default announced here read 15.5 while constantes_mtc
+       ! gives -5.0, which is the value actually used. The sign is what matters: it
+       ! is negative, so the index RISES with stand density, i.e. a denser stand is
+       ! more susceptible, which is what the name implies.
        !Config Help  =
        !Config Units = [-] 
        CALL getin_p('S_COMPETITION',S_competition)

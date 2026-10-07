@@ -50,6 +50,17 @@ MODULE stomate_pest
 !$OMP THREADPRIVATE(firstcall_bark_beetle_damage)
   INTEGER(i_std), SAVE            :: printlev_loc                       !! Local level of text output
 !$OMP THREADPRIVATE(printlev_loc)
+  ! Guillaume M. -- OK_AED_PEST_FRESH diagnostics, computed on the last day of the year and
+  ! sent every day. Declared operation="maximum" in XIOS: an average would give value/31,
+  ! and a SAVE value does not survive the restart of the executable at each period.
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: diag_fresh_dens     !! Fresh lagged edge per forest area (m ha-1)
+!$OMP THREADPRIVATE(diag_fresh_dens)
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: diag_fresh_frac     !! Forest share in the fresh-edge band (unitless)
+!$OMP THREADPRIVATE(diag_fresh_frac)
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: diag_old_frac       !! Forest share in the old-edge band (unitless)
+!$OMP THREADPRIVATE(diag_old_frac)
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: diag_p_gain         !! Host-weighted P_eff / P_success (unitless)
+!$OMP THREADPRIVATE(diag_p_gain)
 
 CONTAINS
 
@@ -206,6 +217,10 @@ CONTAINS
     REAL(r_std), DIMENSION(npts, nvmap)               :: P_beetles_attacked_gp     !! risk index averaged for all
     !! age classes of the same PFT
     REAL(r_std), DIMENSION(npts, nvm)                 :: i_beetles_pressure_monitor!! variable used to monitor beetle pressure index (unitles)
+    ! Guillaume M. -- The risk index was declared in the XML and requested by the output
+    ! file, but no send_field ever filled it: the field came out entirely empty. Same
+    ! monitor pattern as the ten indices around it, species group copied onto each PFT.
+    REAL(r_std), DIMENSION(npts, nvm)                 :: P_beetles_attacked_monitor!! variable used to monitor the upstream risk index (unitless)
 
     REAL(r_std), DIMENSION(npts, nvmap)               :: B_beetles_attacked_gp     !! Total biomass of a species group 
     !! that is infected by bark
@@ -217,6 +232,9 @@ CONTAINS
     REAL(r_std), DIMENSION(npts)                      :: vegetmax_beetle           !! share of bark beetle-host PFTs within
     !! a pixel (0-1, unitless)
     REAL(r_std), DIMENSION(npts, nvm)                 :: i_hosts_defence           !! Pft-level susceptibility
+    REAL(r_std)                                       :: dry_anom                  !! Relative drop of the yearly moisture low (-)
+    REAL(r_std)                                       :: moist_ref                 !! Mean moisture low of previous years (-)
+    INTEGER(i_std)                                    :: n_moist_ref               !! Number of previous years available
     !! due to weakening from droughts 
     !! (0-1, unitless)
     REAL(r_std), DIMENSION(npts, nvm)                 :: i_hosts_competition
@@ -239,6 +257,20 @@ CONTAINS
     REAL(r_std), DIMENSION(npts, nvmap)               :: B_wood                    !! Actual aboveground woody biomass of the PFT 
     !! (gC or gN m-2)
     REAL(r_std)                                       :: share                     !! Deciduous/coniferous share in a pixel
+    ! Guillaume M. -- Stand biomass the beetle loss rate is divided by, kept in a named
+    ! variable so the guard below reads it once instead of recomputing the sum.
+    ! Guillaume M. -- OK_AED_PEST: share of the host area sitting inside the edge band,
+    ! same AED geometry as the storm channel. Published as PEST_EDGE_FRAC so the channel can
+    ! be read rather than assumed.
+    REAL(r_std), DIMENSION(npts)                      :: pest_edge_frac            !! Share of forest area within the edge band (unitless)
+    REAL(r_std)                                       :: bm_stand                  !! Living biomass of the slot (gC m-2)
+    REAL(r_std), DIMENSION(npts)                      :: f_fresh                   !! Forest share in the fresh-edge band (unitless)
+    REAL(r_std), DIMENSION(npts)                      :: f_old                     !! Forest share in the old-edge band (unitless)
+    REAL(r_std), DIMENSION(npts)                      :: gain_w                    !! Host area weighting the P gain diagnostic (unitless)
+    REAL(r_std)                                       :: ffor                      !! Tree share of the grid cell (unitless)
+    REAL(r_std)                                       :: c0_fresh                  !! Class-0 openings of the selected ages (unitless)
+    REAL(r_std)                                       :: p_int                     !! Interior mortality probability (unitless)
+    INTEGER(i_std)                                    :: ik, n_sat                 !! conveyor slot, saturated cells
     REAL(r_std), DIMENSION(npts, nvm, legacy_years)   :: beetle_temp1              !! temporary variable
     REAL(r_std), DIMENSION(npts, nvm, beetle_legacy)  :: beetle_temp2
     LOGICAL, DIMENSION(npts, nvmap)                   :: beetle_gp                 !! Flag that indicates whether or not 
@@ -259,6 +291,43 @@ CONTAINS
     END IF
 
     IF (printlev_loc .GE. 2) WRITE(numout, *) 'Entering stomate pest damage'
+
+    ! Guillaume M. -- OK_AED_PEST_FRESH bands. At this call the conveyor slot k holds the
+    ! openings aged k - 2 years (credited by age_class_distr, then aged, earlier this pass).
+    ! Both bands are forest shares, so the cell area cancels; if they overlap past one they
+    ! are scaled down together, a saturation counted in the log rather than an error.
+    CALL pest_fresh_alloc(npts)
+    f_fresh(:) = zero ; f_old(:) = zero ; gain_w(:) = zero ; n_sat = 0
+    IF (ok_aed_pest_fresh) THEN
+       IF (.NOT. ALLOCATED(class0_veg) .OR. .NOT. ALLOCATED(edge_open_conv)) CALL ipslerr_p(3, &
+            'bark_beetle_damage', 'OK_AED_PEST_FRESH needs the class-0 conveyor (N_CLASS0)', &
+            'and the AED_REGROWTH edge path that fills edge_open_conv', '')
+       diag_p_gain(:) = zero
+       DO ipts = 1, npts
+          ffor = zero
+          DO ivm = 1, nvm
+             IF (is_tree(ivm)) ffor = ffor + veget_max(ipts,ivm)
+          ENDDO
+          IF (ffor .LE. min_stomate .OR. area_forest(ipts) .LE. min_stomate) CYCLE
+          c0_fresh = zero
+          DO ik = edge_pest_lag_min + 2, edge_pest_lag_max + 2
+             c0_fresh = c0_fresh + SUM(class0_veg(ipts,:,ik))
+          ENDDO
+          diag_fresh_dens(ipts) = edge_open_conv(ipts) * c0_fresh / ffor * 1.0e4_r_std
+          f_fresh(ipts) = MIN(un, edge_pest_fresh_depth * edge_open_conv(ipts) * c0_fresh / ffor)
+          f_old(ipts) = MIN(un, edge_pest_depth * edge_length_dyn(ipts) / (area_forest(ipts) * m2_to_ha))
+          IF (f_fresh(ipts) + f_old(ipts) .GT. un) THEN
+             ffor = f_fresh(ipts) + f_old(ipts)
+             f_fresh(ipts) = f_fresh(ipts) / ffor
+             f_old(ipts) = f_old(ipts) / ffor
+             n_sat = n_sat + 1
+          ENDIF
+       ENDDO
+       diag_fresh_frac(:) = f_fresh(:)
+       diag_old_frac(:) = f_old(:)
+       IF (n_sat > 0) WRITE(numout,*) 'AED_PEST_FRESH: edge bands scaled to the whole forest in', &
+            n_sat, 'cells'
+    ENDIF
     ! 1.1 Initialize variables
     vegetmax_gp(:, :) = zero
     i_hosts_dead_gp(:, :) = zero
@@ -278,6 +347,8 @@ CONTAINS
     i_beetles_activity_monitor(:, :) = zero
     i_hosts_attractivity_monitor(:, :) = zero
     i_beetles_pressure_monitor(:, :) = zero
+    P_beetles_attacked_monitor(:, :) = zero
+    pest_edge_frac(:) = zero
     rdi(:, :) = zero
     rdi_gp(:, :) = zero
     i_hosts_competition(:, :) = zero
@@ -570,13 +641,47 @@ CONTAINS
                    ! Long term drought susceptibility is an indirect measurement
                    ! tree defence to beetle colonisation. Multiple drought events
                    ! will decrease the amount of repelent produced by the trees.
-                   i_hosts_defence(ipts,ivm) = un / (un + exp(S_defence(ivm) * &
-                        ((un - season_drought_legacy(ipts, ivm, 1)) - PWS_limit(ivm))))
+                   IF (ok_beetle_acute_drought) THEN
+                      ! Guillaume M. -- Acute drought: relative drop of this year's moisture low
+                      ! against the mean low of previous years, added to the chronic stress.
+                      ! No anomaly until half the reference years exist: a two-year mean is noise.
+                      n_moist_ref = COUNT(moist_min_legacy(ipts, ivm, 2:beetle_drought_nref) > zero)
+                      IF (n_moist_ref >= MAX(1, (beetle_drought_nref - 1) / 2)) THEN
+                         moist_ref = SUM(moist_min_legacy(ipts, ivm, 2:beetle_drought_nref), &
+                              MASK=moist_min_legacy(ipts, ivm, 2:beetle_drought_nref) > zero) / REAL(n_moist_ref, r_std)
+                         dry_anom = MAX(zero, un - moist_min_legacy(ipts, ivm, 1) / moist_ref)
+                      ELSE
+                         dry_anom = zero
+                      ENDIF
+                      i_hosts_defence(ipts,ivm) = un / (un + exp(S_defence(ivm) * &
+                           ((un - season_drought_legacy(ipts, ivm, 1)) + beetle_drought_gain * dry_anom &
+                           - PWS_limit(ivm))))
+                   ELSE
+                      i_hosts_defence(ipts,ivm) = un / (un + exp(S_defence(ivm) * &
+                           ((un - season_drought_legacy(ipts, ivm, 1)) - PWS_limit(ivm))))
+                   ENDIF
                    i_hosts_defence_gp(ipts, ivmap) = i_hosts_defence_gp(ipts, ivmap) + &
                         i_hosts_defence(ipts, ivm) * veget_max(ipts, ivm) / vegetmax_gp(ipts, ivmap)
 
                    i_hosts_health(ipts, ivm) =  (i_hosts_defence(ipts, ivm) + &
                         i_hosts_competition(ipts, ivm))/deux
+                   ! Guillaume M. -- OK_AED_PEST: an edge tree stands in a warmer, drier
+                   ! microclimate, so its susceptibility is raised inside a band of
+                   ! edge_pest_depth. Bounded convex mix of the edge zone and the interior,
+                   ! capped at one because the index is a probability. A gain of one leaves
+                   ! the result unchanged, which makes the geometry testable on its own.
+                   IF (ok_aed_pest .AND. .NOT. ok_aed_pest_fresh) THEN
+                      pest_edge_frac(ipts) = MIN(un, edge_pest_depth * edge_length_dyn(ipts) / &
+                           MAX(area_forest(ipts) * m2_to_ha, min_stomate))
+                      ! Written as an increment rather than (1-f)*h + f*g: at a gain of one
+                      ! the bracket is EXACTLY zero, so the geometry can be switched on and
+                      ! proved bit-neutral on its own, which (1-f)*h + f*h cannot do in
+                      ! floating point. h is a mean of two sigmoids, hence always <= 1.
+                      i_hosts_health(ipts, ivm) = i_hosts_health(ipts, ivm) + &
+                           pest_edge_frac(ipts) * &
+                           (MIN(un, edge_pest_susc * i_hosts_health(ipts, ivm)) - &
+                            i_hosts_health(ipts, ivm))
+                   ENDIF
                 ENDIF
              ENDDO ! end loop nagec
              i_beetles_massattack_gp(ipts, ivmap) = un  / ( un + exp(S_massattack(xvm)* &
@@ -683,6 +788,7 @@ CONTAINS
                 ENDIF
                 ivm = start_index(ivmap) + (iagec - 1)
                 i_beetles_pressure_monitor(ipts, ivm) = i_beetles_pressure(ipts, ivmap)
+                P_beetles_attacked_monitor(ipts, ivm) = P_beetles_attacked_gp(ipts, ivmap)
                 P_beetles_attacked_legacy(ipts, ivm) = i_beetles_pressure(ipts, ivmap)
              END DO
 
@@ -717,6 +823,22 @@ CONTAINS
                 ! Estimate mortality rate at the PFT level (unitless).
                 P_success(ipts, ivm) = (i_hosts_health(ipts, ivm) + &
                      i_beetles_pressure(ipts, ivmap)) / deux
+                ! Guillaume M. -- OK_AED_PEST_FRESH: the gain is a ratio of MORTALITY, the
+                ! quantity field studies report; on host health it would be diluted by the
+                ! beetle pressure. Written as increments, so gains of one leave P_int.
+                IF (ok_aed_pest_fresh) THEN
+                   p_int = edge_pest_base_frac * P_success(ipts, ivm)
+                   IF (P_success(ipts, ivm) .GT. min_stomate) THEN
+                      diag_p_gain(ipts) = diag_p_gain(ipts) + veget_max(ipts, ivm) * &
+                           (p_int + f_fresh(ipts) * (MIN(un, edge_pest_fresh_gain * p_int) - p_int) &
+                                  + f_old(ipts) * (MIN(un, edge_pest_old_gain * p_int) - p_int)) &
+                           / P_success(ipts, ivm)
+                      gain_w(ipts) = gain_w(ipts) + veget_max(ipts, ivm)
+                   ENDIF
+                   P_success(ipts, ivm) = p_int &
+                        + f_fresh(ipts) * (MIN(un, edge_pest_fresh_gain * p_int) - p_int) &
+                        + f_old(ipts) * (MIN(un, edge_pest_old_gain * p_int) - p_int)
+                ENDIF
 
                 ! Estimate living biomass killed by bark beetles (gC or gN m-2)
                 B_beetles_kill(ipts, ivm) = P_success(ipts, ivm) * &
@@ -800,8 +922,17 @@ CONTAINS
 
                 ENDDO ! End loop ncirc
                 beetle_damage_wood_vol(ipts, ivm) = wood_damage_all(ipts, ivm) / (pipe_density(ivm))
-                DR_beetles(ipts, ivm) = B_beetles_kill_legacy(ipts, ivm, 1) / &
-                     SUM(SUM(circ_class_biomass(ipts, ivm, :, :,icarbon), 2) * circ_class_n(ipts, ivm, :))
+                ! Guillaume M. -- The divided biomass can be vanishingly small on a residual
+                ! slot and the rate then reached 1.6e6, which is not a rate and saturates the
+                ! activity sigmoid below. A slot with no measurable biomass cannot be attacked,
+                ! and a rate of biomass loss cannot exceed one.
+                bm_stand = SUM(SUM(circ_class_biomass(ipts, ivm, :, :,icarbon), 2) * &
+                     circ_class_n(ipts, ivm, :))
+                IF (bm_stand .GT. min_stomate) THEN
+                   DR_beetles(ipts, ivm) = MIN(B_beetles_kill_legacy(ipts, ivm, 1) / bm_stand, un)
+                ELSE
+                   DR_beetles(ipts, ivm) = zero
+                ENDIF
 
                 ! Calculate Beetle pressure index. The actual biomass(biomass_current) is
                 ! used instead of the maximal potential biomass, i.e., 300 t/ha, as
@@ -853,6 +984,16 @@ CONTAINS
     CALL xios_orchidee_send_field("B_beetles_kill",B_beetles_kill_legacy(:,:,1))
     CALL xios_orchidee_send_field("Beetle_damage_woodvol",beetle_damage_wood_vol)
     CALL xios_orchidee_send_field("DR_beetles", DR_beetles)
+    CALL xios_orchidee_send_field("P_beetles_attacked", P_beetles_attacked_monitor)
+    CALL xios_orchidee_send_field("PEST_EDGE_FRAC", pest_edge_frac)
+    IF (ok_aed_pest_fresh) THEN
+       WHERE (gain_w(:) .GT. min_stomate)
+          diag_p_gain(:) = diag_p_gain(:) / gain_w(:)
+       ELSEWHERE
+          diag_p_gain(:) = zero
+       ENDWHERE
+    ENDIF
+    CALL pest_fresh_send
 
     ! Guillaume M. -- Beetle-affected area fed to the edge_length feedback: killed
     ! biomass (gC m-2 yr-1) is converted through pest_biomass_ref, as
@@ -927,6 +1068,8 @@ CONTAINS
     REAL(r_std), DIMENSION(npts, nvm)          :: i_hosts_competition_monitor !! variable used to monitor rdi susceptibility (unitless)
     REAL(r_std), DIMENSION(npts, nvm)          :: i_hosts_alive_monitor
     REAL(r_std), DIMENSION(npts, nvm)          :: i_beetles_pressure_monitor  !! variable used to monitor beetle pressure index (unitles)
+    REAL(r_std), DIMENSION(npts, nvm)          :: P_beetles_attacked_monitor !! variable used to monitor the upstream risk index (unitless)
+    REAL(r_std), DIMENSION(npts)               :: pest_edge_frac             !! Share of forest area within the edge band (unitless)
     !! variable used to monitor rdi susceptibility (unitless)
     REAL(r_std), DIMENSION(npts, nvm)          :: i_beetles_massattack_monitor
     REAL(r_std), DIMENSION(npts, nvm)          :: i_beetles_survival_monitor
@@ -948,6 +1091,8 @@ CONTAINS
     i_hosts_defence_monitor(:,:) = zero
     i_beetles_generation_monitor(:,:) = zero
     i_beetles_pressure_monitor(:,:) = zero
+    P_beetles_attacked_monitor(:,:) = zero
+    pest_edge_frac(:) = zero
     i_beetles_survival_monitor(:,:) = zero
     i_hosts_attractivity_monitor(:,:) = zero
     i_beetles_activity_monitor(:,:) = zero
@@ -968,10 +1113,36 @@ CONTAINS
     CALL xios_orchidee_send_field("B_beetles_kill",B_beetles_kill_legacy(:,:,1))
     CALL xios_orchidee_send_field("Beetle_damage_woodvol",beetle_damage_wood_vol)
     CALL xios_orchidee_send_field("DR_beetles", DR_beetles)
+    CALL xios_orchidee_send_field("P_beetles_attacked", P_beetles_attacked_monitor)
+    CALL xios_orchidee_send_field("PEST_EDGE_FRAC", pest_edge_frac)
+    CALL pest_fresh_alloc(npts)
+    CALL pest_fresh_send
     CALL xios_orchidee_send_field("AREA_DAMAGED_PEST", area_damaged_pest)
 
   END SUBROUTINE pest_write
 
   
+!! ================================================================================================================================
+!! SUBROUTINE   : pest_fresh_alloc / pest_fresh_send
+!!
+!>\BRIEF        Allocate (once) and send the OK_AED_PEST_FRESH diagnostics, which keep their
+!!               last annual value so that every daily send carries it.
+!! ================================================================================================================================
+  SUBROUTINE pest_fresh_alloc(npts)
+    INTEGER(i_std), INTENT(in) :: npts      !! Domain size (unitless)
+    IF (.NOT. ALLOCATED(diag_fresh_dens)) THEN
+       ALLOCATE(diag_fresh_dens(npts), diag_fresh_frac(npts), diag_old_frac(npts), diag_p_gain(npts))
+       diag_fresh_dens(:) = zero ; diag_fresh_frac(:) = zero ; diag_old_frac(:) = zero
+       diag_p_gain(:) = zero
+    ENDIF
+  END SUBROUTINE pest_fresh_alloc
+
+  SUBROUTINE pest_fresh_send
+    CALL xios_orchidee_send_field("EDGE_FRESH_LAG_DENS", diag_fresh_dens)
+    CALL xios_orchidee_send_field("PEST_FRESH_FRAC", diag_fresh_frac)
+    CALL xios_orchidee_send_field("PEST_OLD_FRAC", diag_old_frac)
+    CALL xios_orchidee_send_field("PEST_P_EDGE_GAIN", diag_p_gain)
+  END SUBROUTINE pest_fresh_send
+
 END MODULE stomate_pest
 

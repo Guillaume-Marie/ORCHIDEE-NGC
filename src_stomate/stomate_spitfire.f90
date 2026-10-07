@@ -1753,8 +1753,12 @@ CONTAINS
         WRITE(numout,*) 'human_ign before:', human_ign(:)
         WRITE(numout,*) 'human_ign multiplier', edge_ignition_factor*fedge_ign(:)
       ENDIF
+      ! Guillaume M. -- The edge term is additive, so the base gives up the share
+      ! edge_ignition_base_frac (default 1 = unchanged) to keep the total ignitions of a
+      ! world with edges equal to the world without. A_ND_SCALE is the resolution factor
+      ! and never carries this split.
       WHERE(human_ign(:) .gt. min_stomate)
-        human_ign(:)= human_ign(:)+edge_ignition_factor*fedge_ign(:)
+        human_ign(:)= human_ign(:)*edge_ignition_base_frac+edge_ignition_factor*fedge_ign(:)
       ELSEWHERE
         human_ign(:)=human_ign(:)
       ENDWHERE

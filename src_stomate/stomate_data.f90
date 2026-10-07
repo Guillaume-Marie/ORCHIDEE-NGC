@@ -107,6 +107,45 @@ MODULE stomate_data
   !
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: edge_length_dyn !! dynamic edge length (m)
 !$OMP THREADPRIVATE(edge_length_dyn)
+  ! Guillaume M. -- OK_STORM_PEAK_TRIGGER: local reference of the daily peak wind. peak_top holds
+  ! the largest raw daily peaks of the current year, peak_ref_save the yearly n-th largest peak
+  ! (0 = missing year), peak_ref their mean over the available years (0 = none, no onset).
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: peak_top      !! Largest daily peaks of the year, sorted (m s-1)
+!$OMP THREADPRIVATE(peak_top)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: peak_ref_save !! Yearly reference peaks, latest first (m s-1)
+!$OMP THREADPRIVATE(peak_ref_save)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:)   :: peak_ref      !! Mean reference peak (m s-1), 0 if none
+!$OMP THREADPRIVATE(peak_ref)
+  ! Guillaume M. -- OK_STORM_GUST: today's gust from STORM_GUST_FILE (daily maximum, hours above each level), the usual
+  ! yearly hours above each level (acclimation) and the dose of the current episode per zone (restart).
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:)   :: gust_levels      !! Gust levels of the file (m s-1)
+!$OMP THREADPRIVATE(gust_levels)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:)   :: gust_daily       !! Today's maximum gust over the cell (m s-1)
+!$OMP THREADPRIVATE(gust_daily)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: gust_hours       !! Today's hours with gust >= level (h)
+!$OMP THREADPRIVATE(gust_hours)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: gust_hours_clim  !! Usual yearly hours with gust >= level (h yr-1)
+!$OMP THREADPRIVATE(gust_hours_clim)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: storm_gust_dose_closer  !! Episode hours above the critical gust, edge zone (h)
+!$OMP THREADPRIVATE(storm_gust_dose_closer)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: storm_gust_dose_further !! Episode hours above the critical gust, interior zone (h)
+!$OMP THREADPRIVATE(storm_gust_dose_further)
+  ! Guillaume M. -- OK_BEETLE_ACUTE_DROUGHT: yearly low of monthly root-zone moisture over the active
+  ! period, and the buffer of past yearly lows (latest first, 0 = missing year).
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)   :: moist_min_year   !! This year's low of vegstress_month (-)
+!$OMP THREADPRIVATE(moist_min_year)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:,:) :: moist_min_legacy !! Yearly lows, latest first (-)
+!$OMP THREADPRIVATE(moist_min_legacy)
+  ! Guillaume M. -- Fresh edge (AED_STORM): the edge along the openings still held by the
+  ! class-0 conveyor, i.e. cut or killed in the last n_class0-1 years and not yet back in
+  ! class 1. Along it even mature trees are unacclimated (Persson 1975), so the windthrow
+  ! channel exposes it at full sensitivity whatever the stand age.
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: edge_fresh      !! edge along fresh class-0 openings (m)
+!$OMP THREADPRIVATE(edge_fresh)
+  ! Guillaume M. -- Conversion of an opened area into edge, the factor edge_fresh uses, kept
+  ! on its own so the beetle channel can convert the class-0 slots of the ages it selects.
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: edge_open_conv  !! edge per opened area (m m-2)
+!$OMP THREADPRIVATE(edge_open_conv)
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: edge_length_ref !! EFDA reference edge length: validation reference & static edge when feedback off (m)
 !$OMP THREADPRIVATE(edge_length_ref)
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: dA_fire   !! area perturbed by fire over dt_stomate (m²)
@@ -778,13 +817,17 @@ CONTAINS
     AED_fire(:) = MIN(50000.0_r_std, AED_fire(:))
     WHERE (area_burnable_veg(:) < min_stomate) AED_fire(:) = 50000.0
 
+    !! Guillaume M. -- Floor, not a stop. Below edge_distance_wetness/2 the fuel factor
+    !! 1-(AED-d/2)^2/AED^2 would exceed 1: the cell is then entirely within the edge zone
+    !! and saturates at 1. The former ipslerr_p(3) killed pan-EU runs on tiny coastal
+    !! cells (a few percent of vegetation against a prescribed coastline edge), where
+    !! saturation is the physical answer. Bit-neutral wherever the stop never fired.
     IF ((ok_aed_humign .OR. ok_aed_fuel .OR. ok_aed_size .OR. ok_aed_wind) &
          .AND. ANY(AED_fire(:) < edge_distance_wetness/2)) THEN
-       WRITE(numout,*) 'edge_length = ', edge_length(:)
-       WRITE(numout,*) 'area_burnable_veg = ', area_burnable_veg(:)
-       WRITE(numout,*) 'edge_distance_wetness/2 = ', edge_distance_wetness/2
-       WRITE(numout,*) 'AED_fire = ', AED_fire(:)
-       CALL ipslerr_p(3, 'calculate_aed', 'AED_fire < edge_distance_wetness/2', '', '')
+       IF (printlev >= 1) WRITE(numout,*) '[AED] calculate_aed: AED_fire floored at ', &
+            edge_distance_wetness/2, ' m on ', COUNT(AED_fire(:) < edge_distance_wetness/2), &
+            ' point(s), min was ', MINVAL(AED_fire(:))
+       AED_fire(:) = MAX(AED_fire(:), edge_distance_wetness/2)
     ENDIF
 
     !! 7. AED_light — new denominator for canopy light edge effect
@@ -1001,6 +1044,7 @@ CONTAINS
     INTEGER(i_std)                                :: ji, jv, kk         !! AED_REGROWTH Trecruit(PFT) loop indices
     REAL(r_std)                                   :: w_for, w_rec       !! per-point forest veget sum and recovery-weighted sum
     REAL(r_std), DIMENSION(npts)                  :: A_open, alpha_eff, flux_tot   !! AED_REGROWTH v2 (A_open from young age class)
+    REAL(r_std), DIMENSION(npts)                  :: A_fresh                       !! AED_STORM: area still in the class-0 conveyor (m2)
     REAL(r_std), DIMENSION(npts)                  :: f_class1                      !! Age-class-1 cover fraction, openness-weighted if asked (-)
     REAL(r_std), DIMENSION(npts,nvm)              :: rref_out                      !! ROTATION_REF_MAP diagnostic: reference rotation used (yr)
     REAL(r_std), DIMENSION(npts,nvm)              :: mtt_out                       !! MAT_TARGET_TERM diagnostic: effective terminal setpoint (-)
@@ -1008,6 +1052,7 @@ CONTAINS
     REAL(r_std), DIMENSION(npts)                  :: edge_meso, grain_eff          !! FRAG_3TERMS: meso edge (m) and per-cell grain (m)
     REAL(r_std), DIMENSION(npts)                  :: edge_macro                    !! FRAG_3TERMS: macro edge from roads (m)
     REAL(r_std), DIMENSION(npts)                  :: edge_hydro                    !! FRAG_3TERMS: permanent edge from lakes, coast and rivers (m)
+    REAL(r_std)                                   :: alpha_circ                    !! EDGE_SCENARIO=max: circular-patch alpha 2*sqrt(pi/a) (m/m2)
     REAL(r_std), DIMENSION(npts)                  :: edge_micro                    !! FRAG_3TERMS: micro edge, what the dynamics add above the prescribed base (m)
     REAL(r_std)                                   :: w_grain                       !! FRAG_3TERMS: veget_max-weighted grain accumulator
     REAL(r_std), DIMENSION(npts)                  :: alpha_bg                      !! v2 piste B: climatological background α per cell
@@ -1104,6 +1149,19 @@ CONTAINS
     alpha_storm_use(:) = alpha_storm_edge
     alpha_pest_use(:)  = alpha_pest_edge
 
+    !! 1.5 Guillaume M. -- EDGE_SCENARIO=max (MODULE_DESIGN_EDGE_SCENARIO.md): every disturbed
+    !!     patch is an isolated disc of area edge_min_patch_area in continuous forest, so its
+    !!     whole perimeter is new edge: alpha = 2*sqrt(pi/a) for the four agents. An upper
+    !!     bound by absence of coalescence, NOT by shape -- a disc has the smallest perimeter
+    !!     at a given area. Meso, roads and water terms are left untouched.
+    IF (edge_scenario == edge_scen_max) THEN
+       alpha_circ = deux * SQRT(pi / MAX(edge_min_patch_area, min_stomate))
+       alpha_fire_use(:)    = alpha_circ
+       alpha_storm_use(:)   = alpha_circ
+       alpha_pest_use(:)    = alpha_circ
+       alpha_harvest_use(:) = alpha_circ
+    ENDIF
+
     IF (ok_edge_from_age_class .AND. ALLOCATED(class0_area)) THEN
        !! 1a-3a. Guillaume M. -- AED_REGROWTH path, class-0 conveyor. Ingest this step's
        !!        stand-replaced area into the youngest cohort, advance the conveyor once a
@@ -1167,6 +1225,28 @@ CONTAINS
              edge_src(:) = aed_bg_frac * A_open(:) * alpha_bg(:)   ! piste B: standing-fragmentation background edge
           ENDWHERE
           class0_tot(:) = A_open(:)   ! FRAC_CLASS0 diagnostic = A_open/forest (<= 1)
+          !! Guillaume M. -- Fresh openings for the windthrow channel: the area the class-0
+          !! conveyor still holds (per forest group, grid-cell fraction, all bins) is not in
+          !! A_open yet. Converted with the same alpha as A_open so both edges share one
+          !! geometry; it is NOT added to edge_length_dyn (light and fire keep their edge).
+          IF (ALLOCATED(class0_veg) .AND. ALLOCATED(edge_fresh)) THEN
+             A_fresh(:) = area(:) * contfrac(:) * SUM(SUM(class0_veg(:,:,:), DIM=3), DIM=2)
+             WHERE (flux_tot(:) > min_stomate)
+                edge_fresh(:) = A_fresh(:) * alpha_eff(:) / flux_tot(:)
+             ELSEWHERE
+                edge_fresh(:) = aed_bg_frac * A_fresh(:) * alpha_bg(:)
+             ENDWHERE
+             IF (ALLOCATED(edge_open_conv)) THEN
+                WHERE (flux_tot(:) > min_stomate)
+                   edge_open_conv(:) = alpha_eff(:) / flux_tot(:)
+                ELSEWHERE
+                   edge_open_conv(:) = aed_bg_frac * alpha_bg(:)
+                ENDWHERE
+             ENDIF
+          ELSEIF (ALLOCATED(edge_fresh)) THEN
+             edge_fresh(:) = zero
+             IF (ALLOCATED(edge_open_conv)) edge_open_conv(:) = zero
+          ENDIF
 
        ENDIF   ! agent_flux allocated
        edge_length_dyn(:) = edge_length_base(:) + edge_src(:)
@@ -1207,6 +1287,20 @@ CONTAINS
     !!     that subtraction silently breaks as soon as another base term is switched on.
     edge_micro(:) = MAX(zero, edge_length_dyn(:) - edge_length_base(:))
 
+    !! 4.8 Guillaume M. -- EDGE_SCENARIO=off: the whole edge is removed from what light and
+    !!     fire see, meso, permanent and micro alike; calculate_aed then returns the trunk
+    !!     value AED = 50 km. Placed after the cap so the restart carries zero too. The
+    !!     conveyor, age classes, harvest and dA_* keep running exactly as under real.
+    IF (edge_scenario == edge_scen_off) THEN
+       edge_length_dyn(:) = zero
+       edge_meso(:)  = zero
+       edge_macro(:) = zero
+       edge_hydro(:) = zero
+       edge_micro(:) = zero
+       IF (ALLOCATED(edge_fresh)) edge_fresh(:) = zero
+       IF (ALLOCATED(edge_open_conv)) edge_open_conv(:) = zero
+    ENDIF
+
     !! 5. Diagnostics XIOS
     CALL xios_orchidee_send_field("EDGE_LENGTH_DYN", edge_length_dyn)
     ! Guillaume M. -- The scales are output SEPARATELY: without them the decomposition is
@@ -1216,6 +1310,7 @@ CONTAINS
     CALL xios_orchidee_send_field("EDGE_MACRO", edge_macro)
     CALL xios_orchidee_send_field("EDGE_HYDRO", edge_hydro)
     CALL xios_orchidee_send_field("EDGE_MICRO", edge_micro)
+    IF (ALLOCATED(edge_fresh)) CALL xios_orchidee_send_field("EDGE_FRESH", edge_fresh)
     ! Guillaume M. -- Management intensity: edge coefficient and patch size actually used
     ! at this step (MODULE_DESIGN_MANAGEMENT_INTENSITY.md).
     CALL xios_orchidee_send_field("ALPHA_HARVEST_EFF", alpha_harvest_use)
@@ -1358,12 +1453,15 @@ CONTAINS
 !!              per biome: the MTC already carries the forest type, hence the landscape
 !!              structure, and needs no map. Small r = finely divided landscape (broadleaf
 !!              in a farmed matrix), large r = coarse blocks (boreal conifer).
-!!              CALIBRATED 2026-07-30 against Edge_length_1deg.nc by inverting
-!!              r = A*4*f*(1-f)/EL_obs per cell (scripts/calibrate_edge_grain.py, 317 cells
-!!              with 0.05<f<0.95). Per-MTC MEDIANS: the mean diverges where f approaches 0
-!!              or 1. Acceptance criterion met: 80 % of cells land in 1e2-1e3 m.
-!!              /!\ The six MTC agree within 30 % (320-416 m), so the per-MTC structure is
-!!              a convention here, not a measured contrast.
+!!              CALIBRATED pan-EU against Edge_length_1deg_panEU_nowater.nc (EFDA edge MINUS
+!!              the PALSAR water edge: the meso term is built on area_land and cannot produce
+!!              an edge against water) by inverting r = A*4*f*(1-f)/EL_obs per cell
+!!              (scripts/calibrate_edge_grain.py, 880 cells with 0.05<f<0.95, f = model
+!!              veget_max as used below). Per-MTC MEDIANS: the mean diverges where f
+!!              approaches 0 or 1. Acceptance criterion met: 85 % of cells land in 1e2-1e3 m.
+!!              /!\ The six MTC agree within 25 % (349-427 m), so the per-MTC structure is
+!!              a convention here, not a measured contrast. The tail (p90 ~ 1.5 km, boreal
+!!              lakes and mosaics) is NOT a grain matter: see the permanent (hydro) term.
 !! ================================================================================================
   FUNCTION edge_grain_mtc_of(jv)
 
@@ -1374,12 +1472,12 @@ CONTAINS
 
     edge_grain_mtc_of = edge_grain_default
     SELECT CASE (pft_to_mtc(jv))
-    CASE (4)  ; edge_grain_mtc_of = 416._r_std   ! temperate needleleaf evergreen
-    CASE (5)  ; edge_grain_mtc_of = 320._r_std   ! temperate broadleaf evergreen
-    CASE (6)  ; edge_grain_mtc_of = 387._r_std   ! temperate broadleaf summergreen
-    CASE (7)  ; edge_grain_mtc_of = 414._r_std   ! boreal needleleaf evergreen
-    CASE (8)  ; edge_grain_mtc_of = 414._r_std   ! boreal broadleaf summergreen
-    CASE (9)  ; edge_grain_mtc_of = 386._r_std   ! boreal needleleaf summergreen (larch)
+    CASE (4)  ; edge_grain_mtc_of = 365._r_std   ! temperate needleleaf evergreen
+    CASE (5)  ; edge_grain_mtc_of = 349._r_std   ! temperate broadleaf evergreen
+    CASE (6)  ; edge_grain_mtc_of = 365._r_std   ! temperate broadleaf summergreen
+    CASE (7)  ; edge_grain_mtc_of = 427._r_std   ! boreal needleleaf evergreen
+    CASE (8)  ; edge_grain_mtc_of = 416._r_std   ! boreal broadleaf summergreen
+    CASE (9)  ; edge_grain_mtc_of = 350._r_std   ! boreal needleleaf summergreen (larch)
     ! MTC 2 and 3 (tropical) fall back to edge_grain_default: the EFDA map is pan-EU
     ! only, so they are NOT calibrated. Do not read them as a tropical estimate.
     END SELECT

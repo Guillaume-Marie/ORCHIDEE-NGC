@@ -626,10 +626,16 @@
     <field id="AED_LIGHT_SLOWPROC" name="AED_LIGHT_SLOWPROC" long_name="AED_light as seen by slowproc_veget" unit="m"/>
     <field id="FEDGE_PGAP_SLOWPROC" name="FEDGE_PGAP_SLOWPROC" long_name="Edge effect weight on canopy porosity (slowproc_veget)" unit="-"/>
     <field id="EDGE_LENGTH_DYN" name="EDGE_LENGTH_DYN" long_name="Dynamic edge length (AED_FEEDBACK)" unit="m"/>
+    <field id="PEST_EDGE_FRAC" name="PEST_EDGE_FRAC" long_name="Share of forest area within the bark beetle edge band (AED_PEST)" unit="1"/>
+    <field id="EDGE_FRESH_LAG_DENS" name="EDGE_FRESH_LAG_DENS" long_name="Fresh lagged edge per forest area, class-0 openings of the selected ages (AED_PEST_FRESH)" unit="m/ha" operation="maximum"/>
+    <field id="PEST_FRESH_FRAC" name="PEST_FRESH_FRAC" long_name="Share of forest area within the fresh-edge beetle band (AED_PEST_FRESH)" unit="1" operation="maximum"/>
+    <field id="PEST_OLD_FRAC" name="PEST_OLD_FRAC" long_name="Share of forest area within the old-edge beetle band (AED_PEST_FRESH)" unit="1" operation="maximum"/>
+    <field id="PEST_P_EDGE_GAIN" name="PEST_P_EDGE_GAIN" long_name="Host-weighted ratio of the edge-modified to the original beetle mortality probability (AED_PEST_FRESH)" unit="1" operation="maximum"/>
     <field id="EDGE_MESO" name="EDGE_MESO" long_name="Meso-scale edge: forest/non-forest boundary, A*4*f*(1-f)/r" unit="m"/>
     <field id="EDGE_MACRO" name="EDGE_MACRO" long_name="Macro-scale edge: roads in forest, 2*RL*c_GRIP (GRIP4)" unit="m"/>
     <field id="EDGE_HYDRO" name="EDGE_HYDRO" long_name="Permanent edge: lakes, coastline and rivers in forest, read from EDGE_HYDRO_FILE" unit="m"/>
     <field id="EDGE_MICRO" name="EDGE_MICRO" long_name="Micro-scale edge: disturbance and harvest openings, excess over the prescribed base" unit="m"/>
+    <field id="EDGE_FRESH" name="EDGE_FRESH" long_name="Fresh edge along class-0 openings (last n_class0-1 years), full windthrow exposure whatever the stand age" unit="m"/>
     <field id="RDI_THIN_LIMIT" name="RDI_THIN_LIMIT" long_name="RDI target actually handed to thinning, after the band override (RDI_TARGET_LOWER is recomputed for output without it and does NOT report this)" unit="1" grid_ref="grid_nvm"/>
     <field id="AC12_R" name="AC12_R" long_name="Maturity conveyor: height ratio h1/h_ref, class 1 to first non-empty class above" unit="1" grid_ref="grid_nvm"/>
     <field id="AC12_F_REAL" name="AC12_F_REAL" long_name="Maturity conveyor: donor area fraction REALLY moved this year, read after the veget_max write" unit="1" grid_ref="grid_nvm"/>
@@ -1054,8 +1060,7 @@
     <field id="light_death" name="LIGHT_DEATH" long_name="Fraction of plants that dies (light competition)" unit="1/day" grid_ref="grid_nvm"/>
     <field id="AGE" name="AGE" long_name="age" unit="years" grid_ref="grid_nvm"/>
     <field id="AGE_STAND" name="AGE_STAND" long_name="age" unit="years" grid_ref="grid_nvm"/>
-    <field id="AGE_STAND_BM" name="AGE_STAND_BM" long_name="biomass-weighted conserved mean stand age (STAND_AGE)" unit="years" grid_ref="grid_nvm"/>
-    <field id="AGE_STAND_AREA" name="AGE_STAND_AREA" long_name="area-weighted conserved mean stand age, mirror of AGE_STAND_BM (STAND_AGE)" unit="years" grid_ref="grid_nvm"/>
+    <field id="AGE_STAND_AREA" name="AGE_STAND_AREA" long_name="area-weighted conserved mean stand age (STAND_AGE)" unit="years" grid_ref="grid_nvm"/>
     <field id="HEIGHT" name="HEIGHT" long_name="Quadratic mean height of all diameter classes" unit="m" grid_ref="grid_nvm"/>
     <field id="HEIGHT_DOM" name="HEIGHT_DOM" long_name="Height of the largest diameter class of the stand" unit="m" grid_ref="grid_nvm"/>
     <field id="HEIGHT_INV" name="HEIGHT_INV" long_name="Quadratic mean height equivalent to forest inventory" unit="m" grid_ref="grid_nvm"/>
@@ -1229,10 +1234,18 @@
     <field id="DAILY_MAX_WIND_MOD" name="DAILY_MAX_WIND_MOD" long_name="Modified daily maximum wind speed at 2 meter (ms-1)" unit="m/s" operation="maximum"/>
     <field id="DAILY_MAX_WIND" name="DAILY_MAX_WIND" long_name="Daily maximum wind speed at 2 meter (ms-1)" unit="m/s" operation="maximum"/>
     <field id="DAILY_MAX_WIND_PFT" name="DAILY_MAX_WIND_PFT" long_name="PFT-level wind speed" unit="m/s" grid_ref="grid_nvm" operation="maximum"/>
+    <field id="WIND_PROFILE_CLOSER" name="WIND_PROFILE_CLOSER" long_name="Canopy-profile multiplier of the storm wind, edge zone (1 if WIND_CAL_PFT=n)" unit="-" grid_ref="grid_nvm" operation="maximum"/>
+    <field id="WIND_PROFILE_FURTHER" name="WIND_PROFILE_FURTHER" long_name="Canopy-profile multiplier of the storm wind, inner zone (1 if WIND_CAL_PFT=n)" unit="-" grid_ref="grid_nvm" operation="maximum"/>
+    <field id="GUST_DAILY_MAX" name="GUST_DAILY_MAX" long_name="Daily maximum ERA5 gust read from STORM_GUST_FILE (OK_STORM_GUST)" unit="m/s" operation="maximum"/>
+    <field id="STORM_GUST_DOSE_CLOSER" name="STORM_GUST_DOSE_CLOSER" long_name="Storm episode hours with gust above the critical gust, edge zone" unit="h" grid_ref="grid_nvm" operation="maximum"/>
+    <field id="STORM_GUST_DOSE_FURTHER" name="STORM_GUST_DOSE_FURTHER" long_name="Storm episode hours with gust above the critical gust, inner zone" unit="h" grid_ref="grid_nvm" operation="maximum"/>
+    <field id="MAX_WIND_SPEED_STORM" name="MAX_WIND_SPEED_STORM" long_name="Storm maximum of the tuned daily wind entering the damage law" unit="m/s" operation="maximum"/>
     <field id="WIND_SUM" name="WIND_SUM" long_name="sum over wind_days of wind speeds exceeded threholds by each time step" unit="m/s" operation="maximum"/>
     <field id="AREA_CLOSER_F" name="AREA_CLOSER_F" long_name="Fraction for the pixel area close to the edge" unit="-"/>
     <field id="AREA_FURTHER_F" name="AREA_FURTHER_F" long_name="Fraction for the pixel area further from the edge" unit="-"/>
+    <field id="STORM_EDGE_SENS" name="STORM_EDGE_SENS" long_name="AED_STORM area-weighted stand-age edge sensitivity (1 = young, plateau = acclimated)" unit="-"/>
     <field id="IS_KILL_STORM" name="IS_KILL_STORM" long_name="Local setting instead of CYCLE" unit=" " operation="accumulate"/>
+    <field id="STORM_PEAK_RATIO" name="STORM_PEAK_RATIO" long_name="Daily peak wind over the local reference peak (OK_STORM_PEAK_TRIGGER)" unit="-"/>
     <field id="WIND_DAMAGE_RATE" name="WIND_DAMAGE_RATE" long_name="Damage rate from the wind" unit=" " grid_ref="grid_nvm" operation="maximum"/>
     <field id="GAMMA_FURTHER_BK" name="GAMMA_FURTHER_BK" long_name="solved gamma for stem breakage in the inner forest area " unit=" " grid_ref="grid_nvm"/>
     <field id="GAMMA_FURTHER_OV" name="GAMMA_FURTHER_OV" long_name="solved gamma for overturning in the inner forest area" unit=" " grid_ref="grid_nvm"/>

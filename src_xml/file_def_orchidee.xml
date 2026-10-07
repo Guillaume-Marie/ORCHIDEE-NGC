@@ -1062,6 +1062,11 @@
     <field field_ref="AED_LIGHT_SLOWPROC" level="6"/>
     <field field_ref="FEDGE_PGAP_SLOWPROC" level="6"/>
     <field field_ref="EDGE_LENGTH_DYN" level="2"/>
+    <field field_ref="PEST_EDGE_FRAC" level="5"/>
+    <field field_ref="EDGE_FRESH_LAG_DENS" level="5"/>
+    <field field_ref="PEST_FRESH_FRAC" level="5"/>
+    <field field_ref="PEST_OLD_FRAC" level="5"/>
+    <field field_ref="PEST_P_EDGE_GAIN" level="5"/>
     <field field_ref="ALPHA_HARVEST_EFF" level="2"/>
     <field field_ref="CLEARCUT_AREA"     level="2"/>
     <!-- level=1 : la rotation cible est le seul canal agissant sur la dynamique,
@@ -1088,6 +1093,7 @@
     <field field_ref="EDGE_MACRO" level="1"/>
     <field field_ref="EDGE_HYDRO" />
     <field field_ref="EDGE_MICRO" />
+    <field field_ref="EDGE_FRESH" />
     <field field_ref="AC12_R" grid_ref="grid_nvm_out" level="1"/>
     <field field_ref="AC12_F_REAL" grid_ref="grid_nvm_out" level="1"/>
     <!-- RDI_THIN_LIMIT (2026-08-12) : cible de RDI REELLEMENT utilisee par l'eclaircie,
@@ -1418,7 +1424,6 @@
     <field field_ref="BURRIED_n" level="5"/>
     <field field_ref="AGE" grid_ref="grid_nvm_out" level="5"/>
     <field field_ref="AGE_STAND" grid_ref="grid_nvm_out" level="0"/>
-    <field field_ref="AGE_STAND_BM" grid_ref="grid_nvm_out" level="1"/>
     <field field_ref="AGE_STAND_AREA" grid_ref="grid_nvm_out" level="1"/>
     <field field_ref="HEIGHT" grid_ref="grid_nvm_out" level="5"/>
     <field field_ref="HEIGHT_DOM" grid_ref="grid_nvm_out" level="5"/>
@@ -1532,7 +1537,9 @@
     <field field_ref="WIND_SUM" level="5" />
     <field field_ref="AREA_CLOSER_F" level="10" />
     <field field_ref="AREA_FURTHER_F" level="10" />
+    <field field_ref="STORM_EDGE_SENS" level="10" />
     <field field_ref="IS_KILL_STORM" level="1" />
+    <field field_ref="STORM_PEAK_RATIO" level="1" />
     <field field_ref="WIND_DAMAGE_BIOMASS" grid_ref="grid_nvm_out" level="1" />
     <field field_ref="WIND_DAMAGE_WOODVOL" grid_ref="grid_nvm_out" level="1" />
     <field field_ref="WIND_DAMAGE_RATE" grid_ref="grid_nvm_out" level="1"/>
@@ -1619,6 +1626,28 @@
 
    </field_group>  
 
+  </file>
+
+  <!-- Daily storm file (disabled by default): storm ends, winds, CWS and damage, to read the damage law at each storm end -->
+  <file id="storm_daily" name="storm_daily" output_level="10" output_freq="1d" enabled=".FALSE.">
+   <field_group id="group_storm_daily" group_ref="remap_1d" grid_ref="grid_landpoints_out" >
+    <field field_ref="IS_KILL_STORM" level="1" />
+    <field field_ref="DAILY_MAX_WIND" level="1" />
+    <field field_ref="DAILY_MAX_WIND_MOD" level="1" />
+    <field field_ref="MAX_WIND_SPEED_STORM" level="1" />
+    <field field_ref="WIND_SUM" level="1" />
+    <field field_ref="STORM_PEAK_RATIO" level="1" />
+    <field field_ref="CWS_CLOSER" grid_ref="grid_nvm_out" level="1" />
+    <field field_ref="CWS_FURTHER" grid_ref="grid_nvm_out" level="1" />
+    <field field_ref="DAILY_MAX_WIND_PFT" grid_ref="grid_nvm_out" level="1" />
+    <field field_ref="WIND_PROFILE_CLOSER" grid_ref="grid_nvm_out" level="1" />
+    <field field_ref="WIND_PROFILE_FURTHER" grid_ref="grid_nvm_out" level="1" />
+    <field field_ref="GUST_DAILY_MAX" level="1" />
+    <field field_ref="STORM_GUST_DOSE_CLOSER" grid_ref="grid_nvm_out" level="1" />
+    <field field_ref="STORM_GUST_DOSE_FURTHER" grid_ref="grid_nvm_out" level="1" />
+    <field field_ref="WIND_DAMAGE_WOODVOL" grid_ref="grid_nvm_out" level="1" />
+    <field field_ref="WIND_DAMAGE_RATE" grid_ref="grid_nvm_out" level="1" />
+   </field_group>
   </file>
 
   <!-- Stomate file 2 -->

@@ -2669,6 +2669,7 @@ CONTAINS
     INTEGER(i_std)                   :: ic_loc      !! Age class index (AGE_CLASS_BOUNDS_PFT)
     REAL(r_std)                      :: acifsum     !! Sum of AGE_CLASS_INIT_FRAC, used to renormalise it
     REAL(r_std), ALLOCATABLE, DIMENSION(:) :: age_class_bound_glo !! Global bounds read from the namelist, broadcast to every PFT
+    CHARACTER(LEN=80)                :: edge_scenario_str !! EDGE_SCENARIO as read (real|off|max)
 
     !_ ================================================================================================================================
 
@@ -2828,6 +2829,411 @@ CONTAINS
     ok_aed_fuel = .FALSE.
     CALL getin_p('OK_AED_FUEL', ok_aed_fuel)
     !
+    !Config Key   = OK_AED_STORM
+    !Config Desc  = Edge-driven closer/further split in the windthrow module (AED_STORM)
+    !Config If    = OK_WINDTHROW and OK_AED_FEEDBACK
+    !Config Def   = n
+    !Config Help  = The stand fraction exposed to edge gusts is derived from the AED edge
+    !Config         length and the wind penetration depth, weighted by a stand-age
+    !Config         sensitivity (1 in age class 1, decaying to EDGE_STORM_PLATEAU).
+    !Config Units = [FLAG]
+    ok_aed_storm = .FALSE.
+    CALL getin_p('OK_AED_STORM', ok_aed_storm)
+    !
+    !Config Key   = EDGE_STORM_FACTOR
+    !Config Desc  = Gain on the edge-exposed stand fraction (AED_STORM)
+    !Config If    = OK_AED_STORM
+    !Config Def   = 1.0
+    !Config Help  = Calibrated so that the pan-EU storm damage total is the same in every
+    !Config         edge scenario: the edge redistributes damage, it does not create it.
+    !Config Units = [-]
+    edge_storm_factor = 1.0_r_std
+    CALL getin_p('EDGE_STORM_FACTOR', edge_storm_factor)
+
+    !Config Key   = OK_STORM_EDGE_BAND
+    !Config Desc  = Average the wind load over the edge band instead of taking one point
+    !Config If    = OK_WINDTHROW
+    !Config Def   = n
+    !Config Help  = wind_damage compares the near band to the interior through two wind-load
+    !Config         factors, each evaluated at a single distance from the edge: the outer
+    !Config         edge of the band for the near zone, nine tree heights for the interior.
+    !Config         Comparing a band to a point biases the near zone towards its least
+    !Config         exposed end, and the edge ends up more resistant than the interior, the
+    !Config         opposite of ForestGALES. With this flag the load is averaged over the
+    !Config         band and over the interior. The width of the band does not change.
+    !Config         design/REPORT_STORM_EDGE_BAND.md
+    !Config Units = [FLAG]
+    ok_storm_edge_band = .FALSE.
+    CALL getin_p('OK_STORM_EDGE_BAND', ok_storm_edge_band)
+
+    !Config Key   = EDGE_LOAD_MAX_HEIGHTS
+    !Config Desc  = Width of the zone where the edge raises the wind load, in tree heights
+    !Config If    = OK_STORM_EDGE_BAND
+    !Config Def   = 2.0
+    !Config Help  = The band width used by wind_damage is the wind penetration depth
+    !Config         (28/LAI divided by the tree height), which reaches 4 to 6 tree heights in
+    !Config         an open stand. The edge term of Hale et al. (2015) decays by about a
+    !Config         factor 3 per tree height, so beyond 1 to 2 heights a tree is an interior
+    !Config         tree. Without this cap the mean load of the band is only 1.07 times the
+    !Config         interior one, against the 1.3 to 2.7 the model is built on.
+    !Config Units = [tree heights]
+    edge_load_max_heights = 2.0
+    CALL getin_p('EDGE_LOAD_MAX_HEIGHTS', edge_load_max_heights)
+    !
+    !Config Key   = OK_SPACING_TOP_CLASS
+    !Config Desc  = Compute tree spacing from the largest circumference class only (original formula)
+    !Config If    = OK_WINDTHROW
+    !Config Def   = n
+    !Config Help  = current_spacing is today 1/sqrt(SUM(ccn_inv)), i.e. every merchantable tree,
+    !Config         whereas the original ForestGALES formulation used the largest circumference
+    !Config         class only. The replacement was introduced to raise the critical wind speed
+    !Config         after dynamic height and alpha self-thinning lowered it, so it compensates a
+    !Config         stand-structure defect inside the wind module. It is self-masking: while it
+    !Config         stands, a fix of young-stand stem density cannot show up in wind damage.
+    !Config         Set to y to restore the original formula and measure what the compensation
+    !Config         carries. See also TEST_SPACING, a second, independent compensation.
+    !Config Units = [-]
+    ok_spacing_top_class = .FALSE.
+    CALL getin_p('OK_SPACING_TOP_CLASS', ok_spacing_top_class)
+    !
+    !Config Key   = OK_STORM_WIND_PER_EVENT
+    !Config Desc  = Damage wind and wind ratio taken as the maximum of the current storm only
+    !Config If    = OK_WINDTHROW
+    !Config Def   = n
+    !Config Help  = max_wind_speed_storm and max_wind_ratio_storm set the magnitude of storm damage.
+    !Config         By default they are raised every day, storm or not, and reset only after a
+    !Config         kill, so they hold the record wind since the last kill, restart included:
+    !Config         DAILY_MAX_TUNE then no longer changes the damage. Set to y to accumulate them
+    !Config         during a storm only and to reset them at storm onset.
+    !Config         [CATEGORIE : ECHAFAUDAGE DE VALIDATION -- retirer (chemin y structurel)
+    !Config          apres le banc regional et le recalage de DAILY_MAX_TUNE avec ce drapeau]
+    !Config Units = [-]
+    ok_storm_wind_per_event = .FALSE.
+    CALL getin_p('OK_STORM_WIND_PER_EVENT', ok_storm_wind_per_event)
+    !
+    !Config Key   = OK_STORM_KILL_BOTH_ZONES
+    !Config Desc  = Storm mortality is the sum of the edge-zone and interior-zone kills
+    !Config If    = OK_WINDTHROW
+    !Config Def   = n
+    !Config Help  = Each forest slot is split into an edge zone and an interior zone, each with its own
+    !Config         damage type (breakage or uprooting). When the two types differ, the interior call
+    !Config         zeroes the edge-zone kill. Set to y to compute each zone in its own zeroed array
+    !Config         and sum both by damage type. Kept separate from OK_STORM_WIND_PER_EVENT.
+    !Config         [CATEGORIE : ECHAFAUDAGE DE VALIDATION -- retirer (chemin y structurel)
+    !Config          apres le banc regional et le recalage de DAILY_MAX_TUNE avec ce drapeau]
+    !Config Units = [-]
+    ok_storm_kill_both_zones = .FALSE.
+    CALL getin_p('OK_STORM_KILL_BOTH_ZONES', ok_storm_kill_both_zones)
+    !
+    !Config Key   = OK_STORM_PEAK_TRIGGER
+    !Config Desc  = Storm onset on the daily peak wind over a local climatological peak
+    !Config If    = OK_WINDTHROW
+    !Config Def   = n
+    !Config Help  = A storm starts when the raw daily peak wind exceeds WIND_PEAK_TRIGGER_THR times a
+    !Config         local reference: the mean over the last years of the WIND_PEAK_REF_NTOP-th largest
+    !Config         daily peak of each year. No onset before one full year of reference.
+    !Config         See design/MODULE_DESIGN_STORM_PEAK_TRIGGER.md.
+    !Config         [CATEGORIE : OPTION SCIENTIFIQUE -- choix de modelisation, permanent]
+    !Config Units = [-]
+    ok_storm_peak_trigger = .FALSE.
+    CALL getin_p('OK_STORM_PEAK_TRIGGER', ok_storm_peak_trigger)
+    !
+    !Config Key   = WIND_PEAK_TRIGGER_THR
+    !Config Desc  = Onset threshold on daily peak / local reference peak
+    !Config If    = OK_STORM_PEAK_TRIGGER
+    !Config Def   = 1.35
+    !Config Help  = Chosen offline on EURO-CORDEX 0.5 deg 1980-2010 for about one false alarm per cell
+    !Config         and decade. Tied to the forcing resolution: recalibrate for another forcing.
+    !Config Units = [-]
+    wind_peak_trigger_thr = 1.35
+    CALL getin_p('WIND_PEAK_TRIGGER_THR', wind_peak_trigger_thr)
+    !
+    !Config Key   = WIND_PEAK_REF_NTOP
+    !Config Desc  = Rank of the yearly daily peak used as the local reference
+    !Config If    = OK_STORM_PEAK_TRIGGER
+    !Config Def   = 4
+    !Config Help  = 4 = the 4th largest daily peak of the year, i.e. the 99th percentile of 365 daily peaks.
+    !Config Units = [-]
+    wind_peak_ref_ntop = 4
+    CALL getin_p('WIND_PEAK_REF_NTOP', wind_peak_ref_ntop)
+    IF (wind_peak_ref_ntop < 1) CALL ipslerr_p(3, 'config_stomate_parameters', &
+         'WIND_PEAK_REF_NTOP must be >= 1', '', '')
+    !
+    ! Guillaume M. -- OK_STORM_PRESSURE_GATE (with STORM_PRESSURE_GATE_THR, _NDAYS, _FILE) and
+    ! OK_WIND_DAMAGE_RELATIVE (with WIND_DAMAGE_X0, _SX, WIND_CWS_REF) removed: the gate did not transfer
+    ! across regions and the relative law could not separate harmless gales from destructive storms.
+    ! Both are superseded by OK_STORM_GUST. See design/REPORT_WIND_GUST_DOSE.md section 7.
+    !
+    !Config Key   = OK_STORM_KILL_AREA_WEIGHTED
+    !Config Desc  = Storm kill weighted by the area fraction of the edge and interior zones
+    !Config If    = OK_WINDTHROW
+    !Config Def   = n
+    !Config Help  = cal_storm_circ_class_kill cancelled the zone area fraction, so each zone killed its rate over
+    !Config         the whole slot and the edge channel acted as a switch. Set to y to weight the trees killed by
+    !Config         the area fraction (total = af_closer*r_closer + af_further*r_further), on the two-zone path.
+    !Config         [CATEGORIE : ECHAFAUDAGE DE VALIDATION -- retirer (chemin y structurel) une fois adopte]
+    !Config Units = [-]
+    ok_storm_kill_area_weighted = .FALSE.
+    CALL getin_p('OK_STORM_KILL_AREA_WEIGHTED', ok_storm_kill_area_weighted)
+    !
+    !Config Key   = OK_STORM_GUST
+    !Config Desc  = Storm detection and damage driven by the ERA5 gust file (dose of hours above the critical gust)
+    !Config If    = OK_STORM_PEAK_TRIGGER
+    !Config Def   = n
+    !Config Help  = The daily maximum gust of STORM_GUST_FILE replaces the forcing wind in the storm module (peak rule) and
+    !Config         the damage rate is a logistic in the episode's hours with gust above CWS x STORM_GUST_GREF, its
+    !Config         midpoint raised by STORM_GUST_KAPPA x the usual yearly hours (acclimation). Requires
+    !Config         OK_STORM_KILL_AREA_WEIGHTED = y. See design/MODULE_DESIGN_WIND_GUST.md sections 10-12.
+    !Config         [CATEGORIE : OPTION SCIENTIFIQUE -- choix de modelisation, permanent]
+    !Config Units = [-]
+    ok_storm_gust = .FALSE.
+    CALL getin_p('OK_STORM_GUST', ok_storm_gust)
+    !
+    !Config Key   = STORM_GUST_FILE
+    !Config Desc  = Yearly gust file on the forcing grid (gust_max, gust_hours, gust_hours_clim)
+    !Config If    = OK_STORM_GUST
+    !Config Def   = NONE
+    !Config Help  = Built by scripts/build_storm_gust_file.py; one file per year, copied by the job under this name.
+    !Config Units = [-]
+    storm_gust_file = 'NONE'
+    CALL getin_p('STORM_GUST_FILE', storm_gust_file)
+    !
+    !Config Key   = STORM_GUST_GREF
+    !Config Desc  = Critical gust = CWS x STORM_GUST_GREF
+    !Config If    = OK_STORM_GUST
+    !Config Def   = 1.0
+    !Config Units = [-]
+    storm_gust_gref = 1.0
+    CALL getin_p('STORM_GUST_GREF', storm_gust_gref)
+    !
+    !Config Key   = STORM_GUST_D50
+    !Config Desc  = Episode hours above the critical gust giving half the maximum damage
+    !Config If    = OK_STORM_GUST
+    !Config Def   = 2.0
+    !Config Units = [h]
+    storm_gust_d50 = 2.0
+    CALL getin_p('STORM_GUST_D50', storm_gust_d50)
+    !
+    !Config Key   = STORM_GUST_S
+    !Config Desc  = Width of the logistic in the episode's hours above the critical gust
+    !Config If    = OK_STORM_GUST
+    !Config Def   = 1.0
+    !Config Units = [h]
+    storm_gust_s = 1.0
+    CALL getin_p('STORM_GUST_S', storm_gust_s)
+    !
+    !Config Key   = STORM_GUST_KAPPA
+    !Config Desc  = Acclimation: the logistic midpoint is raised by STORM_GUST_KAPPA x the usual yearly hours above the critical gust
+    !Config If    = OK_STORM_GUST
+    !Config Def   = 6.0
+    !Config Units = [-]
+    storm_gust_kappa = 6.0
+    CALL getin_p('STORM_GUST_KAPPA', storm_gust_kappa)
+    IF (ok_storm_gust) THEN
+       IF (.NOT. ok_storm_peak_trigger) CALL ipslerr_p(3, 'config_stomate_parameters', &
+            'OK_STORM_GUST requires OK_STORM_PEAK_TRIGGER = y', '', '')
+       IF (.NOT. ok_storm_kill_area_weighted) CALL ipslerr_p(3, 'config_stomate_parameters', &
+            'OK_STORM_GUST requires OK_STORM_KILL_AREA_WEIGHTED = y', '(each zone must kill over its own area)', '')
+       IF (TRIM(storm_gust_file) == 'NONE') CALL ipslerr_p(3, 'config_stomate_parameters', &
+            'OK_STORM_GUST requires STORM_GUST_FILE', '', '')
+       IF (storm_gust_s <= zero .OR. storm_gust_d50 < zero .OR. storm_gust_kappa < zero) CALL ipslerr_p(3, &
+            'config_stomate_parameters', 'STORM_GUST_S must be > 0, STORM_GUST_D50 and STORM_GUST_KAPPA >= 0', '', '')
+    ENDIF
+    !
+    !Config Key   = OK_BEETLE_ACUTE_DROUGHT
+    !Config Desc  = Acute drought anomaly weakens host defence against bark beetles
+    !Config If    = OK_PEST
+    !Config Def   = n
+    !Config Help  = Adds BEETLE_DROUGHT_GAIN times the relative drop of this year's low of monthly
+    !Config         root-zone moisture, against the mean low of previous years, to the drought stress
+    !Config         of i_hosts_defence. Drought weakens living hosts; drought-killed wood is not added
+    !Config         to beetle breeding material. See design/MODULE_DESIGN_BEETLE_ACUTE_DROUGHT.md.
+    !Config         [CATEGORIE : OPTION SCIENTIFIQUE -- choix de modelisation, permanent]
+    !Config Units = [-]
+    ok_beetle_acute_drought = .FALSE.
+    CALL getin_p('OK_BEETLE_ACUTE_DROUGHT', ok_beetle_acute_drought)
+    !
+    !Config Key   = BEETLE_DROUGHT_GAIN
+    !Config Desc  = Weight of the relative moisture-low anomaly in the host defence stress
+    !Config If    = OK_BEETLE_ACUTE_DROUGHT
+    !Config Def   = 1.0
+    !Config Help  = With 1, a low 40 percent below its usual level adds 0.4 to the stress, which is
+    !Config         the spruce PWS_LIMIT: the defence index then crosses its mid-point.
+    !Config Units = [-]
+    beetle_drought_gain = 1.0
+    CALL getin_p('BEETLE_DROUGHT_GAIN', beetle_drought_gain)
+    !
+    !Config Key   = BEETLE_DROUGHT_TACT
+    !Config Desc  = Weekly air temperature above which the yearly moisture low is tracked
+    !Config If    = OK_BEETLE_ACUTE_DROUGHT
+    !Config Def   = 5.0
+    !Config Help  = Excludes winter, when frozen soil lowers available water without any beetle activity.
+    !Config Units = [C]
+    beetle_drought_tact = 5.0
+    CALL getin_p('BEETLE_DROUGHT_TACT', beetle_drought_tact)
+    !
+    !Config Key   = BEETLE_DROUGHT_NREF
+    !Config Desc  = Length of the yearly moisture-low buffer (this year plus the reference years)
+    !Config If    = OK_BEETLE_ACUTE_DROUGHT
+    !Config Def   = 11
+    !Config Help  = The reference low is the mean over the previous NREF-1 years. A short buffer turns any
+    !Config         year slightly drier than the last two into an anomaly; ten reference years give a
+    !Config         local climatology.
+    !Config Units = [years]
+    beetle_drought_nref = 11
+    CALL getin_p('BEETLE_DROUGHT_NREF', beetle_drought_nref)
+    IF (beetle_drought_nref < 2) CALL ipslerr_p(3, 'config_stomate_parameters', &
+         'BEETLE_DROUGHT_NREF must be >= 2', '', '')
+    !
+    !Config Key   = OK_AED_PEST
+    !Config Desc  = Edge microclimate raises host susceptibility to bark beetles
+    !Config If    = OK_PEST, OK_AED_FEEDBACK
+    !Config Def   = n
+    !Config Help  = Edge trees stand in a warmer, drier microclimate: their defence is worn
+    !Config         down and they are the easy targets a beetle population settles on. Under
+    !Config         this flag the host health index of bark_beetle_damage becomes a bounded
+    !Config         convex mix of an edge zone and an interior one, on the same AED geometry
+    !Config         the storm channel uses. The path is continuous, with no epidemic
+    !Config         threshold, so it does not depend on the mass-attack gate.
+    !Config Units = [-]
+    ok_aed_pest = .FALSE.
+    CALL getin_p('OK_AED_PEST', ok_aed_pest)
+    !
+    !Config Key   = EDGE_PEST_DEPTH
+    !Config Desc  = Depth of the edge-affected band for bark beetles
+    !Config If    = OK_AED_PEST
+    !Config Def   = 30.0
+    !Config Help  = Depth over which the edge microclimate is felt, in metres. Thermal and
+    !Config         humidity gradients at a forest edge are spent after some tens of metres,
+    !Config         which is shorter than the wind penetration depth.
+    !Config Units = [m]
+    edge_pest_depth = 30.0_r_std
+    CALL getin_p('EDGE_PEST_DEPTH', edge_pest_depth)
+    !
+    !Config Key   = EDGE_PEST_SUSC
+    !Config Desc  = Susceptibility gain applied to hosts inside the edge band
+    !Config If    = OK_AED_PEST
+    !Config Def   = 1.5
+    !Config Help  = Multiplies the host health index inside the band, capped at one since it
+    !Config         is a probability. 1.0 leaves the model unchanged even with the flag on,
+    !Config         which makes the geometry testable on its own. To be calibrated.
+    !Config Units = [-]
+    edge_pest_susc = 1.5_r_std
+    CALL getin_p('EDGE_PEST_SUSC', edge_pest_susc)
+    !
+    !Config Key   = OK_AED_PEST_FRESH
+    !Config Desc  = Beetle edge effect carried by fresh, lagged edges, acting on mortality
+    !Config If    = OK_AED_PEST, OK_AED_FEEDBACK, N_CLASS0 >= 3
+    !Config Def   = n
+    !Config Help  = Observed kills cluster along fresh sun-exposed edges one to three years
+    !Config         after the opening; old edges behave like the interior. Under this flag
+    !Config         the OK_AED_PEST health gain is bypassed and a gain acts on the mortality
+    !Config         probability of a fresh-edge band (class-0 openings of chosen ages) and of
+    !Config         an old-edge band. See MODULE_DESIGN_AED_PEST_FRESH_EDGE.md.
+    !Config Units = [-]
+    ok_aed_pest_fresh = .FALSE.
+    CALL getin_p('OK_AED_PEST_FRESH', ok_aed_pest_fresh)
+    !
+    !Config Key   = EDGE_PEST_FRESH_GAIN
+    !Config Desc  = Mortality gain inside the fresh-edge band
+    !Config If    = OK_AED_PEST_FRESH
+    !Config Def   = 3.0
+    !Config Help  = Ratio of the edge to the interior mortality probability, capped at one.
+    !Config         Field studies give 2 to 10 on fresh edges. Fixed from the literature,
+    !Config         not calibrated.
+    !Config Units = [-]
+    edge_pest_fresh_gain = 3.0_r_std
+    CALL getin_p('EDGE_PEST_FRESH_GAIN', edge_pest_fresh_gain)
+    !
+    !Config Key   = EDGE_PEST_FRESH_DEPTH
+    !Config Desc  = Depth of the fresh-edge band for bark beetles
+    !Config If    = OK_AED_PEST_FRESH
+    !Config Def   = 20.0
+    !Config Help  = Kills concentrate within 10 to 20 m of a fresh edge in field surveys.
+    !Config Units = [m]
+    edge_pest_fresh_depth = 20.0_r_std
+    CALL getin_p('EDGE_PEST_FRESH_DEPTH', edge_pest_fresh_depth)
+    !
+    !Config Key   = EDGE_PEST_LAG_MIN
+    !Config Desc  = Youngest opening age counted as fresh edge
+    !Config If    = OK_AED_PEST_FRESH
+    !Config Def   = 1
+    !Config Help  = Age in years of the class-0 openings whose edge starts to count. Beetles
+    !Config         rarely attack a new edge in its first season.
+    !Config Units = [years]
+    edge_pest_lag_min = 1
+    CALL getin_p('EDGE_PEST_LAG_MIN', edge_pest_lag_min)
+    !
+    !Config Key   = EDGE_PEST_LAG_MAX
+    !Config Desc  = Oldest opening age counted as fresh edge
+    !Config If    = OK_AED_PEST_FRESH
+    !Config Def   = 3
+    !Config Help  = Age in years beyond which an edge is old. Must stay below N_CLASS0 - 1,
+    !Config         the residence time of an opening in the conveyor.
+    !Config Units = [years]
+    edge_pest_lag_max = 3
+    CALL getin_p('EDGE_PEST_LAG_MAX', edge_pest_lag_max)
+    !
+    !Config Key   = EDGE_PEST_OLD_GAIN
+    !Config Desc  = Mortality gain inside the old-edge band
+    !Config If    = OK_AED_PEST_FRESH
+    !Config Def   = 1.0
+    !Config Help  = Same as the fresh gain on the whole dynamic edge, band EDGE_PEST_DEPTH.
+    !Config         Old and permanent edges are close to the interior in field data; 1.0
+    !Config         switches the band off.
+    !Config Units = [-]
+    edge_pest_old_gain = 1.0_r_std
+    CALL getin_p('EDGE_PEST_OLD_GAIN', edge_pest_old_gain)
+    !
+    !Config Key   = EDGE_PEST_BASE_FRAC
+    !Config Desc  = Scaling of the interior beetle mortality probability
+    !Config If    = OK_AED_PEST_FRESH
+    !Config Def   = 1.0
+    !Config Help  = The only same-world normalisation of the channel: calibrated so that the
+    !Config         beetle kill of the reference run is unchanged, the edge bands then only
+    !Config         redistribute it. Never used to tune a scenario.
+    !Config Units = [-]
+    edge_pest_base_frac = 1.0_r_std
+    CALL getin_p('EDGE_PEST_BASE_FRAC', edge_pest_base_frac)
+    !
+    !Config Key   = EDGE_STORM_ACCLIM_YR
+    !Config Desc  = E-folding stand age of the wind acclimation of exposed stands (AED_STORM)
+    !Config If    = OK_AED_STORM
+    !Config Def   = 20.0
+    !Config Help  = Sensitivity s = plateau + (1-plateau)*exp(-age/acclim) for age classes >= 2
+    !Config Units = [years]
+    edge_storm_acclim_yr = 20.0_r_std
+    CALL getin_p('EDGE_STORM_ACCLIM_YR', edge_storm_acclim_yr)
+    !
+    !Config Key   = EDGE_STORM_PLATEAU
+    !Config Desc  = Residual edge sensitivity of fully acclimated stands (AED_STORM)
+    !Config If    = OK_AED_STORM
+    !Config Def   = 0.25
+    !Config Help  = 0 = an old stand ignores the edge, 1 = no acclimation at all
+    !Config Units = [-]
+    edge_storm_plateau = 0.25_r_std
+    CALL getin_p('EDGE_STORM_PLATEAU', edge_storm_plateau)
+    IF (ok_aed_storm) THEN
+       IF (edge_storm_plateau < zero .OR. edge_storm_plateau > un .OR. &
+           edge_storm_acclim_yr <= zero .OR. edge_storm_factor < zero) THEN
+          CALL ipslerr_p(3, 'config_stomate_parameters', &
+               'AED_STORM: EDGE_STORM_PLATEAU in [0,1], EDGE_STORM_ACCLIM_YR > 0, EDGE_STORM_FACTOR >= 0', &
+               'check the namelist', '')
+       ENDIF
+    ENDIF
+    IF (ok_aed_pest) THEN
+       IF (edge_pest_depth <= zero .OR. edge_pest_susc < zero) THEN
+          CALL ipslerr_p(3, 'config_stomate_parameters', &
+               'AED_PEST: EDGE_PEST_DEPTH > 0 and EDGE_PEST_SUSC >= 0 are required', &
+               'check the namelist', '')
+       ENDIF
+       IF (.NOT. ok_pest) THEN
+          CALL ipslerr_p(3, 'config_stomate_parameters', &
+               'OK_AED_PEST requires OK_PEST', &
+               'the channel acts inside bark_beetle_damage, which OK_PEST alone calls', '')
+       ENDIF
+    ENDIF
+    !
     !Config Key   = CF_TRESHOLD
     !Config Desc  = Crown fire happens when ignited_fraction is higher than cf_threshold
     !Config If    = 
@@ -2872,6 +3278,21 @@ CONTAINS
     !Config Units = [-]  
     edge_ignition_factor = 1.0
     CALL getin_p('EDGE_IGNITION_FACTOR',edge_ignition_factor)
+    !
+    !Config Key   = EDGE_IGNITION_BASE_FRAC
+    !Config Desc  = Share of the population-driven human ignitions kept when OK_AED_HUMIGN is on
+    !Config If    = OK_AED_HUMIGN
+    !Config Def   = 1.0
+    !Config Help  = human_ign = base*A_ND_SCALE*EDGE_IGNITION_BASE_FRAC + EDGE_IGNITION_FACTOR*fedge.
+    !Config         The edge term is additive; set this below 1 so that the pan-EU total of
+    !Config         ignitions is the same with and without the edge term (calibrated on the
+    !Config         off/real pair). A_ND_SCALE is the resolution factor, not a scenario knob.
+    !Config Units = [-]
+    edge_ignition_base_frac = 1.0_r_std
+    CALL getin_p('EDGE_IGNITION_BASE_FRAC', edge_ignition_base_frac)
+    IF (edge_ignition_base_frac < zero .OR. edge_ignition_base_frac > un) THEN
+       CALL ipslerr_p(3, 'config_stomate_parameters', 'EDGE_IGNITION_BASE_FRAC must be in [0,1]', '', '')
+    ENDIF
     !
     !Config Key   = EDGE_WIND_FACTOR
     !Config Desc  = Relative fuel wetness difference between edge and interior
@@ -3073,6 +3494,37 @@ CONTAINS
     edge_min_patch_area = 4000.
     CALL getin_p('EDGE_MIN_PATCH_AREA', edge_min_patch_area)
     !
+    !Config Key   = EDGE_SCENARIO
+    !Config Desc  = Edge-length scenario: real (calibrated chain), off (no edge), max (circular patches)
+    !Config If    = OK_AED_FEEDBACK
+    !Config Cat   = SCIENTIFIC OPTION
+    !Config Def   = real
+    !Config Help  = NGC D5.2 triplet (design/MODULE_DESIGN_EDGE_SCENARIO.md). off: edge_length_dyn
+    !Config         and all its terms (meso, roads, water, micro) are set to zero after the
+    !Config         physical cap, so calculate_aed returns the trunk value AED = 50 km and
+    !Config         neither light nor fire sees an edge; the class-0 conveyor, age classes and
+    !Config         harvest run unchanged. max: every disturbed patch is an isolated disc of
+    !Config         area EDGE_MIN_PATCH_AREA in continuous forest, whose whole perimeter is
+    !Config         new edge: alpha = 2*sqrt(pi/EDGE_MIN_PATCH_AREA) for the four agents
+    !Config         (0.056 m/m2 at 0.4 ha, against 0.022-0.048 observed). An upper bound by
+    !Config         absence of coalescence, not by shape: a disc has the smallest perimeter
+    !Config         at a given area. Meso, roads and water terms are unchanged under max.
+    !Config         real: nothing executed, bit-identical to the previous binary.
+    !Config Units = [-]
+    edge_scenario_str = 'real'
+    CALL getin_p('EDGE_SCENARIO', edge_scenario_str)
+    SELECT CASE (TRIM(ADJUSTL(edge_scenario_str)))
+    CASE ('real', 'REAL') ; edge_scenario = edge_scen_real
+    CASE ('off',  'OFF')  ; edge_scenario = edge_scen_off
+    CASE ('max',  'MAX')  ; edge_scenario = edge_scen_max
+    CASE DEFAULT
+       WRITE(numout,*) 'EDGE_SCENARIO must be real, off or max : ', TRIM(edge_scenario_str)
+       CALL ipslerr_p(3,'constantes.f90','EDGE_SCENARIO unknown value',&
+            'Accepted: real (default), off, max','')
+    END SELECT
+    IF (printlev >= 1 .AND. edge_scenario /= edge_scen_real) &
+         WRITE(numout,*) 'EDGE_SCENARIO = ', TRIM(edge_scenario_str), ' (', edge_scenario, ')'
+    !
     ! ------------------------------------------------------------------------
     ! Guillaume M. -- Management intensity: one concept replacing the six earlier levers
     ! OK_HARVEST_FRAGMENTATION, EDGE_SHAPE_COEF, CLEARCUT_AREA_BY_FMCLASS,
@@ -3164,7 +3616,7 @@ CONTAINS
     !Config Key   = MI_ROTATION_FACTOR
     !Config Desc  = Multiplicateur de la rotation de reference, par classe d'intensite
     !Config If    = OK_MANAGEMENT_INTENSITY
-    !Config Def   = 20.0, 1.60, 1.00, 0.65, 0.35
+    !Config Def   = 20.0, 1.00, 1.00, 0.75, 0.30
     !Config Help  = rotation(pft,classe) = ROTATION_REF(pft) * MI_ROTATION_FACTOR(classe),
     !Config         le taux de recolte en etant l'inverse. STRICTEMENT symetrique de
     !Config         MI_DIA_FACTOR, qui module le diametre de la meme maniere.
@@ -3585,7 +4037,10 @@ CONTAINS
             'a negative gain inverts the correction; use 0 for per-group quotas only','')
     ENDIF
 
-    mi_rotation_factor(:) = (/ 20.0_r_std, 1.60_r_std, 1.00_r_std, 0.65_r_std, 0.35_r_std /)
+    ! Guillaume M. -- Ratios from Suvanto et al. 2025 harvest regimes (clearcut rate by dominant
+    ! intensity class, design/NGC_w5_t5.3.md section 6): close-to-nature is NOT cut less often
+    ! than multifunctional (1.00), intensive 0.75, very intensive 0.30. Unmanaged unmeasured.
+    mi_rotation_factor(:) = (/ 20.0_r_std, 1.00_r_std, 1.00_r_std, 0.75_r_std, 0.30_r_std /)
     CALL getin_p('MI_ROTATION_FACTOR', mi_rotation_factor)
     IF (ANY(mi_rotation_factor(:) <= zero)) THEN
        WRITE(numout,*) 'MI_ROTATION_FACTOR doit etre strictement positif : ', mi_rotation_factor(:)
@@ -3842,7 +4297,7 @@ CONTAINS
     ! adjustment of an age prescribed at initialisation.
     !
     !Config Key   = AGE_STAND_ESTAB
-    !Config Desc  = Age attribue a un peuplement fraichement etabli (plancher de age_stand_bm)
+    !Config Desc  = Age attribue a un peuplement fraichement etabli (plancher de age_stand_area)
     !Config If    = OK_STOMATE
     !Config Def   = 5.
     !Config Help  = `prescribe` n'installe pas des graines mais des semis d'un DIAMETRE
@@ -3852,7 +4307,7 @@ CONTAINS
     !Config         La refonte du 2026-07-25 avait retire AGE_RECRUIT_OFFSET en pariant que
     !Config         « la dynamique absorbe le decalage » -- elle ne l'absorbe pas, le
     !Config         diametre initial reste (constat utilisateur 2026-07-29).
-    !Config         Purement DIAGNOSTIQUE : age_stand_bm n'est lu par aucune decision.
+    !Config         Purement DIAGNOSTIQUE : age_stand_area n'est lu par aucune decision.
     !Config Units = [an]
     age_stand_estab = 5.
     CALL getin_p('AGE_STAND_ESTAB', age_stand_estab)
@@ -4073,11 +4528,25 @@ CONTAINS
     ! Guillaume M. -- calculate_aed always consumes edge_length_dyn, which only
     ! update_edge_length fills and which belongs to AED_FEEDBACK. Without it the array stays
     ! zero and the edge modules would silently run as if there were no edge. Refuse it.
-    IF ((ok_aed_light .OR. ok_aed_humign .OR. ok_aed_fuel .OR. ok_aed_size .OR. ok_aed_wind) &
-         .AND. .NOT. ok_aed_feedback) THEN
+    IF ((ok_aed_light .OR. ok_aed_humign .OR. ok_aed_fuel .OR. ok_aed_size .OR. ok_aed_wind &
+         .OR. ok_aed_storm .OR. ok_aed_pest) .AND. .NOT. ok_aed_feedback) THEN
        CALL ipslerr_p(3, 'config_stomate_parameters', &
             'les modules OK_AED_* requierent OK_AED_FEEDBACK=y', &
             'calculate_aed consomme edge_length_dyn, alimentee par AED_FEEDBACK seul', '')
+    ENDIF
+    ! Guillaume M. -- Checked here, after N_CLASS0 is read: at the beetle call the conveyor
+    ! slot k holds the openings aged k - 2 years, so the oldest age read is N_CLASS0 - 2.
+    IF (ok_aed_pest_fresh) THEN
+       IF (.NOT. ok_aed_pest) CALL ipslerr_p(3, 'config_stomate_parameters', &
+            'OK_AED_PEST_FRESH requires OK_AED_PEST', 'it replaces its health gain', '')
+       IF (edge_pest_lag_min < 0 .OR. edge_pest_lag_max < edge_pest_lag_min &
+            .OR. edge_pest_lag_max > n_class0 - 2) CALL ipslerr_p(3, 'config_stomate_parameters', &
+            'OK_AED_PEST_FRESH: 0 <= EDGE_PEST_LAG_MIN <= EDGE_PEST_LAG_MAX <= N_CLASS0 - 2', &
+            'the fresh edge is read from the class-0 conveyor slots', '')
+       IF (edge_pest_fresh_depth <= zero .OR. edge_pest_fresh_gain < zero .OR. edge_pest_old_gain < zero &
+            .OR. edge_pest_base_frac <= zero .OR. edge_pest_base_frac > un) CALL ipslerr_p(3, &
+            'config_stomate_parameters', 'OK_AED_PEST_FRESH: depth > 0, gains >= 0, 0 < BASE_FRAC <= 1', &
+            'check the namelist', '')
     ENDIF
     !-
     ! allocation parameters
@@ -6135,7 +6604,7 @@ CONTAINS
     !Config Desc  = Stand age of each age class as a fraction of the target rotation age
     !Config If    = OK_STOMATE .AND. NAGEC > 1
     !Config Def   = 0.10, 0.45, 0.70, 0.92
-    !Config Help  = age_stand_bm(class) = AGE_CLASS_AGE_FRAC(class) * target_rotation_age.
+    !Config Help  = age_stand_area(class) = AGE_CLASS_AGE_FRAC(class) * target_rotation_age.
     !Config         Structured cold start: the age is derived from the rotation the
     !Config         pixel is managed for, so it stays
     !Config         consistent with the management-intensity map. Saturating ladder rather
@@ -6151,7 +6620,7 @@ CONTAINS
     !Config Desc  = Plafond de la rotation utilisee pour DERIVER l'age au demarrage a froid
     !Config If    = OK_STOMATE .AND. NAGEC > 1
     !Config Def   = 200.
-    !Config Help  = OPTION SCIENTIFIQUE (permanente). age_stand_bm(c) =
+    !Config Help  = OPTION SCIENTIFIQUE (permanente). age_stand_area(c) =
     !Config         AGE_CLASS_AGE_FRAC(c) * MIN(target_rotation_age, ce plafond).
     !Config         La carte d'intensite de gestion porte une sentinelle "non gere" a 999
     !Config         ans ; sans plafond, 16,3 % de la surface forestiere recevait des ages de

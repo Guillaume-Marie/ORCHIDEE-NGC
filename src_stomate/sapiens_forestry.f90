@@ -305,7 +305,7 @@ CONTAINS
 !! \n
 !_ ================================================================================================================================
 
-  SUBROUTINE sapiens_forestry_main (npts, age_stand, age_stand_bm, last_cut, &
+  SUBROUTINE sapiens_forestry_main (npts, age_stand, last_cut, &
              circ_class_n, circ_class_kill, forest_managed, &
              circ_class_biomass, mai, pai, previous_wood_volume, &
              mai_count, coppice_dens, veget_max, fm_change_map, &
@@ -321,7 +321,6 @@ CONTAINS
                                                                                   !! the ground (unitless, 0-1) 
     INTEGER(i_std), DIMENSION(:,:),INTENT(in)              :: last_cut            !! Years since last thinning (years)
     INTEGER(i_std), DIMENSION(:,:),INTENT(in)              :: age_stand           !! Age of stand (years)
-    REAL(r_std), DIMENSION(:,:),INTENT(in)                 :: age_stand_bm        !! Conserved biomass-weighted stand age (yr) - STAND_AGE, DIAGNOSTIC only since 2026-07-27
     INTEGER(i_std), DIMENSION(:,:), INTENT(in)             :: fm_change_map       !! A map which gives the desired FM strategy when
                                                                                   !! the PFT will be replanted after a clearcut.
                                                                                   !! (1-nvm,unitless)

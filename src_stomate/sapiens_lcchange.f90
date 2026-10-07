@@ -98,7 +98,7 @@ CONTAINS
        harvest_pool_bound,   bm_to_litter,         turnover_daily,             leaf_age, &
        longevity_eff_leaf,   longevity_eff_sap,    longevity_eff_root, &
        veget_max_new,        loss_gain,            age_stand,                  last_cut, &
-       age_stand_bm,         age_stand_area, &
+       age_stand_area, &
        k_latosa_adapt,       losses,               light_tran_to_floor_season, lpft_replant, &
        soil_n_min,           bact,                 species_change_map,         cn_leaf_init_2D, &
        bm_sapl_2D,           tree_bm_to_litter,    fLulccResidue,              fDeforestToProduct, &
@@ -217,7 +217,6 @@ CONTAINS
                                                                                !! (unitless)
     REAL(r_std), DIMENSION(:,:,:), INTENT(inout)      :: harvest_area          !! Harvested area (m^{2})
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)     :: age_stand             !! Age of the forest stand (years)
-    REAL(r_std), DIMENSION(:,:), INTENT(inout)        :: age_stand_bm          !! Biomass-weighted conserved mean stand age (years) - STAND_AGE
     REAL(r_std), DIMENSION(:,:), INTENT(inout)        :: age_stand_area        !! AREA-weighted conserved mean stand age (years) - STAND_AGE
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)     :: last_cut              !! Years since last thinning (years)
     REAL(r_std),DIMENSION(:,:), INTENT(in)            :: cn_leaf_init_2D       !! initial leaf C/N ratio 
@@ -2003,8 +2002,6 @@ CONTAINS
              ! stand. Blend by AREA with age_stand_estab (mirror of the progressive-harvest
              ! path): the area arrives with saplings, their biomass comes later, so a
              ! biomass weight would be inert and the indicator kept climbing without bound.
-             age_stand_bm(ipts,c0r_ivm) = c0r_share * age_stand_bm(ipts,c0r_ivm) + &
-                  (un - c0r_share) * age_stand_estab
              age_stand_area(ipts,c0r_ivm) = c0r_share * age_stand_area(ipts,c0r_ivm) + &
                   (un - c0r_share) * age_stand_estab
 
@@ -2319,7 +2316,7 @@ CONTAINS
        resp_maint, resp_growth, npp_daily, &
        rue_longterm, mai, pai, &
        mai_count, previous_wood_volume, vegstress_season, &
-       MatrixA, MatrixV, VectorB, VectorU, age_stand, age_stand_bm, age_stand_area, last_cut, &
+       MatrixA, MatrixV, VectorB, VectorU, age_stand, age_stand_area, last_cut, &
        k_latosa_adapt, fm_change_map, lpft_replant, cn_leaf_min_season,&
        cn_leaf_init_2D, nstress_season, soil_n_min, p_O2, bact, &
        CN_som_litter_longterm, sugar_load, &
@@ -2470,7 +2467,6 @@ CONTAINS
     REAL(r_std), DIMENSION(:,:,:), INTENT(inout)       :: VectorU             !!
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)      :: age_stand           !! Age of the forest stand (years)
     REAL(r_std), DIMENSION(:,:), INTENT(inout)         :: age_stand_area      !! AREA-weighted conserved mean stand age (years) - STAND_AGE
-    REAL(r_std), DIMENSION(:,:), INTENT(inout)         :: age_stand_bm        !! Biomass-weighted conserved mean stand age (years) - STAND_AGE
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)      :: last_cut            !! Years since last thinning (years)
     REAL(r_std), DIMENSION(:,:), INTENT(inout)         :: cn_leaf_min_season  !! Seasonal min CN ratio of leaves 
     REAL(r_std), DIMENSION(:,:), INTENT(inout)         :: nstress_season      !! N-related seasonal stress (used for allocation) 
@@ -2600,8 +2596,8 @@ CONTAINS
     REAL(r_std)                                        :: aw_new, aw_old      !! STAND_AGE : poids d'AIRE du receveur et de la
                                                                               !! parcelle deplacee, pour le miroir age_stand_area (-)
     REAL(r_std)                                        :: bm_w_new, bm_w_old  !! STAND_AGE : carbone SUR PIED des deux classes,
-                                                                              !! capture AVANT la fusion, pour ponderer le melange
-                                                                              !! de age_stand_bm par la BIOMASSE et non par l'aire
+                                                                              !! capture AVANT la fusion ; sert de test de parcelle
+                                                                              !! NUE (bm_w_old) dans le melange de age_stand_area
                                                                               !! (gC, aire de maille incluse)
     REAL(r_std), DIMENSION(ncirc)                      :: circ_class_ba       !! basal area of the model tree in each
                                                                               !! circ class @tex $(m^{2} m^{-2})$ @endtex 
@@ -2917,22 +2913,17 @@ CONTAINS
                       !
                       ! Guillaume M. -- Blending with the DONOR age made class 1 inherit the
                       ! age of the stand that was cut; dropping the blend left the mirror
-                      ! defect, no path rejuvenating the receiver -- age_stand_bm is only
+                      ! defect, no path rejuvenating the receiver -- age_stand_area is only
                       ! reset on a fully empty slot. Blend with the ESTABLISHED stand age
                       ! instead, weighted by AREA: the area arrives, its biomass comes later.
                       IF (veget_max(ipts,ph_new_pft) > min_stomate) THEN
-                         age_stand_bm(ipts,ph_new_pft) = &
-                              ( (veget_max(ipts,ph_new_pft) - ph_v_mov) &
-                                * age_stand_bm(ipts,ph_new_pft) &
-                              + ph_v_mov * age_stand_estab ) &
-                              / veget_max(ipts,ph_new_pft)
                          age_stand_area(ipts,ph_new_pft) = &
                               ( (veget_max(ipts,ph_new_pft) - ph_v_mov) &
                                 * age_stand_area(ipts,ph_new_pft) &
                               + ph_v_mov * age_stand_estab ) &
                               / veget_max(ipts,ph_new_pft)
                       ENDIF
-                      ! Guillaume M. -- age_stand_bm(ipts,ipft) is left unchanged: the
+                      ! Guillaume M. -- age_stand_area(ipts,ipft) is left unchanged: the
                       ! surviving stand has not become younger.
 
                      CALL move_pft_properties(ipts, ph_new_pft, ipft, share_rec, &
@@ -3412,7 +3403,7 @@ CONTAINS
                    !
                    ! Guillaume M. -- /!\ STATE FROZEN ONCE, here, before the first read. Every
                    ! decision below (area moved, donor wipe, veget_max, veget_max_new,
-                   ! age_stand_bm, keep_source) reads ac12_partial and not ac12_frac. That is
+                   ! age_stand_area, keep_source) reads ac12_partial and not ac12_frac. That is
                    ! what makes the desynchronisation that broke the mass balance impossible.
                    ac12_partial = (ac12_frac > zero .AND. ac12_frac < un)
                    IF (ac12_partial) THEN
@@ -3585,7 +3576,7 @@ CONTAINS
                       veget_max(ipts,old_pft) = zero
                    ENDIF
                    ! Guillaume M. -- /!\ DO NOT reset ac12_frac HERE: three reads still follow
-                   ! (veget_max_new, age_stand_bm, keep_source) and would all conclude "whole
+                   ! (veget_max_new, age_stand_area, keep_source) and would all conclude "whole
                    ! transfer". The reset now sits at the end of the slot, after
                    ! move_pft_properties.
                    !
@@ -3644,26 +3635,17 @@ CONTAINS
                    ! the caller level so as not to touch the signature of move_pft_properties
                    ! (three callers). Diagnostic only.
                    !
-                   ! Guillaume M. -- The weighting is by BIOMASS, not by AREA (share_rec), as
-                   ! age_stand_bm is defined. A clearcut sends class-4 area back to class 1
-                   ! WITHOUT trees, and area-weighting made that bare area carry the age of the
-                   ! stand that was cut. Biomass weighting settles both cases with no special
-                   ! case: bare area has zero weight and the receiver keeps its age.
+                   ! Guillaume M. -- Weighted by AREA. A biomass-weighted twin was removed: it
+                   ! weighted a young entrant by its biomass, a fraction
+                   ! of the resident's, so it hardly rejuvenated and drifted 44 % above the area
+                   ! age in a century -- the age of the carbon, not of the ground.
                    !
-                   ! Guillaume M. -- /!\ The reset in stomate_lpj catches none of this: it only
-                   ! acts on an EMPTY slot (veget_max <= min_stomate), and after a cut the area
-                   ! is still there.
-                   IF (bm_w_new + bm_w_old .GT. min_stomate) THEN
-                      age_stand_bm(ipts,new_pft) = (bm_w_new * age_stand_bm(ipts,new_pft) + &
-                           bm_w_old * age_stand_bm(ipts,old_pft)) / (bm_w_new + bm_w_old)
-                   ELSE
-                      ! Guillaume M. -- No biomass on either side: no age to carry.
-                      age_stand_bm(ipts,new_pft) = zero
-                   ENDIF
-                   ! Guillaume M. -- AREA-weighted mirror. A BARE parcel (no standing carbon,
-                   ! e.g. clearcut area sent back to class 1) carries the class-0 conveyor
-                   ! residence time, n_class0 - 1 years, not the donor age: by the time that
-                   ! area stands again it has sat in the conveyor for that long.
+                   ! Guillaume M. -- A BARE parcel (no standing carbon, e.g. clearcut area sent
+                   ! back to class 1) must not carry the age of the stand that was cut: it takes
+                   ! the class-0 conveyor residence, n_class0 - 1 years, the time it will have
+                   ! sat there when it stands again. bm_w_old is the bare-parcel test.
+                   ! /!\ The reset in stomate_lpj catches none of this: it only acts on an EMPTY
+                   ! slot (veget_max <= min_stomate), and after a cut the area is still there.
                    IF (aw_new + aw_old .GT. min_stomate) THEN
                       age_stand_area(ipts,new_pft) = (aw_new * age_stand_area(ipts,new_pft) + &
                            aw_old * MERGE(age_stand_area(ipts,old_pft), &
@@ -3693,7 +3675,6 @@ CONTAINS
                    ! The downward path already carries this reasoning; the upward one never
                    ! needed it before, having never had a survivor.
                    IF (.NOT. ac12_partial) THEN
-                      age_stand_bm(ipts,old_pft) = zero
                       age_stand_area(ipts,old_pft) = zero
                    ENDIF
 
@@ -3990,7 +3971,9 @@ CONTAINS
     
     WRITE(numout,*) '[C0IN] aire inscrite en classe 0 cette annee :', c0in_sum
     ! Guillaume M. -- [C0BACK]: is the booked area still carried by class 1 on exit?
+    ! class0_veg exists only when N_CLASS0 > 0: reading it otherwise crashes the run.
     c0b_book = zero ; c0b_carry = zero ; c0b_excess = zero
+    IF (ALLOCATED(class0_veg)) THEN
     DO c0b_i = 1,npts
        DO c0b_k = 1,nvmap
           IF (.NOT. is_tree(start_index(c0b_k))) CYCLE
@@ -4000,6 +3983,7 @@ CONTAINS
                MAX(zero, class0_veg(c0b_i,c0b_k,1) - veget_max(c0b_i,start_index(c0b_k)))
        ENDDO
     ENDDO
+    ENDIF
     WRITE(numout,*) '[C0BACK] inscrite', c0b_book, ' portee par classe 1', c0b_carry, &
          ' excedent sans support', c0b_excess
     CALL flush(numout)

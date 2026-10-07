@@ -200,7 +200,7 @@ CONTAINS
        circ_class_n, circ_class_biomass, forest_managed, &
        longevity_eff_leaf, longevity_eff_sap, longevity_eff_root, &
        species_change_map, fm_change_map, lpft_replant, &
-       age_stand, age_stand_bm, age_stand_area, rotation_n, last_cut, mai, pai, previous_wood_volume, &
+       age_stand, age_stand_area, rotation_n, last_cut, mai, pai, previous_wood_volume, &
        mai_count, coppice_dens, &
        harvest_pool_bound, harvest_pool_acc, &
        harvest_type, harvest_cut, harvest_area_acc, &
@@ -537,7 +537,6 @@ CONTAINS
     INTEGER(i_std), DIMENSION (:,:), INTENT(inout)             :: forest_managed       !! forest management flag (is the forest 
                                                                                        !! being managed?)
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)              :: age_stand            !! Age of stand (years)
-    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: age_stand_bm         !! Biomass-weighted conserved mean stand age (years) - STAND_AGE
     REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: age_stand_area       !! AREA-weighted conserved mean stand age (years) - STAND_AGE
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)              :: rotation_n           !! Rotation number (number of rotation since pft is managed)
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)              :: last_cut             !! Years since last thinning (years)
@@ -792,6 +791,8 @@ CONTAINS
     INTEGER(i_std)                                              :: c0_nfeed_rej        !! CLASSE 0: alimentations REFUSEES (invariant min_vegfrac)
     INTEGER(i_std)                                              :: c0_ndrain           !! CLASSE 0: restitutions acceptees
     INTEGER(i_std)                                              :: c0_ndrain_rej       !! CLASSE 0: restitutions REFUSEES
+    INTEGER(i_std)                                              :: c0_nclip            !! CLASSE 0: cells whose register was clipped to the herbaceous area
+    REAL(r_std)                                                 :: c0_s_clip           !! CLASSE 0: register area dropped by the clip (-)
     REAL(r_std)                                                 :: c0_dbg_in           !! ALIM scaffolding: c0_new before the guard (-)
     LOGICAL                                                     :: c0_dbg_fired        !! ALIM scaffolding: did the guard fire?
     REAL(r_std)                                                 :: c0_net              !! CLASSE 0: net area change of the class-1 slot (-)
@@ -1265,19 +1266,17 @@ CONTAINS
                 ! clearcutting.
                 last_cut(ipts,ivm) = last_cut(ipts,ivm) + 1
 
-                ! Guillaume M. -- STAND_AGE: conserved biomass-weighted mean stand age,
+                ! Guillaume M. -- STAND_AGE: conserved area-weighted mean stand age,
                 ! ageing +1/yr with the standing biomass. The age_stand_estab floor is
                 ! needed because `prescribe` does not install seeds but saplings of a
                 ! prescribed non-zero DIAMETER: the stand is born already aged. The floor
                 ! applies only to slots CARRYING biomass, an empty slot stays at zero.
-                age_stand_bm(ipts,ivm) = MAX(age_stand_bm(ipts,ivm) + un, age_stand_estab)
                 age_stand_area(ipts,ivm) = MAX(age_stand_area(ipts,ivm) + un, age_stand_estab)
 
              ELSE
 
                 age_stand(ipts,ivm) = 0
                 last_cut(ipts,ivm) = 0
-                age_stand_bm(ipts,ivm) = zero
                 age_stand_area(ipts,ivm) = zero
 
              ENDIF
@@ -1322,7 +1321,6 @@ CONTAINS
              circ_class_n(ipts,ivm,:) = zero
              age_stand(ipts,ivm) = 0
              last_cut(ipts,ivm) = 0
-             age_stand_bm(ipts,ivm) = zero
              age_stand_area(ipts,ivm) = zero
           ENDDO
        ENDDO
@@ -1799,7 +1797,7 @@ CONTAINS
             resp_maint, resp_growth, npp_daily, &
             rue_longterm, mai, pai, &
             mai_count, previous_wood_volume, vegstress_season,&
-            matrixA, matrixV, VectorB, VectorU, age_stand, age_stand_bm, age_stand_area, last_cut, &
+            matrixA, matrixV, VectorB, VectorU, age_stand, age_stand_area, last_cut, &
             k_latosa_adapt, fm_change_map, lpft_replant, cn_leaf_min_season,&
             cn_leaf_init_2D, nstress_season, soil_n_min, p_O2, bact, &
             CN_som_litter_longterm, sugar_load, &
@@ -2072,6 +2070,11 @@ CONTAINS
        ! nothing guarantees the booked area is still in the herbaceous PFT. Without this
        ! guard the drift would be SILENT and the restitution would hand back, N_CLASS0 years
        ! later, an area that no longer exists.
+       ! Guillaume M. -- Clip, do not stop: a register above the herbaceous area is scaled
+       ! down to it, so the restitution never returns area that no longer exists. Seen on
+       ! tiny coastal cells with no natural herbaceous PFT. Logged per cell and counted, so
+       ! the drift stays visible; the register is bookkeeping, no carbon or area moves here.
+       c0_nclip = 0 ; c0_s_clip = zero
        DO c0_i = 1,npts
           c0_sum = SUM(class0_veg(c0_i,:,:))
           IF (c0_sum <= min_stomate) CYCLE
@@ -2081,17 +2084,19 @@ CONTAINS
              c0_best = c0_best + veget_max_new(c0_i,c0_k)
           ENDDO
           IF (c0_sum > c0_best + min_vegfrac) THEN
-             WRITE(numout,*) 'CLASSE 0 : registre > aire herbacee, ipts', c0_i, &
+             WRITE(numout,*) 'CLASSE 0 : registre > aire herbacee, ecrete, ipts', c0_i, &
                   ' registre', c0_sum, ' herbacee', c0_best
-             ! Guillaume M. -- flush before ipslerr_p(3): without it the WRITE above is
-             ! lost with the MPI_ABORT and the guard fires with no diagnostic at all.
-             CALL flush(numout)
-             CALL ipslerr_p(3,'stomate_lpj', &
-                  'classe 0 : le registre annonce plus d''aire que l''herbacee n''en porte', &
-                  'derive registre/physique', &
-                  'la restitution creerait de l''aire ex nihilo')
+             class0_veg(c0_i,:,:) = class0_veg(c0_i,:,:) * (c0_best / c0_sum)
+             c0_nclip = c0_nclip + 1
+             c0_s_clip = c0_s_clip + (c0_sum - c0_best)
           ENDIF
        ENDDO
+       IF (c0_nclip > 0) THEN
+          WRITE(numout,*) '[C0CLIP] mailles ecretees', c0_nclip, ' aire retiree du registre', c0_s_clip
+          CALL ipslerr_p(2,'stomate_lpj', &
+               'class 0: register above the herbaceous area, clipped', &
+               'see [C0CLIP] and CLASSE 0 lines in out_orchidee', '')
+       ENDIF
 
        ! Guillaume M. -- The land-cover-change path must be activated (below). With a frozen
        ! map (VEGET_UPDATE = 0Y) land_cover_change_main is NEVER called, so the veget_max_new
@@ -2216,7 +2221,7 @@ CONTAINS
             harvest_pool_bound,   bm_to_litter,         turnover_daily,             leaf_age, &
             longevity_eff_leaf,   longevity_eff_sap,          longevity_eff_root, &
             veget_max_new,        loss_gain,            age_stand,                  last_cut, &
-            age_stand_bm, age_stand_area, &
+            age_stand_area, &
             k_latosa_adapt,       losses,               light_tran_to_floor_season, lpft_replant, &
             soil_n_min,           bact,                 species_change_map,         cn_leaf_init_2D, &
             bm_sapl_2D,           tree_bm_to_litter,    fLulccResidue,              fDeforestToProduct, &
@@ -2303,7 +2308,7 @@ CONTAINS
             plant_status, veget_max_hist, soil_n_min, forest_managed)
        !-
 
-       CALL sapiens_forestry_main (npts, age_stand, age_stand_bm, last_cut, &
+       CALL sapiens_forestry_main (npts, age_stand, last_cut, &
             circ_class_n, circ_class_kill, forest_managed, &
             circ_class_biomass, mai, pai, previous_wood_volume, &
             mai_count, coppice_dens, veget_max, fm_change_map, &
@@ -2428,7 +2433,7 @@ CONTAINS
             circ_class_kill, gap_area_save, forest_managed, &
             soil_temp_daily, root_profile, max_wind_speed_storm, max_wind_ratio_storm, &
             count_storm, is_storm, wind_ratio_max_save, wind_ratio_sum_save, &
-            wind_speed_max_save)
+            wind_speed_max_save, age_stand_area)
        CALL bmnan_probe(bm_to_litter, 'wind_damage')
 
     ENDIF
@@ -2503,7 +2508,7 @@ CONTAINS
             harvest_pool_bound,   bm_to_litter,       turnover_daily,    leaf_age, &
             longevity_eff_leaf, longevity_eff_sap, longevity_eff_root, &
             veget_max_disturb,    loss_gain,          age_stand,         last_cut, &
-            age_stand_bm, age_stand_area, &
+            age_stand_area, &
             k_latosa_adapt,       losses, light_tran_to_floor_season,    lpft_replant, &
             soil_n_min,           bact,               species_change_map, &
             cn_leaf_init_2D,      bm_sapl_2D,         tree_bm_to_litter, fLulccResidue, &
@@ -3094,7 +3099,7 @@ CONTAINS
             harvest_pool_bound,   bm_to_litter,       turnover_daily,    leaf_age, &
             longevity_eff_leaf, longevity_eff_sap, longevity_eff_root, &
             veget_max_disturb,    loss_gain,          age_stand,         last_cut, &
-            age_stand_bm, age_stand_area, &
+            age_stand_area, &
             k_latosa_adapt,       losses, light_tran_to_floor_season,    lpft_replant, &
             soil_n_min,           bact,               species_change_map, &
             cn_leaf_init_2D,      bm_sapl_2D,         tree_bm_to_litter, fLulccResidue, &
@@ -4422,7 +4427,6 @@ CONTAINS
     CALL xios_orchidee_send_field("LAI_MEAN_GS",lai_diag)
     CALL xios_orchidee_send_field("AGE",age)
     ! Guillaume M. -- STAND_AGE: conserved biomass-weighted mean stand age (per PFT slot)
-    CALL xios_orchidee_send_field("AGE_STAND_BM", age_stand_bm)
     CALL xios_orchidee_send_field("AGE_STAND_AREA", age_stand_area)
     CALL xios_orchidee_send_field("HEIGHT",qm_height)
     CALL xios_orchidee_send_field("PIPE_TUNE2",pipe_tune2)

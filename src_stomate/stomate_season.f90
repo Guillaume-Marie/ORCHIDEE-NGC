@@ -1503,6 +1503,16 @@ CONTAINS
        ENDWHERE
     ENDDO
 
+    ! Guillaume M. -- OK_BEETLE_ACUTE_DROUGHT: track this year's low of monthly root-zone moisture
+    ! over the active period (weekly air temperature above beetle_drought_tact).
+    IF (ok_beetle_acute_drought) THEN
+       DO j = 2, nvm
+          WHERE ((t2m_week(:) - ZeroCelsius) .GT. beetle_drought_tact)
+             moist_min_year(:,j) = MIN(moist_min_year(:,j), vegstress_month(:,j))
+          ENDWHERE
+       ENDDO
+    ENDIF
+
     CALL xios_orchidee_send_field("GROWING_SEASON",is_growing_season)
     CALL xios_orchidee_send_field("POT_GROWING_SEASON",is_pot_growing_season)
 
@@ -1665,6 +1675,14 @@ CONTAINS
          ENDDO
          tmp_legacy(:,:,1) = vegstress_season(:,:)       ! Update
          season_drought_legacy(:,:,:) = tmp_legacy(:,:,:)
+         ! Guillaume M. -- OK_BEETLE_ACUTE_DROUGHT: push this year's moisture low, then reset it.
+         IF (ok_beetle_acute_drought) THEN
+            DO iyear = beetle_drought_nref, 2, -1
+               moist_min_legacy(:,:,iyear) = moist_min_legacy(:,:,iyear-1)
+            ENDDO
+            moist_min_legacy(:,:,1) = moist_min_year(:,:)
+            moist_min_year(:,:) = un
+         ENDIF
 
        ! for beetle generation index
          tmp_legacy(:,:,:) = 1

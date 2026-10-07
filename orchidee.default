@@ -2434,6 +2434,24 @@ OK_AED_HUMIGN =  n
 # OK_AED_FUEL ([FLAG]) :  Flag for opening fragmentation effects on feul wetness 	{.NOT. FIRE_DISABLE}
 OK_AED_FUEL =  n 
 
+# OK_AED_STORM ([FLAG]) :  Edge-driven closer/further split in the windthrow module (AED_STORM) 	{OK_WINDTHROW and OK_AED_FEEDBACK}
+OK_AED_STORM =  n 
+
+# EDGE_STORM_FACTOR ([-]) :  Gain on the edge-exposed stand fraction, calibrated for a zero pan-EU bias between edge scenarios 	{OK_AED_STORM}
+# OK_STORM_EDGE_BAND ([FLAG]) :  Average the wind load over the edge band instead of taking one point 	{OK_WINDTHROW}
+OK_STORM_EDGE_BAND =  n
+
+# EDGE_LOAD_MAX_HEIGHTS ([tree heights]) :  Width of the zone where the edge raises the wind load 	{OK_STORM_EDGE_BAND}
+EDGE_LOAD_MAX_HEIGHTS =  2.0
+
+EDGE_STORM_FACTOR =  1.0 
+
+# EDGE_STORM_ACCLIM_YR ([years]) :  E-folding stand age of the wind acclimation of exposed stands 	{OK_AED_STORM}
+EDGE_STORM_ACCLIM_YR =  20.0 
+
+# EDGE_STORM_PLATEAU ([-]) :  Residual edge sensitivity of fully acclimated stands (0 = ignores the edge, 1 = no acclimation) 	{OK_AED_STORM}
+EDGE_STORM_PLATEAU =  0.25 
+
 # CF_TRESHOLD ([-] ) :  Crown fire happens when ignited_fraction is higher than cf_threshold 	{}
 CF_TRESHOLD =  0.5 (Could be optimized) 
 
@@ -2448,6 +2466,9 @@ WETNESS_DIFF =  0.25 (Bowring et al.. 2024)
 
 # EDGE_IGNITION_FACTOR ([-]  ) :  Relative fuel wetness difference between edge and interior 	{}
 EDGE_IGNITION_FACTOR =  1.0 (Bowring et al.. 2024) 
+
+# EDGE_IGNITION_BASE_FRAC ([-]) :  Share of the population-driven human ignitions kept when OK_AED_HUMIGN is on (the edge term is additive; < 1 conserves the total ignitions between off and real; A_ND_SCALE stays the resolution factor) 	{OK_AED_HUMIGN}
+EDGE_IGNITION_BASE_FRAC =  1.0 
 
 # EDGE_WIND_FACTOR ([-]  ) :  Relative fuel wetness difference between edge and interior 	{}
 EDGE_WIND_FACTOR =  1.0 (Bowring et al.. 2024) 
@@ -3975,6 +3996,12 @@ EDGE_LENGTH_FIELD_NAME =  edge_length
 # EDGE_MIN_PATCH_AREA ([m²]) :  Minimum forest/disturbance patch area used for the edge-length cap 	{OK_AED_FEEDBACK}
 EDGE_MIN_PATCH_AREA =  4000. 
 
+# EDGE_SCENARIO ([-]) :  Edge-length scenario: real (calibrated chain), off (no edge), max (circular patches) 	{OK_AED_FEEDBACK}
+EDGE_SCENARIO =  real
+
+# EDGE_HYDRO_FILE ([FILE]) :  Permanent edge map from lakes, coast and rivers (field edge_hydro, m per cell); NONE = term off 	{OK_AED_FEEDBACK}
+EDGE_HYDRO_FILE =  NONE
+
 # EDGE_PGAP_FACTOR ([-]) :  Relative change of Pgap at the edge vs interior 	{OK_AED_LIGHT}
 EDGE_PGAP_FACTOR =  0.225 
 
@@ -4018,7 +4045,7 @@ MI_EDGE_SHAPE_COEF =  3.800
 MI_HARVEST_RATE =  0.00043, 0.00067, 0.00277, 0.00562, 0.00987 
 
 # MI_ROTATION_FACTOR (-) :  (no !Config Desc in the source) 	{-}
-MI_ROTATION_FACTOR =  20.0, 1.60, 1.00, 0.65, 0.35 
+MI_ROTATION_FACTOR =  20.0, 1.00, 1.00, 0.75, 0.30 
 
 # N_CLASS0 ([an]) :  Duree de la phase de regeneration apres coupe rase (an) 	{OK_AGE_CLASS_BOUND_PFT}
 N_CLASS0 =  0 
@@ -4083,9 +4110,6 @@ OK_ROAD_FOREST_MASK =  y
 # OK_SLOW_DEATH_DENSITY ([-]) :  Keep the slow death of stands below dens_target 	{OK_STOMATE}
 OK_SLOW_DEATH_DENSITY =  y 
 
-# OK_WIND_PRODUCT ([FLAG]) :  Single-threshold storm trigger combining wind magnitude and anomaly 	{OK_WINDTHROW}
-OK_WIND_PRODUCT =  n 
-
 # PEST_BIOMASS_REF ([gC/m²]) :  Standing biomass density used to convert beetle kill (gC/m²) to area 	{OK_AED_FEEDBACK}
 PEST_BIOMASS_REF =  10000.0 
 
@@ -4121,8 +4145,5 @@ WIND_RATIO_B =  100.0
 
 # WIND_RATIO_C (-) :  (no !Config Desc in the source) 	{-}
 WIND_RATIO_C =  0.0 
-
-# WIND_STORM_PRODUCT_THR ([m2/s2]) :  Threshold of the single-product storm trigger 	{OK_WIND_PRODUCT}
-WIND_STORM_PRODUCT_THR =  13000. 
 
 # ==== end of local developments

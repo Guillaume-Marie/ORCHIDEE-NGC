@@ -827,14 +827,25 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(ok_aed_humign)
   LOGICAL, SAVE :: ok_aed_fuel                         !! flag that allows fragmentation fuel wetness effect (true/false)
 !$OMP THREADPRIVATE(ok_aed_fuel)
+  ! Guillaume M. -- Edge -> windthrow channel (AED_STORM). The stand fraction exposed to edge
+  ! gusts comes from the AED edge geometry, weighted by a stand-age sensitivity that decays
+  ! to a plateau (acclimation belongs to the trees, not to the edge line).
+  LOGICAL, SAVE :: ok_aed_storm                        !! flag: edge-driven closer/further split in wind_damage (true/false)
+!$OMP THREADPRIVATE(ok_aed_storm)
+  REAL(r_std), SAVE :: edge_storm_factor = 1.0_r_std   !! gain on the exposed fraction, calibrated for a zero pan-EU bias (unitless)
+!$OMP THREADPRIVATE(edge_storm_factor)
+  REAL(r_std), SAVE :: edge_storm_acclim_yr = 20.0_r_std !! e-folding stand age of wind acclimation (years)
+!$OMP THREADPRIVATE(edge_storm_acclim_yr)
+  REAL(r_std), SAVE :: edge_storm_plateau = 0.25_r_std !! residual sensitivity of acclimated stands (unitless, 0-1)
+!$OMP THREADPRIVATE(edge_storm_plateau)
   LOGICAL, SAVE :: ok_aed_light                        !! flag that allows fragmentation light/canopy effect (true/false)
 !$OMP THREADPRIVATE(ok_aed_light)
   LOGICAL, SAVE :: ok_aed_feedback                     !! flag for perturbation -> edge_length feedback (Marie 2026, true/false)
 !$OMP THREADPRIVATE(ok_aed_feedback)
   LOGICAL, SAVE :: ok_edge_from_age_class                     !! edge length derived from the young age-class open area A_open, instead of a tau_rec relaxation
 !$OMP THREADPRIVATE(ok_edge_from_age_class)
-  LOGICAL, SAVE :: stand_age_bm_in_restart = .FALSE.   !! STAND_AGE: TRUE when age_stand_bm was present in the restart -> cold-start fallback to age_stand must NOT override it
-!$OMP THREADPRIVATE(stand_age_bm_in_restart)
+  LOGICAL, SAVE :: stand_age_in_restart = .FALSE.      !! STAND_AGE: TRUE when age_stand_area (or the legacy age_stand_bm) was present in the restart -> cold-start derivation must NOT override it
+!$OMP THREADPRIVATE(stand_age_in_restart)
   REAL(r_std), SAVE :: dia_rotation_tol                !! AGE_ROTATION: lower tolerance on the clearcut diameter (fraction, ~0.15-0.20)
 !$OMP THREADPRIVATE(dia_rotation_tol)
   LOGICAL, SAVE :: ok_progressive_harvest              !! PROGRESSIVE_HARVEST: clearcut a rotation-paced FRACTION of the mature slot
@@ -862,7 +873,7 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(cop_r_up)
   REAL(r_std), SAVE :: cop_r_down                      !! COPPICE_2CLASS: height ratio below which a slot falls back to class 1 (-)
 !$OMP THREADPRIVATE(cop_r_down)
-  REAL(r_std), SAVE :: age_stand_estab                 !! Age d'un peuplement fraichement etabli (an), plancher de age_stand_bm
+  REAL(r_std), SAVE :: age_stand_estab                 !! Age d'un peuplement fraichement etabli (an), plancher de age_stand_area
 !$OMP THREADPRIVATE(age_stand_estab)
   REAL(r_std), SAVE :: aed_mix_tau                     !! AED_REGROWTH v2: memory (yr) of the leaky agent-flux integrator (agent mix)
 !$OMP THREADPRIVATE(aed_mix_tau)
@@ -1716,6 +1727,12 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
 !$OMP THREADPRIVATE(patch_multiplier_forest)
   REAL(r_std), SAVE          :: edge_ignition_factor       !! The multiplier for increasing ignition due to edge (unitless) (0-1)
 !$OMP THREADPRIVATE(edge_ignition_factor)
+  ! Guillaume M. -- Share of the population-driven ignitions kept when the edge term is on. The
+  ! edge term is additive, so conserving the total ignitions between a world without edges and
+  ! the real one needs the base to give up the share the edge takes. A_ND_SCALE is the grid
+  ! resolution factor and must not carry this.
+  REAL(r_std), SAVE          :: edge_ignition_base_frac = 1.0_r_std !! base-ignition share kept under OK_AED_HUMIGN (unitless, 0-1)
+!$OMP THREADPRIVATE(edge_ignition_base_frac)
   REAL(r_std), SAVE          :: edge_wind_factor           !! The multiplier for increasing wind due to edge (unitless) (0-1)
 !$OMP THREADPRIVATE(edge_wind_factor)
   REAL(r_std), SAVE          :: wetness_diff               !! Relative fuel wetness difference between edge and interior (unitless) (0-1)
@@ -1750,6 +1767,12 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
 !$OMP THREADPRIVATE(aed_edge_ref_frac)
   REAL(r_std), SAVE          :: edge_min_patch_area        !! Min disturbance/forest patch area for the edge cap (m²)
 !$OMP THREADPRIVATE(edge_min_patch_area)
+  ! Guillaume M. -- EDGE_SCENARIO (MODULE_DESIGN_EDGE_SCENARIO.md): real = the calibrated
+  ! chain, off = no edge at all (trunk behaviour, AED = 50 km), max = every disturbed patch an
+  ! isolated disc of edge_min_patch_area. One key so the three D5.2 runs differ by it alone.
+  INTEGER(i_std), PARAMETER  :: edge_scen_real = 0, edge_scen_off = 1, edge_scen_max = 2
+  INTEGER(i_std), SAVE       :: edge_scenario = edge_scen_real  !! Edge scenario selector (-)
+!$OMP THREADPRIVATE(edge_scenario)
   !! --- Intensite de gestion : concept unique dont derivent tous les parametres de
   !!     gestion par maille (design/MODULE_DESIGN_MANAGEMENT_INTENSITY.md, 2026-07-25).
   !!     Remplace le levier fragmentation (ok_harvest_fragmentation, edge_shape_coef,
@@ -2769,6 +2792,97 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
   ! The optional PFT map SOIL_INIT_PFT_MAP is read in stomate_io (needs nvm and nvm_src).
   CHARACTER(LEN=80), SAVE   :: soil_init_file             !! Reference soil-pool file, regular lon/lat grid ('NONE' = off)
 !$OMP THREADPRIVATE(soil_init_file)
+  ! Guillaume M. -- OK_STORM_EDGE_BAND: the two wind-load factors of wind_damage are evaluated
+  ! at ONE point each (the outer edge of the near band, and 9 tree heights inside). A band
+  ! compared to a point makes the edge come out more resistant than the interior. Under this
+  ! flag the load is averaged over the band and over the interior instead.
+  LOGICAL, SAVE             :: ok_storm_edge_band          !! Average the edge wind load over the band instead of one point
+!$OMP THREADPRIVATE(ok_storm_edge_band)
+  ! Guillaume M. -- Width of the zone where the edge raises the wind load, in tree heights.
+  ! tree_heights_from_edge is the wind PENETRATION depth (28/LAI/h), often 4 to 6 heights; the
+  ! edge term of Hale et al. decays by a factor 3 per height, so it is spent after 1 to 2.
+  REAL(r_std), SAVE         :: edge_load_max_heights       !! Width of the edge-affected zone (tree heights)
+!$OMP THREADPRIVATE(edge_load_max_heights)
+  ! Guillaume M. -- OK_SPACING_TOP_CLASS: current_spacing counts ALL merchantable trees, which
+  ! compensates a self-thinning defect inside the wind module and masks any fix of stem density.
+  ! Under this flag the original formula is restored: the largest circumference class only.
+  LOGICAL, SAVE             :: ok_spacing_top_class        !! Tree spacing from the largest circumference class only
+!$OMP THREADPRIVATE(ok_spacing_top_class)
+  ! Guillaume M. -- OK_STORM_WIND_PER_EVENT: the damage wind max_wind_speed_storm is otherwise a
+  ! record kept since the last kill, fed every day and stored in the restart. Under this flag it
+  ! is the maximum of the current storm only, reset at onset.
+  LOGICAL, SAVE             :: ok_storm_wind_per_event     !! Damage wind taken over the current storm only
+!$OMP THREADPRIVATE(ok_storm_wind_per_event)
+  ! Guillaume M. -- OK_STORM_KILL_BOTH_ZONES: when the damage types of the edge and interior zones
+  ! differ, the interior call zeroes the edge-zone kill. Under this flag each zone is computed in
+  ! its own zeroed array and both are summed by damage type.
+  LOGICAL, SAVE             :: ok_storm_kill_both_zones    !! Storm kill = edge zone + interior zone
+!$OMP THREADPRIVATE(ok_storm_kill_both_zones)
+  ! Guillaume M. -- OK_STORM_PEAK_TRIGGER: storm onset on the raw daily peak wind over a local
+  ! climatological peak (mean over the last years of the n-th largest daily peak), one threshold
+  ! everywhere.
+  LOGICAL, SAVE             :: ok_storm_peak_trigger       !! Storm onset on the daily peak over the local reference
+!$OMP THREADPRIVATE(ok_storm_peak_trigger)
+  REAL(r_std), SAVE         :: wind_peak_trigger_thr       !! Onset threshold on peak / reference (-)
+!$OMP THREADPRIVATE(wind_peak_trigger_thr)
+  INTEGER(i_std), SAVE      :: wind_peak_ref_ntop          !! Rank of the daily peak kept as the yearly reference (-)
+!$OMP THREADPRIVATE(wind_peak_ref_ntop)
+  LOGICAL, SAVE             :: ok_storm_kill_area_weighted !! Storm kill weighted by the area fraction of each zone
+!$OMP THREADPRIVATE(ok_storm_kill_area_weighted)
+  ! Guillaume M. -- OK_STORM_GUST: storm detection and damage driven by the ERA5 gust file (daily max and hours above
+  ! levels); damage = logistic in the episode's hours above the stand's critical gust, acclimated to the usual yearly dose.
+  LOGICAL, SAVE             :: ok_storm_gust               !! Storm module driven by STORM_GUST_FILE
+!$OMP THREADPRIVATE(ok_storm_gust)
+  CHARACTER(LEN=100), SAVE  :: storm_gust_file             !! Yearly gust file on the forcing grid
+!$OMP THREADPRIVATE(storm_gust_file)
+  REAL(r_std), SAVE         :: storm_gust_gref             !! Critical gust = CWS x storm_gust_gref (-)
+!$OMP THREADPRIVATE(storm_gust_gref)
+  REAL(r_std), SAVE         :: storm_gust_d50              !! Dose (h above the critical gust) for half the maximum damage (h)
+!$OMP THREADPRIVATE(storm_gust_d50)
+  REAL(r_std), SAVE         :: storm_gust_s                !! Width of the dose logistic (h)
+!$OMP THREADPRIVATE(storm_gust_s)
+  REAL(r_std), SAVE         :: storm_gust_kappa            !! Acclimation: d50 += kappa x usual yearly hours above the critical gust (-)
+!$OMP THREADPRIVATE(storm_gust_kappa)
+  INTEGER(i_std), PARAMETER :: ngust_lev = 21              !! Gust levels of the file (10, 12.5, ... 60 m s-1)
+  ! Guillaume M. -- OK_BEETLE_ACUTE_DROUGHT: the yearly low of root-zone moisture, relative to the
+  ! lows of previous years, weakens spruce defence against bark beetles. The chronic channel
+  ! (vegstress_season) saturates at one and is smoothed over a decade, so it never moves.
+  LOGICAL, SAVE             :: ok_beetle_acute_drought     !! Acute drought anomaly in host defence
+!$OMP THREADPRIVATE(ok_beetle_acute_drought)
+  REAL(r_std), SAVE         :: beetle_drought_gain         !! Weight of the relative anomaly in the defence stress (-)
+!$OMP THREADPRIVATE(beetle_drought_gain)
+  REAL(r_std), SAVE         :: beetle_drought_tact         !! Weekly air temperature above which the low is tracked (C)
+!$OMP THREADPRIVATE(beetle_drought_tact)
+  INTEGER(i_std), SAVE      :: beetle_drought_nref         !! Years in the moisture-low buffer (this year + reference years)
+!$OMP THREADPRIVATE(beetle_drought_nref)
+  ! Guillaume M. -- OK_AED_PEST: edge trees sit in a warmer, drier microclimate and are the
+  ! easy targets a beetle population settles on. Under this flag the host health index of
+  ! bark_beetle_damage becomes a bounded convex mix of an edge zone and an interior one,
+  ! on the same AED geometry the storm channel uses.
+  LOGICAL, SAVE             :: ok_aed_pest                 !! Edge microclimate raises host susceptibility to bark beetles
+!$OMP THREADPRIVATE(ok_aed_pest)
+  REAL(r_std), SAVE         :: edge_pest_depth             !! Depth of the edge-affected band for bark beetles (m)
+!$OMP THREADPRIVATE(edge_pest_depth)
+  REAL(r_std), SAVE         :: edge_pest_susc              !! Susceptibility gain applied to hosts within that band (unitless)
+!$OMP THREADPRIVATE(edge_pest_susc)
+  ! Guillaume M. -- OK_AED_PEST_FRESH: observed beetle kills cluster along FRESH sun-exposed
+  ! edges, one to three years after the opening, while old edges behave like the interior.
+  ! The gain then acts on the mortality probability of a fresh-edge band read from the
+  ! class-0 conveyor, plus an optional old-edge band (MODULE_DESIGN_AED_PEST_FRESH_EDGE.md).
+  LOGICAL, SAVE             :: ok_aed_pest_fresh           !! Beetle edge effect carried by fresh, lagged edges
+!$OMP THREADPRIVATE(ok_aed_pest_fresh)
+  REAL(r_std), SAVE         :: edge_pest_fresh_gain        !! Mortality gain inside the fresh-edge band (unitless)
+!$OMP THREADPRIVATE(edge_pest_fresh_gain)
+  REAL(r_std), SAVE         :: edge_pest_fresh_depth       !! Depth of the fresh-edge band (m)
+!$OMP THREADPRIVATE(edge_pest_fresh_depth)
+  INTEGER(i_std), SAVE      :: edge_pest_lag_min           !! Youngest opening age that counts as fresh edge (years)
+!$OMP THREADPRIVATE(edge_pest_lag_min)
+  INTEGER(i_std), SAVE      :: edge_pest_lag_max           !! Oldest opening age that counts as fresh edge (years)
+!$OMP THREADPRIVATE(edge_pest_lag_max)
+  REAL(r_std), SAVE         :: edge_pest_old_gain          !! Mortality gain inside the old-edge band (unitless)
+!$OMP THREADPRIVATE(edge_pest_old_gain)
+  REAL(r_std), SAVE         :: edge_pest_base_frac         !! Scaling of the interior mortality probability, same-world normalisation (unitless)
+!$OMP THREADPRIVATE(edge_pest_base_frac)
   LOGICAL, SAVE             :: ok_min_density_reset       !! Keep the dens_target-driven clearcut (sapiens_forestry CONDITION 1)
 !$OMP THREADPRIVATE(ok_min_density_reset)
   LOGICAL, SAVE             :: ok_slow_death_density      !! Keep the dens_target-driven slow death of sparse stands (stomate_kill)
