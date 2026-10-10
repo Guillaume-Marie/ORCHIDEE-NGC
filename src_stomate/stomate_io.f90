@@ -145,7 +145,7 @@ CONTAINS
        &  burried_min_nitro,burried_som, &
        &  burried_deepSOM_a, burried_deepSOM_s, burried_deepSOM_p, &
        &  wood_leftover_legacy, i_beetles_activity_legacy,season_drought_legacy, &
-       &  P_beetles_attacked_legacy, beetle_diapause, sumTeff, woody_litter_to_use, &
+       &  P_beetles_attacked_legacy, host_wood_ref, beetle_diapause, sumTeff, woody_litter_to_use, &
        &  i_beetles_generation, B_beetles_kill_legacy, max_wind_speed_storm, &
        &  max_wind_ratio_storm, wind_ratio_max_save, wind_ratio_sum_save, & ! JJ 2026: added companions
        &  wind_speed_max_save, wind_mean_save, wind_sum, is_storm, count_storm, &
@@ -346,6 +346,7 @@ CONTAINS
     REAL(r_std), DIMENSION(:,:,:), INTENT(out)             :: season_drought_legacy    !! mean growing season moisture availability
     REAL(r_std), DIMENSION(:,:,:), INTENT(out)             :: wood_leftover_legacy     !!
     REAL(r_std), DIMENSION(:,:), INTENT(out)               :: P_beetles_attacked_legacy!!
+    REAL(r_std), DIMENSION(:,:), INTENT(out)               :: host_wood_ref            !! Running mean of the attackable host wood (gC m-2)
     INTEGER(i_std), DIMENSION(:,:), INTENT(out)            :: beetle_diapause          !!
     REAL(r_std), DIMENSION(:,:), INTENT(out)               :: sumTeff                  !! sum of temp of beetle phenology
     REAL(r_std), DIMENSION(:,:), INTENT(out)               :: woody_litter_to_use      !! Yearly sum of woody litter pool to use for wood_leftover in the pest module
@@ -2165,6 +2166,18 @@ CONTAINS
             &     .TRUE.,P_beetles_attacked_legacy(:,:),'gather',nbp_glo,index_g)
         IF (ALL(P_beetles_attacked_legacy(:,:) == val_exp)) P_beetles_attacked_legacy(:,:)= zero
 
+      ! Guillaume M. -- OK_BEETLE_HOST_DEPLETION: zero means "not set yet"; the pest module then
+      ! starts the reference at the current host wood.
+      host_wood_ref(:,:) = zero
+      IF (ok_beetle_host_depletion) THEN
+         host_wood_ref(:,:) = val_exp
+         var_name = 'host_wood_ref'
+         CALL restget_p &
+               &    (rest_id_stomate, var_name, nbp_glo, nvm,1, itime, &
+               &     .TRUE.,host_wood_ref(:,:),'gather',nbp_glo,index_g)
+         IF (ALL(host_wood_ref(:,:) == val_exp)) host_wood_ref(:,:) = zero
+      ENDIF
+
     ! The routines don't like to store logical variables.  So instead
     ! we create a real array.  If the value of the real array is one,
     ! we assign a value of TRUE to the logical array.  Anything
@@ -2536,7 +2549,7 @@ CONTAINS
        &  burried_min_nitro,burried_som, &
        &  burried_deepSOM_a, burried_deepSOM_s, burried_deepSOM_p,&
        &  wood_leftover_legacy,i_beetles_activity_legacy,season_drought_legacy,&
-       &  P_beetles_attacked_legacy, beetle_diapause, sumTeff, woody_litter_to_use, &
+       &  P_beetles_attacked_legacy, host_wood_ref, beetle_diapause, sumTeff, woody_litter_to_use, &
        &  i_beetles_generation, B_beetles_kill_legacy, max_wind_speed_storm, &
        &  max_wind_ratio_storm, wind_ratio_max_save, wind_ratio_sum_save, & ! JJ 2026: added companions
        &  wind_speed_max_save, wind_mean_save, wind_sum, is_storm, count_storm, &
@@ -2725,6 +2738,7 @@ CONTAINS
     REAL(r_std), DIMENSION(:,:,:), INTENT(in)             :: season_drought_legacy    !! mean growing season moisture availability 
     REAL(r_std), DIMENSION(:,:,:), INTENT(in)             :: wood_leftover_legacy     !!
     REAL(r_std), DIMENSION(:,:), INTENT(in)               :: P_beetles_attacked_legacy        !!
+    REAL(r_std), DIMENSION(:,:), INTENT(in)               :: host_wood_ref            !! Running mean of the attackable host wood (gC m-2)
     INTEGER(i_std), DIMENSION(:,:), INTENT(in)            :: beetle_diapause          !!
     REAL(r_std), DIMENSION(:,:), INTENT(in)               :: sumTeff                  !! sum of temperazture for beetle phenology
     REAL(r_std), DIMENSION(:,:), INTENT(in)               :: woody_litter_to_use      !! Yearly sum of woody litter pool to use for wood_leftover in the pest module
@@ -3475,6 +3489,11 @@ CONTAINS
        var_name = 'P_beetles_attacked_legacy'
        CALL restput_p (rest_id_stomate, var_name, nbp_glo, nvm,1, itime, &
                &     P_beetles_attacked_legacy, 'scatter', nbp_glo,index_g)
+       IF (ok_beetle_host_depletion) THEN
+          var_name = 'host_wood_ref'
+          CALL restput_p (rest_id_stomate, var_name, nbp_glo, nvm,1, itime, &
+                  &     host_wood_ref, 'scatter', nbp_glo,index_g)
+       ENDIF
 
        DO l=1,legacy_years
 

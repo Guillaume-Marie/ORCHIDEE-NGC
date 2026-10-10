@@ -3085,6 +3085,83 @@ CONTAINS
     IF (beetle_drought_nref < 2) CALL ipslerr_p(3, 'config_stomate_parameters', &
          'BEETLE_DROUGHT_NREF must be >= 2', '', '')
     !
+    !Config Key   = OK_BEETLE_SURVIVAL_UNION
+    !Config Desc  = Beetle survival as the union of its channels instead of their maximum
+    !Config If    = OK_PEST
+    !Config Def   = n
+    !Config Help  = Survival = 1 - (1 - alive)(1 - dead)(1 - drought): storm wood and the beetle
+    !Config         population add up instead of the larger one masking the other, so an outbreak
+    !Config         can build up over the years the windfall lasts.
+    !Config         See design/MODULE_DESIGN_BEETLE_OUTBREAK_MEMORY.md section 7.
+    !Config         [CATEGORIE : OPTION SCIENTIFIQUE -- choix de modelisation, permanent]
+    !Config Units = [-]
+    ok_beetle_survival_union = .FALSE.
+    CALL getin_p('OK_BEETLE_SURVIVAL_UNION', ok_beetle_survival_union)
+    !
+    !Config Key   = OK_BEETLE_HOST_DEPLETION
+    !Config Desc  = Beetle pressure braked by the depletion of the attackable host wood
+    !Config If    = OK_PEST
+    !Config Def   = n
+    !Config Help  = Patch-killing beetles stop when the host runs out at the landscape scale, not when
+    !Config         stands thin. d = aboveground wood of the age classes >= 2 per m2 of grid cell over
+    !Config         its running mean (HOST_REF_YEARS); the pressure is scaled by a sigmoid of d,
+    !Config         normalised to 1 at d >= 1. See design/MODULE_DESIGN_BEETLE_OUTBREAK_MEMORY.md 7.14.
+    !Config         [CATEGORIE : OPTION SCIENTIFIQUE -- choix de modelisation, permanent]
+    !Config Units = [-]
+    ok_beetle_host_depletion = .FALSE.
+    CALL getin_p('OK_BEETLE_HOST_DEPLETION', ok_beetle_host_depletion)
+    !
+    !Config Key   = HOST_REF_YEARS
+    !Config Desc  = Time scale of the running reference of the attackable host wood
+    !Config If    = OK_BEETLE_HOST_DEPLETION
+    !Config Def   = 20.
+    !Config Units = [years]
+    host_ref_years = 20.
+    CALL getin_p('HOST_REF_YEARS', host_ref_years)
+    IF (host_ref_years < un) CALL ipslerr_p(3, 'config_stomate_parameters', &
+         'HOST_REF_YEARS must be at least 1', '', '')
+    !
+    !Config Key   = HOST_DEPL_LIMIT
+    !Config Desc  = Ratio of host wood to its reference at which the beetle pressure is halved
+    !Config If    = OK_BEETLE_HOST_DEPLETION
+    !Config Def   = 0.85
+    !Config Units = [-]
+    host_depl_limit = 0.85
+    CALL getin_p('HOST_DEPL_LIMIT', host_depl_limit)
+    !
+    !Config Key   = S_HOST_DEPL
+    !Config Desc  = Slope of the host depletion brake
+    !Config If    = OK_BEETLE_HOST_DEPLETION
+    !Config Def   = 30.
+    !Config Units = [-]
+    s_host_depl = 30.
+    CALL getin_p('S_HOST_DEPL', s_host_depl)
+    !
+    !Config Key   = OK_BEETLE_LIVE_BROOD
+    !Config Desc  = Brood on living trees replaces the beetle population less than windfall does
+    !Config If    = OK_PEST
+    !Config Def   = n
+    !Config Help  = A living spruce yields far fewer offspring per gallery than a felled one, so trees
+    !Config         killed by beetles feed the next generation less than windfall. The living-host
+    !Config         survival channel and the beetle kill rate feeding the activity are scaled by
+    !Config         BEETLE_LIVE_BROOD. See design/MODULE_DESIGN_BEETLE_OUTBREAK_MEMORY.md 7.15.
+    !Config         [CATEGORIE : OPTION SCIENTIFIQUE -- choix de modelisation, permanent]
+    !Config Units = [-]
+    ok_beetle_live_brood = .FALSE.
+    CALL getin_p('OK_BEETLE_LIVE_BROOD', ok_beetle_live_brood)
+    !
+    !Config Key   = BEETLE_LIVE_BROOD
+    !Config Desc  = Brood success on living trees relative to windfall
+    !Config If    = OK_BEETLE_LIVE_BROOD
+    !Config Def   = 0.4
+    !Config Help  = About 2 offspring per gallery on living trees against a tenfold increase in windfall;
+    !Config         0.4 lets a storm outbreak peak 2-3 years after the storm and end on its own.
+    !Config Units = [-]
+    beetle_live_brood = 0.4
+    CALL getin_p('BEETLE_LIVE_BROOD', beetle_live_brood)
+    IF (beetle_live_brood < zero .OR. beetle_live_brood > un) CALL ipslerr_p(3, 'config_stomate_parameters', &
+         'BEETLE_LIVE_BROOD must lie in [0,1]', '', '')
+    !
     !Config Key   = OK_AED_PEST
     !Config Desc  = Edge microclimate raises host susceptibility to bark beetles
     !Config If    = OK_PEST, OK_AED_FEEDBACK
@@ -7355,10 +7432,12 @@ CONTAINS
     !Config Key   = LEGACY_YEARS_WOOD
     !Config Desc  = The years used to calculate the wood leftover legacy (bark beetles)
     !Config If    = OK_PEST, OK_STOMATE
-    !Config Def   = 
+    !Config Def   = 3
     !Config Help  =
     !Config Units = years
-    legacy_years_wood = 1 
+    ! Guillaume M. -- Windfall stays breeding material for three years, the span over which the
+    ! outbreak loop was calibrated; a restart written with fewer years reads the missing ones as zero.
+    legacy_years_wood = 3
     CALL getin_p('LEGACY_YEARS_WOOD',legacy_years_wood)
 
     !Config Key   = BEETLE_LEGACY

@@ -1957,10 +1957,12 @@ CONTAINS
                IF ( tbark_daily(ipts) .GT. min_temp_beetle(j) .AND. tbark_daily(ipts) &
                       .LT. max_temp_beetle(j) .AND. beetle_diapause(ipts,j) == 0) THEN
     
-                  Teff= (opt_temp_beetle(j) - min_temp_beetle(j))*exp(eff_temp_beetle_a(j)* &
+                  ! Guillaume M. -- The development rate scales as a whole (brackets), so Teff ~ T - Tmin
+                  ! in degree-days, never negative.
+                  Teff= MAX(zero, (opt_temp_beetle(j) - min_temp_beetle(j))*(exp(eff_temp_beetle_a(j)* &
                         tbark_daily(ipts)) - exp(eff_temp_beetle_a(j)* &
                         eff_temp_beetle_b(j)-(eff_temp_beetle_b(j) - tbark_daily(ipts))/ &
-                        eff_temp_beetle_c(j)) - eff_temp_beetle_d(j)
+                        eff_temp_beetle_c(j)) - eff_temp_beetle_d(j)))
                   sumTeff(ipts,j)= sumTeff(ipts,j) + Teff
                ENDIF
             ELSE

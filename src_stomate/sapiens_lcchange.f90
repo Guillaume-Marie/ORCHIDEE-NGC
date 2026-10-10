@@ -107,7 +107,7 @@ CONTAINS
        burried_fresh_ltr,    burried_fresh_som,    burried_bact,               burried_min_nitro, &
        burried_som,          burried_deepSOM_a,    burried_deepSOM_s,          burried_deepSOM_p, &
        burried_adj,          kill_vessels,         vessel_loss_previous,       biomass_init_drought, &
-       mean_start_gs,        woody_litter_by_cut,  lignin_snag)
+       mean_start_gs,        woody_litter_by_cut,  lignin_snag,                wind_share)
 
     IMPLICIT NONE
     
@@ -192,6 +192,8 @@ CONTAINS
                                                                                     !! above and below ground
     REAL(r_std), DIMENSION(npts,nvm,nlevs), INTENT(inout)  :: lignin_snag           !! ratio Lignine/Carbon in snag litter,
                                                                                     !! above and below ground
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(in), OPTIONAL :: wind_share         !! Storm share of the stand-replacing damage,
+                                                                                    !! only passed for losses = 'disturbance' (unitless, 0-1)
     REAL(r_std), DIMENSION(npts,ncarb,nvm,nelements), INTENT(inout) :: som          !! carbon pool: active, slow, or passive 
                                                                                     !! @tex ($gC m^{-2}$) @endtex 
     REAL(r_std), DIMENSION(npts,nlitt,nvm,nlevs,nelements), INTENT(inout)  :: litter!! metabolic and structural litter, above and 
@@ -390,6 +392,9 @@ CONTAINS
     REAL(r_std), DIMENSION(3,nelements,2)            :: test_bank              !! Temporary variable to check mass conservation
     REAL(r_std)                                      :: plant_status_init      !! Initial plant_status of a PFT
     INTEGER(i_std)                                   :: c0r_ivm, c0r_icir      !! CLASS0_REPLANT: indices creneau / classe de circonference
+    REAL(r_std)                                      :: salv_lcc               !! Salvaged share of a stand-replacing disturbance (-)
+    REAL(r_std)                                      :: ws_lcc                 !! Storm share of the killed wood kept as breeding material (-)
+    REAL(r_std), DIMENSION(ncirc)                    :: cc_n_harv              !! Trees per circ class sent to harvest (ind m-2)
     REAL(r_std)                                      :: c0r_phi                !! CLASS0_REPLANT: fraction du creneau replantee (-)
     REAL(r_std)                                      :: c0r_share              !! CLASS0_REPLANT: poids du peuplement en place, = 1 - phi (-)
     REAL(r_std)                                      :: c0r_nmix               !! CLASS0_REPLANT: densite melangee d'une classe (ind m-2)
@@ -727,6 +732,12 @@ CONTAINS
                 ! Store the management stategy of the pixel and PFT
                 ifm = forest_managed(ipts,ivm)                
 
+                ! Guillaume M. -- Only windfall is bark beetle breeding material; trees killed by
+                ! beetles or fire still go to litter but are not counted in fresh_litter_wood.
+                ws_lcc = un
+                IF (losses .EQ. 'disturbance' .AND. PRESENT(wind_share)) &
+                     ws_lcc = wind_share(ipts,ivm)
+
                 IF(losses .EQ. 'disturbance' .AND. ifm .EQ. ifm_none) THEN
                     ! From r7635, when the natural disturbances kill more than 30% (check
                     ! replant_threshold) the vegetation fraction is moved to the youngest 
@@ -744,13 +755,38 @@ CONTAINS
                     ENDDO
                     ! Save woody litter. This will be used in pest module
                     ! (stomate_pest) for one of the susceptibility indice.
-                    fresh_litter_wood(ipts,ivm) = fresh_litter_wood(ipts,ivm) + SUM( &
+                    ! Guillaume M. -- Only the stem share breeds beetles.
+                    fresh_litter_wood(ipts,ivm) = fresh_litter_wood(ipts,ivm) + ws_lcc * SUM( &
                             (circ_class_biomass(ipts,ivm,:,isapabove,icarbon) + &
                             circ_class_biomass(ipts,ivm,:,iheartabove,icarbon)) * &
-                            circ_class_n(ipts,ivm,:) )
+                            circ_class_n(ipts,ivm,:) ) * &
+                            (un - branch_ratio(ivm))
                 ELSE
-                
-                    ! We will need the trunk diameters for all the circ classes in 
+
+                    ! Guillaume M. -- A stand-replacing disturbance in a managed forest exports only the
+                    ! salvaged share, as the partial kill in sapiens_kill does; the rest is deposited as
+                    ! in an unmanaged forest. Harvest terms below use cc_n_harv.
+                    salv_lcc = un
+                    IF (losses .EQ. 'disturbance') THEN
+                       salv_lcc = MIN(un, MAX(zero, salvage_dist(ivm,ifm) - &
+                            branch_harvest(ivm,ifm) * branch_ratio(ivm)))
+                       DO iele = 1,nelements
+                          DO ipar = 1,nparts
+                             fresh_litter(ipts,ivm,ipar,iele) = fresh_litter(ipts,ivm,ipar,iele) + &
+                                (un - salv_lcc) * SUM(circ_class_biomass(ipts,ivm,:,ipar,iele) * &
+                                circ_class_n(ipts,ivm,:))
+                          ENDDO
+                       ENDDO
+                       ! Guillaume M. -- Salvage takes stems first and leaves the branches, which do not
+                       ! breed beetles: count the stems left only.
+                       fresh_litter_wood(ipts,ivm) = fresh_litter_wood(ipts,ivm) + &
+                            ws_lcc * MAX(zero, un - salv_lcc - branch_ratio(ivm)) * &
+                            SUM((circ_class_biomass(ipts,ivm,:,isapabove,icarbon) + &
+                            circ_class_biomass(ipts,ivm,:,iheartabove,icarbon)) * circ_class_n(ipts,ivm,:))
+                    ENDIF
+                    cc_n_harv(:) = circ_class_n(ipts,ivm,:) * salv_lcc
+
+                    ! We will need the trunk diameters for all the circ classes in
                     ! order to figure out which harvest pool to put them in.
                     diameters_temp(:) = &
                          wood_to_dia(circ_class_biomass(ipts,ivm,:,:,icarbon),&
@@ -762,7 +798,7 @@ CONTAINS
                     harvest_type(ipts,ivm) = harvest_type(ipts,ivm) + ifm
                     harvest_cut(ipts,ivm) = harvest_cut(ipts,ivm) + icut_lcc_res
                     harvest_area(ipts,ivm,ilcc) = harvest_area(ipts,ivm,ilcc) + &
-                       ABS(loss_gain(ipts,ivm) * area(ipts) * contfrac(ipts))
+                       ABS(loss_gain(ipts,ivm) * area(ipts) * contfrac(ipts)) * salv_lcc
 
                     ! Now we have the stems diameters.  These are what we want to
                     ! save, and we are going to classify them by PFT type, location, 
@@ -838,11 +874,11 @@ CONTAINS
                              harvest_pool(ipts,ivm,idia,iele,ilcc) = &
                                 harvest_pool(ipts,ivm,idia,iele,ilcc) + &  
                                 ABS(loss_gain(ipts,ivm)) * area(ipts) * contfrac(ipts) * & 
-                                ( (un - branch_ratio(ivm)) * circ_class_n(ipts,ivm,icir) * &
+                                ( (un - branch_ratio(ivm)) * cc_n_harv(icir) * &
                                 ( circ_class_biomass(ipts,ivm,icir,isapabove,iele) + &
                                 circ_class_biomass(ipts,ivm,icir,iheartabove,iele) ) + &
                                 ! reserves
-                                harvest_ratio_stem * circ_class_n(ipts,ivm,icir) * &
+                                harvest_ratio_stem * cc_n_harv(icir) * &
                                 (circ_class_biomass(ipts,ivm,icir,icarbres,iele) + &
                                 circ_class_biomass(ipts,ivm,icir,ilabile,iele)) )
 
@@ -855,16 +891,16 @@ CONTAINS
                                 harvest_pool(ipts,ivm,1,iele,ilcc) + &
                                 ABS(loss_gain(ipts,ivm)) * area(ipts) * contfrac(ipts) * &
                                 ! branches
-                                (branch_ratio(ivm) * circ_class_n(ipts,ivm,icir) * &
+                                (branch_ratio(ivm) * cc_n_harv(icir) * &
                                 ( circ_class_biomass(ipts,ivm,icir,isapabove,iele) + &
                                 circ_class_biomass(ipts,ivm,icir,iheartabove,iele) ) + &
                                 ! reserves
-                                harvest_ratio_branch * circ_class_n(ipts,ivm,icir) * &
+                                harvest_ratio_branch * cc_n_harv(icir) * &
                                 ( circ_class_biomass(ipts,ivm,icir,icarbres,iele) + &
                                 circ_class_biomass(ipts,ivm,icir,ilabile,iele) )  + &
                                 ! stumps (all icarbres and ilabile is distributed
                                 ! over the stems and branches)
-                                circ_class_n(ipts,ivm,icir) * &
+                                cc_n_harv(icir) * &
                                 ( circ_class_biomass(ipts,ivm,icir,isapbelow,iele) + &
                                 circ_class_biomass(ipts,ivm,icir,iheartbelow,iele) ) )
                         
@@ -873,25 +909,25 @@ CONTAINS
                              fresh_litter(ipts,ivm,ileaf,iele) = &
                                 fresh_litter(ipts,ivm,ileaf,iele) + &
                                 circ_class_biomass(ipts,ivm,icir,ileaf,iele) * &
-                                circ_class_n(ipts,ivm,icir)
+                                cc_n_harv(icir)
                              fresh_litter(ipts,ivm,iroot,iele) = &
                                 fresh_litter(ipts,ivm,iroot,iele) + &
                                 circ_class_biomass(ipts,ivm,icir,iroot,iele) * &
-                                circ_class_n(ipts,ivm,icir)
+                                cc_n_harv(icir)
                              fresh_litter(ipts,ivm,ifruit,iele) = &
                                 fresh_litter(ipts,ivm,ifruit,iele) + &
                                 circ_class_biomass(ipts,ivm,icir,ifruit,iele) * &
-                                circ_class_n(ipts,ivm,icir)
+                                cc_n_harv(icir)
                              fresh_litter(ipts,ivm,icarbres,iele) = &
                                 fresh_litter(ipts,ivm,icarbres,iele) + &
                                 harvest_ratio_litter * &
                                 circ_class_biomass(ipts,ivm,icir,icarbres,iele) * &
-                                circ_class_n(ipts,ivm,icir)
+                                cc_n_harv(icir)
                              fresh_litter(ipts,ivm,ilabile,iele) = &
                                 fresh_litter(ipts,ivm,ilabile,iele) + &
                                 harvest_ratio_litter * &
                                 circ_class_biomass(ipts,ivm,icir,ilabile,iele) * &
-                                circ_class_n(ipts,ivm,icir)
+                                cc_n_harv(icir)
 
                              IF (iele==icarbon) THEN
                                 !+++CHECK+++
@@ -903,16 +939,16 @@ CONTAINS
                                 fLulccResidue(ipts,ivm) = fLulccResidue(ipts,ivm) + &
                                      ABS(loss_gain(ipts,ivm) * &
                                      ! branches
-                                     ( branch_ratio(ivm) * circ_class_n(ipts,ivm,icir) * &
+                                     ( branch_ratio(ivm) * cc_n_harv(icir) * &
                                      ( circ_class_biomass(ipts,ivm,icir,isapabove,iele) + &
                                      circ_class_biomass(ipts,ivm,icir,iheartabove,iele)) + &
                                      ! reserves
-                                     harvest_ratio_branch * circ_class_n(ipts,ivm,icir) * &
+                                     harvest_ratio_branch * cc_n_harv(icir) * &
                                      (circ_class_biomass(ipts,ivm,icir,icarbres,iele) + &
                                      circ_class_biomass(ipts,ivm,icir,ilabile,iele) )  + &
                                      ! stumps (all icarbres and ilabile is distributed
                                      ! over the stems and branches)
-                                     circ_class_n( ipts,ivm,icir) * &
+                                     cc_n_harv(icir) * &
                                      ( circ_class_biomass(ipts,ivm,icir,isapbelow,iele) + &
                                      circ_class_biomass(ipts,ivm,icir,iheartbelow,iele) + &
                                      circ_class_biomass(ipts,ivm,icir,iroot,iele) + &
@@ -920,10 +956,10 @@ CONTAINS
                                      circ_class_biomass(ipts,ivm,icir,ileaf,iele) ) ) )
                                 fDeforestToProduct(ipts,ivm) = fDeforestToProduct(ipts,ivm) + &
                                      ABS(loss_gain(ipts,ivm)) * & 
-                                     ( (un - branch_ratio(ivm)) * circ_class_n(ipts,ivm,icir) * &
+                                     ( (un - branch_ratio(ivm)) * cc_n_harv(icir) * &
                                      ( circ_class_biomass(ipts,ivm,icir,isapabove,iele) + &
                                      circ_class_biomass(ipts,ivm,icir,iheartabove,iele)) +&
-                                     harvest_ratio_stem * circ_class_n(ipts,ivm,icir) * &
+                                     harvest_ratio_stem * cc_n_harv(icir) * &
                                      (circ_class_biomass(ipts,ivm,icir,icarbres,iele) + &
                                      circ_class_biomass(ipts,ivm,icir,ilabile,iele) ) )
                                 !+++++++++++
@@ -1472,8 +1508,14 @@ CONTAINS
                 turnover_daily(ipts,ivm,:,:) = fresh_som_bank(:,:)
                 soil_n_min(ipts,ivm,:) = soil_n_min_bank(:)
                 bact(ipts,ivm) = bact_bank
-                woody_litter_by_cut(ipts,ivm,icut_lcc_wood) = &
-                   fresh_ltr_bank(iheartabove,icarbon) + fresh_ltr_bank(isapabove,icarbon)
+                ! Guillaume M. -- On the disturbance path the breeding material is the dedicated windfall
+                ! bank, not all fresh aboveground wood (beetle- or fire-killed included).
+                IF (losses .EQ. 'disturbance') THEN
+                   woody_litter_by_cut(ipts,ivm,icut_lcc_wood) = fresh_woody_ltr_bank
+                ELSE
+                   woody_litter_by_cut(ipts,ivm,icut_lcc_wood) = &
+                      fresh_ltr_bank(iheartabove,icarbon) + fresh_ltr_bank(isapabove,icarbon)
+                ENDIF
 
                 IF(printlev_loc .GE. 4 .AND. ipts == test_grid) THEN
                    WRITE(numout,*) 'move bank, ivm',ivm, woody_litter_by_cut(ipts,ivm,icut_lcc_wood)
@@ -1765,10 +1807,16 @@ CONTAINS
                 !woody_litter_by_cut(ipts,ivm,icut_lcc_wood) = &
                 !     share_rec *  woody_litter_by_cut(ipts,ivm,icut_lcc_wood) + &
                 !     (un - share_rec) * fresh_woody_ltr_bank
-                woody_litter_by_cut(ipts,ivm,icut_lcc_wood) = &
-                     share_rec * woody_litter_by_cut(ipts,ivm,icut_lcc_wood) + &
-                     (un - share_rec) * (fresh_ltr_bank(iheartabove,icarbon) + & 
-                                              fresh_ltr_bank(isapabove,icarbon) )
+                IF (losses .EQ. 'disturbance') THEN
+                   woody_litter_by_cut(ipts,ivm,icut_lcc_wood) = &
+                        share_rec * woody_litter_by_cut(ipts,ivm,icut_lcc_wood) + &
+                        (un - share_rec) * fresh_woody_ltr_bank
+                ELSE
+                   woody_litter_by_cut(ipts,ivm,icut_lcc_wood) = &
+                        share_rec * woody_litter_by_cut(ipts,ivm,icut_lcc_wood) + &
+                        (un - share_rec) * (fresh_ltr_bank(iheartabove,icarbon) + & 
+                                                 fresh_ltr_bank(isapabove,icarbon) )
+                ENDIF
                 IF ( ok_soil_carbon_discretization ) THEN  
                    DO igrn= 1, ngrnd 
                       deepSOM_a(ipts,igrn,ivm,:) = share_rec * deepSOM_a(ipts,igrn,ivm,:) + &

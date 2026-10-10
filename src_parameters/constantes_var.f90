@@ -2854,6 +2854,22 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
   REAL(r_std), SAVE         :: beetle_drought_tact         !! Weekly air temperature above which the low is tracked (C)
 !$OMP THREADPRIVATE(beetle_drought_tact)
   INTEGER(i_std), SAVE      :: beetle_drought_nref         !! Years in the moisture-low buffer (this year + reference years)
+  ! Guillaume M. -- OK_BEETLE_SURVIVAL_UNION: beetle survival combines the live-host, dead-wood and drought
+  ! channels as independent chances, 1 - prod(1 - x), instead of keeping only the largest.
+  LOGICAL, SAVE             :: ok_beetle_survival_union    !! Union instead of maximum of the survival channels
+!$OMP THREADPRIVATE(ok_beetle_survival_union)
+  LOGICAL, SAVE             :: ok_beetle_host_depletion    !! Beetle pressure braked by the depletion of the attackable host wood
+!$OMP THREADPRIVATE(ok_beetle_host_depletion)
+  REAL(r_std), SAVE         :: host_ref_years              !! Time scale of the running reference of the host wood (years)
+!$OMP THREADPRIVATE(host_ref_years)
+  REAL(r_std), SAVE         :: host_depl_limit             !! Host wood ratio at which the pressure is halved (unitless)
+!$OMP THREADPRIVATE(host_depl_limit)
+  REAL(r_std), SAVE         :: s_host_depl                 !! Slope of the depletion brake (unitless)
+!$OMP THREADPRIVATE(s_host_depl)
+  LOGICAL, SAVE             :: ok_beetle_live_brood        !! Brood on living trees replaces the population less than windfall
+!$OMP THREADPRIVATE(ok_beetle_live_brood)
+  REAL(r_std), SAVE         :: beetle_live_brood           !! Brood success on living trees relative to windfall (unitless, 0-1)
+!$OMP THREADPRIVATE(beetle_live_brood)
 !$OMP THREADPRIVATE(beetle_drought_nref)
   ! Guillaume M. -- OK_AED_PEST: edge trees sit in a warmer, drier microclimate and are the
   ! easy targets a beetle population settles on. Under this flag the host health index of

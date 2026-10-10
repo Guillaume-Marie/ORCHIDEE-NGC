@@ -1140,6 +1140,7 @@ CONTAINS
     REAL(r_std), DIMENSION(nelements)                            :: total_nonheart_biomass_harvest
     REAL(r_std), DIMENSION(nelements)                            :: total_nonheart_biomass_kill
     REAL(r_std), DIMENSION(nelements)                            :: harvest_ratio
+    REAL(r_std)                                                  :: left_frac          !! Share of the killed aboveground wood counted as breeding material (unitless)
     REAL(r_std), DIMENSION(ncirc)                                :: diameters_temp
     REAL(r_std), DIMENSION(npts,nvm,nmbcomp,nelements)           :: check_intern       !! Contains the components of the internal
                                                                                        !! mass balance chech for this routine
@@ -1307,8 +1308,12 @@ CONTAINS
 
        ! Save woody litter by icut. This will be used in pest module
        ! (stomate_pest) for one of the susceptibility indice.
+       ! Guillaume M. -- Beetles breed in stems only. The harvest takes stems first and leaves the
+       ! branches (harvest_fraction = 1 - branch_ratio for stems only), so the stems left are what
+       ! remains once the branch share is set aside.
+       left_frac = MAX(zero, un - harvest_fraction - branch_ratio(ivm))
        woody_litter_by_cut(ipts,ivm,icut) = woody_litter_by_cut(ipts,ivm,icut) + &
-             (un - harvest_fraction) * &
+             left_frac * &
              ( circ_class_biomass(ipts,ivm,icir,isapabove,icarbon) + &
                 circ_class_biomass(ipts,ivm,icir,iheartabove,icarbon) )* &
              circ_class_kill(ipts,ivm,icir,ifm,icut)

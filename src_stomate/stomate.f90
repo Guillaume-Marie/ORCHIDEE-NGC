@@ -821,6 +821,9 @@ REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:,:)    :: i_beetles_generation     
 REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:)      :: P_beetles_attacked_legacy !! use to trigger the 
                                                                                  !! epidemic flag (unitless)
 !$OMP THREADPRIVATE(P_beetles_attacked_legacy)
+REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:)      :: host_wood_ref             !! Running mean of the attackable host wood 
+                                                                                 !! of the species group (gC m-2 of grid cell)
+!$OMP THREADPRIVATE(host_wood_ref)
 REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:,:)    :: B_beetles_kill_legacy      !! Stored beetle damage use 
                                                                                  !!in the estimation of the 
                                                                                  !!woody leftover (gC.m-2)
@@ -1385,7 +1388,7 @@ SUBROUTINE stomate_initialize &
          burried_min_nitro, burried_som, &
          burried_deepSOM_a, burried_deepSOM_s, burried_deepSOM_p,&
          wood_leftover_legacy, i_beetles_activity_legacy, season_drought_legacy,&
-         P_beetles_attacked_legacy, beetle_diapause, sumTeff, woody_litter_to_use, &
+         P_beetles_attacked_legacy, host_wood_ref, beetle_diapause, sumTeff, woody_litter_to_use, &
          i_beetles_generation, B_beetles_kill_legacy, &
          max_wind_speed_storm, max_wind_ratio_storm, wind_ratio_max_save, & ! JJ 2026: added companions
          wind_ratio_sum_save, wind_speed_max_save, wind_mean_save, wind_sum, &
@@ -2461,6 +2464,18 @@ SUBROUTINE stomate_initialize &
     ENDIF ! (ok_hydrol_arch)
 
     IF (do_slow) THEN
+      ! Guillaume M. -- Ips enters reproductive diapause when days get SHORTER than the threshold
+      ! after the June solstice; tested on the whole day, before the count is reset. Northern
+      ! hemisphere only (range of Ips typographus); reset with sumTeff at the end of the year.
+      IF (julian_diff .GT. 172._r_std) THEN
+        DO ipts = 1,kjpindex
+          IF (lalo(ipts,1) .GE. zero) THEN
+            DO ivm = 2,nvm
+              IF (daylight(ipts,ivm)*0.5 .LT. diapause_thres_daylength(ivm)) beetle_diapause(ipts,ivm) = 1
+            ENDDO
+          ENDIF
+        ENDDO
+      ENDIF
       ! Set to zero to start accumulating for the next day
       daylight(:,:) = zero
     ELSE
@@ -2705,17 +2720,6 @@ SUBROUTINE stomate_initialize &
 
     ENDIF !do_slow
     !ENDIF
-
-      DO ipts = 1,kjpindex
-        IF (coszang(ipts) .GE. min_stomate) THEN
-          ! 3.4 Calculate photoperiod and beetle diapause status
-          DO ivm=2,nvm
-            IF (daylight(ipts,ivm)*0.5 > diapause_thres_daylength(ivm)) THEN
-              beetle_diapause(ipts,ivm) = 1
-            ENDIF
-          ENDDO
-        ENDIF
-      ENDDO
 
     !! Calculate the light that reaches each canopy layer
     !  Compute seasonal daytime transmitted light to canopy levels 
@@ -3501,7 +3505,7 @@ SUBROUTINE stomate_initialize &
             &             burried_deepSOM_p,&
             &             i_beetles_generation, &
             &             season_drought_legacy, wood_leftover_legacy, &
-            &             i_beetles_activity_legacy, P_beetles_attacked_legacy, &
+            &             i_beetles_activity_legacy, P_beetles_attacked_legacy, host_wood_ref, &
             &             B_beetles_kill_legacy, &
             &             beetle_diapause, sumTeff, woody_litter_to_use, &
             &             kill_vessels, vessel_mortality_daily, vessel_loss_previous, &
@@ -4273,7 +4277,7 @@ SUBROUTINE stomate_initialize &
          burried_min_nitro, burried_som, &
          burried_deepSOM_a, burried_deepSOM_s, burried_deepSOM_p,&
          wood_leftover_legacy, i_beetles_activity_legacy, season_drought_legacy,&
-         P_beetles_attacked_legacy, beetle_diapause, sumTeff, woody_litter_to_use, &
+         P_beetles_attacked_legacy, host_wood_ref, beetle_diapause, sumTeff, woody_litter_to_use, &
          i_beetles_generation, B_beetles_kill_legacy, &
          max_wind_speed_storm, max_wind_ratio_storm, wind_ratio_max_save, & ! JJ 2026: added companions
          wind_ratio_sum_save, wind_speed_max_save, wind_mean_save, wind_sum, &
@@ -6487,6 +6491,10 @@ SUBROUTINE stomate_initialize &
     IF (ier /= 0) CALL ipslerr_p(3,'stomate_init','Pb in alloc for risk_index','','')
     P_beetles_attacked_legacy(:,:) = zero
 
+    ALLOCATE (host_wood_ref(kjpindex,nvm),stat=ier)
+    IF (ier /= 0) CALL ipslerr_p(3,'stomate_init','Pb in alloc for host_wood_ref','','')
+    host_wood_ref(:,:) = zero
+
     ALLOCATE (woody_litter_to_use(kjpindex,nvm),stat=ier)
     IF (ier /= 0) CALL ipslerr_p(3,'stomate_init','Pb in alloc for woody_litter_to_use','','')
     woody_litter_to_use(:,:) = zero
@@ -6872,6 +6880,7 @@ SUBROUTINE stomate_initialize &
     IF ( ALLOCATED (season_drought_legacy)) DEALLOCATE (season_drought_legacy)
     IF ( ALLOCATED (i_beetles_generation)) DEALLOCATE(i_beetles_generation)
     IF ( ALLOCATED (P_beetles_attacked_legacy))DEALLOCATE(P_beetles_attacked_legacy)
+    IF ( ALLOCATED (host_wood_ref)) DEALLOCATE(host_wood_ref)
     IF ( ALLOCATED (B_beetles_kill_legacy))DEALLOCATE(B_beetles_kill_legacy)
     IF ( ALLOCATED (i_beetles_activity_legacy))DEALLOCATE(i_beetles_activity_legacy)
     IF ( ALLOCATED (woody_litter_to_use))DEALLOCATE(woody_litter_to_use)

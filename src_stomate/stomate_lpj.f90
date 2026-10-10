@@ -220,7 +220,7 @@ CONTAINS
        burried_min_nitro, burried_som, &
        burried_deepSOM_a, burried_deepSOM_s, burried_deepSOM_p, &
        i_beetles_generation, season_drought_legacy, wood_leftover_legacy, &
-       i_beetles_activity_legacy, P_beetles_attacked_legacy, B_beetles_kill_legacy, &
+       i_beetles_activity_legacy, P_beetles_attacked_legacy, host_wood_ref, B_beetles_kill_legacy, &
        beetle_diapause, sumTeff, woody_litter_to_use, &
        kill_vessels, vessel_mortality_daily, vessel_loss_previous, &
        pop_dens, a_nd, road_length,  & 
@@ -597,6 +597,7 @@ CONTAINS
                                                                                        !! infected during the previous timestep
     REAL(r_std), DIMENSION(:,:,:),INTENT(inout)                :: B_beetles_kill_legacy !! for historical output
     REAL(r_std), DIMENSION(:,:),INTENT(inout)                  :: P_beetles_attacked_legacy
+    REAL(r_std), DIMENSION(:,:),INTENT(inout)                  :: host_wood_ref        !! Running mean of the attackable host wood (gC m-2)
     LOGICAL, DIMENSION(:,:,:), INTENT(inout)                   :: kill_vessels         !! Flag to kill vessels at the end of the day following embolism.
     REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: vessel_mortality_daily !! Proportion of daily vessel mortality due to cavitation in the xylem (unitless). 
     REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: vessel_loss_previous !! Proportion of conductivity lost due to cavitation, accumulated
@@ -866,6 +867,7 @@ CONTAINS
                                                                                           !! @tex $(gC m^{-2})$ @endtex 
     REAL(r_std), DIMENSION(npts,nvm,nlanduse)                    :: harvest_area          !! Harvested area (m^{2})
     REAL(r_std), DIMENSION(npts,nvm)                             :: veget_max_disturb     !! New cover fraction of a PFT after stand replacing
+    REAL(r_std), DIMENSION(npts,nvm)                             :: wind_share_disturb    !! Storm share of the stand-replacing damage (unitless, 0-1)
                                                                                           !! disturbances (unitless, 0-1)
     REAL(r_std), DIMENSION(npts,nvm,ncirc)                       :: circ_height           !! Height of trees per diameter class
     REAL(r_std), DIMENSION(npts,nvm)                             :: new_ind               !! Number of recruits grown (trees m-2 day-2)
@@ -2455,7 +2457,7 @@ CONTAINS
                veget_max, circ_class_n, age_stand, season_drought_legacy, &
                resolution, circ_class_kill, forest_managed, wood_leftover_legacy, &
                i_beetles_activity_legacy, P_beetles_attacked_legacy, &
-               B_beetles_kill_legacy)
+               B_beetles_kill_legacy, host_wood_ref)
       CALL bmnan_probe(bm_to_litter, 'bark_beetle')
 
     ELSE
@@ -2488,7 +2490,7 @@ CONTAINS
          circ_class_n,branch_ratio,0)
 
     CALL disturbance_kill(npts, circ_class_biomass, circ_class_n, veget_max, loss_gain, &
-         veget_max_disturb, circ_class_kill)
+         veget_max_disturb, circ_class_kill, wind_share_disturb)
     CALL bmnan_probe(bm_to_litter, 'disturbance_kill')
 
 
@@ -2518,7 +2520,7 @@ CONTAINS
             burried_min_nitro,    burried_som,        burried_deepSOM_a, burried_deepSOM_s, &
             burried_deepSOM_p,    burried,            kill_vessels,      vessel_loss_previous, & 
             biomass_init_drought, mean_start_gs,      woody_litter_by_cut, &
-            lignin_snag)
+            lignin_snag,          wind_share=wind_share_disturb)
     CALL bmnan_probe(bm_to_litter, 'lcc_2')
 
     ! Store intermediate veget_max and atm_to_bm in order to calculate

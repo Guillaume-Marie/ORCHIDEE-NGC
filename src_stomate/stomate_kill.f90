@@ -459,12 +459,15 @@ CONTAINS
                       ! Save woody litter by icut. This will be used in pest
                       ! module
                       ! (stomate_pest) for one of the susceptibility indice.
+                      ! Guillaume M. -- Bark beetles breed in stems, not in branches, so only the stem
+                      ! share of the killed wood counts as breeding material.
                       IF (icut .NE. icut_fire) THEN
                         woody_litter_by_cut(ipts,ivm,icut) = &
                             woody_litter_by_cut(ipts,ivm,icut) + &
                             (circ_class_biomass(ipts,ivm,icir,isapabove,icarbon) + &
                             circ_class_biomass(ipts,ivm,icir,iheartabove,icarbon)) * &
-                            circ_class_kill(ipts,ivm,icir,ifm,icut)
+                            circ_class_kill(ipts,ivm,icir,ifm,icut) * &
+                            (un - branch_ratio(ivm))
                       ELSE
                         woody_litter_by_cut(ipts,ivm,icut) = &
                             woody_litter_by_cut(ipts,ivm,icut) + &
@@ -2332,7 +2335,7 @@ CONTAINS
 !================================================================================================================================
 
   SUBROUTINE disturbance_kill(npts, circ_class_biomass, circ_class_n, veget_max, loss_gain, &
-                              veget_max_disturb,circ_class_kill)
+                              veget_max_disturb,circ_class_kill, wind_share_disturb)
        
  !! 0. Variable and parameter description
 
@@ -2350,6 +2353,8 @@ CONTAINS
                                                                             !! account (unitless, 0-1)
     REAL(r_std), DIMENSION(npts,nvm), INTENT(out)   :: veget_max_disturb    !! New cover fraction of a PFT after stand-replacing
                                                                             !! disturbances (unitless, 0-1)
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(out)   :: wind_share_disturb   !! Storm share of the stand-replacing damage,
+                                                                            !! 1 where there is none (unitless, 0-1)
 
     !! 0.3 Modified variables
     REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(inout):: circ_class_kill      !! Number of trees within a circ that needs
@@ -2385,6 +2390,7 @@ CONTAINS
     loss_gain = zero
     loss_gain_group = zero
     total_damage_disturb = zero
+    wind_share_disturb = un
   
     !! 2. Calculate the total mortality from the natural disturbances
 
@@ -2439,6 +2445,10 @@ CONTAINS
                  damage_rate_beetle .GE. replace_threshold_beetle .OR. &
                  damage_rate_fire .GE. replace_threshold_fire) THEN
                total_damage_disturb(ipts,ivm) = MIN(damage_rate_wind + damage_rate_beetle + damage_rate_fire, un)
+               ! Guillaume M. -- Storm share of the replaced stand: only windfall is bark beetle
+               ! breeding material on the land cover change path.
+               wind_share_disturb(ipts,ivm) = damage_rate_wind / &
+                    MAX(damage_rate_wind + damage_rate_beetle + damage_rate_fire, min_stomate)
 
                ! Guillaume M. -- Route the stand-replacing area through CLASS 0 instead of class 1:
                ! otherwise only the progressive harvest feeds the register and fire, storm and

@@ -124,7 +124,7 @@ CONTAINS
        circ_class_kill, forest_managed, &
        wood_leftover_legacy, &
        i_beetles_activity_legacy, P_beetles_attacked_legacy, & 
-       B_beetles_kill_legacy)
+       B_beetles_kill_legacy, host_wood_ref)
 
     IMPLICIT NONE
 
@@ -149,6 +149,8 @@ CONTAINS
     !! (gC.m-2) left on the PFT 
     !! during previous timestep
     REAL(r_std), DIMENSION(:, :), INTENT(inout)        :: P_beetles_attacked_legacy!! risk index stored every year, n time 
+    REAL(r_std), DIMENSION(:, :), INTENT(inout)        :: host_wood_ref            !! Running mean of the attackable host wood
+                                                                                   !! of the group (gC m-2 of grid cell)
 
 
     !! 0.2 Output variables
@@ -189,6 +191,9 @@ CONTAINS
     REAL(r_std), DIMENSION(npts, nvm)                 :: PWS                       !! average drought index on this PFT 
     !! during previous time steps.
     REAL(r_std), DIMENSION(npts, nvm)                 :: N_wood                    !! average biomass (gC m-2)
+    REAL(r_std)                                       :: host_wood                 !! Attackable host wood, age classes >= 2 (gC m-2 of grid cell)
+    REAL(r_std)                                       :: host_brake                !! Pressure factor from host depletion (unitless)
+    REAL(r_std)                                       :: alive_brood               !! Living-host survival channel weighted by brood success (unitless)
     !! of dead wood left on this PFT
     !! during previous time steps.
     REAL(r_std), DIMENSION(npts, nvmap)               :: i_hosts_dead_gp           !! Species group-level susceptibility 
@@ -264,6 +269,10 @@ CONTAINS
     ! be read rather than assumed.
     REAL(r_std), DIMENSION(npts)                      :: pest_edge_frac            !! Share of forest area within the edge band (unitless)
     REAL(r_std)                                       :: bm_stand                  !! Living biomass of the slot (gC m-2)
+    REAL(r_std)                                       :: kill_gp, bm_gp            !! Beetle kill demand and living biomass of the species group (gC m-2)
+    REAL(r_std)                                       :: dr_gp, act_gp             !! Group beetle mortality rate and activity index (-)
+    REAL(r_std)                                       :: gen_w, gen_n              !! Area weighting and bounded group generation index (-)
+    REAL(r_std)                                       :: drought_surv              !! Drought channel of beetle survival (-)
     REAL(r_std), DIMENSION(npts)                      :: f_fresh                   !! Forest share in the fresh-edge band (unitless)
     REAL(r_std), DIMENSION(npts)                      :: f_old                     !! Forest share in the old-edge band (unitless)
     REAL(r_std), DIMENSION(npts)                      :: gain_w                    !! Host area weighting the P gain diagnostic (unitless)
@@ -271,7 +280,6 @@ CONTAINS
     REAL(r_std)                                       :: c0_fresh                  !! Class-0 openings of the selected ages (unitless)
     REAL(r_std)                                       :: p_int                     !! Interior mortality probability (unitless)
     INTEGER(i_std)                                    :: ik, n_sat                 !! conveyor slot, saturated cells
-    REAL(r_std), DIMENSION(npts, nvm, legacy_years)   :: beetle_temp1              !! temporary variable
     REAL(r_std), DIMENSION(npts, nvm, beetle_legacy)  :: beetle_temp2
     LOGICAL, DIMENSION(npts, nvmap)                   :: beetle_gp                 !! Flag that indicates whether or not 
     !! bark beetle damage should
@@ -445,8 +453,9 @@ CONTAINS
                 ! Update the average biomass (gC or gN m-2)
                 ! of dead wood left on this PFT during previous time steps.
                 ! Only biomass added during the legacy period is accounted for.
-                N_wood(ipts, ivmap) = N_wood(ipts,ivmap) + &
-                     SUM(wood_leftover_legacy(ipts, ivm, :)) / legacy_years_wood
+                ! Guillaume M. -- Windfall stays breeding material for LEGACY_YEARS_WOOD years, so the
+                ! years are summed; an average would halve a single storm.
+                N_wood(ipts, ivmap) = N_wood(ipts,ivmap) + SUM(wood_leftover_legacy(ipts, ivm, :))
 
                 IF(N_wood(ipts, ivmap) .LT. zero) THEN
                    ! needs a small error message
@@ -603,6 +612,7 @@ CONTAINS
                 i_hosts_share_gp(ipts, ivmap) = un
              END IF
 
+             gen_w = zero
              DO iagec = 1, nagec_pft(ivmap)
                 IF (nc(ipts, ivmap, iagec) .EQ. 0) THEN
                    CYCLE
@@ -610,9 +620,10 @@ CONTAINS
                 ivm = start_index(ivmap) + (iagec - 1)
 
                 ! 3.2 Calculate susceptibility index
+                ! Guillaume M. -- The group generation index is the area-weighted mean of its classes.
                 i_beetles_generation_gp(ipts, ivmap) = i_beetles_generation_gp(ipts, ivmap) + &
-                     i_beetles_generation(ipts, ivm, 1)/ &
-                     (veget_max(ipts,ivm) / vegetmax_gp(ipts, ivmap))
+                     i_beetles_generation(ipts, ivm, 1) * veget_max(ipts,ivm)
+                gen_w = gen_w + veget_max(ipts,ivm)
 
                 !+++JINA Do we still need this condition? nc should filter this?
                 IF (.NOT. beetle_pft(ivm) .OR. veget_max(ipts, ivm) .LT. min_stomate) THEN
@@ -684,6 +695,11 @@ CONTAINS
                    ENDIF
                 ENDIF
              ENDDO ! end loop nagec
+             IF (gen_w .GT. min_stomate) THEN
+                i_beetles_generation_gp(ipts, ivmap) = i_beetles_generation_gp(ipts, ivmap) / gen_w
+             ELSE
+                i_beetles_generation_gp(ipts, ivmap) = zero
+             ENDIF
              i_beetles_massattack_gp(ipts, ivmap) = un  / ( un + exp(S_massattack(xvm)* &
                   (P_beetles_attacked_legacy(ipts, xvm) - BP_limit(xvm))))
 
@@ -724,11 +740,28 @@ CONTAINS
              ! Guillaume M. -- Third survival channel: drought-weakened host defence scaled
              ! by voltinism (i_beetles_generation). Without it survival only follows the
              ! alive/dead wood channels, so acute drought alone cannot start an epidemic.
-             i_beetles_survival_gp(ipts, ivmap) = &
-                  MAX(i_hosts_alive_gp(ipts, ivmap), &
-                  i_hosts_dead_gp(ipts, ivmap), &
-                  i_hosts_defence_gp(ipts,ivmap) * &
-                        (1 + 0.4 * (i_beetles_generation_gp(ipts,ivmap) - 1)) )
+             ! Guillaume M. -- The index is a sigmoid of thermal sum over one generation, so
+             ! generations = 1 + logit(index); the drought factor uses that count.
+             ! OK_BEETLE_SURVIVAL_UNION: the channels combine as independent chances.
+             gen_n = MIN(MAX(i_beetles_generation_gp(ipts,ivmap), min_stomate), un - min_stomate)
+             drought_surv = MIN(un, i_hosts_defence_gp(ipts,ivmap) * &
+                  MAX(zero, un + 0.4 * LOG(gen_n / (un - gen_n))))
+             ! Guillaume M. -- OK_BEETLE_LIVE_BROOD: a living spruce yields about 2 offspring per gallery
+             ! against a tenfold increase in windfall, so the living-host channel is scaled by its relative
+             ! brood success; windfall and drought stay at full weight. Diagnostics keep the raw value.
+             IF (ok_beetle_live_brood) THEN
+                alive_brood = beetle_live_brood * i_hosts_alive_gp(ipts, ivmap)
+             ELSE
+                alive_brood = i_hosts_alive_gp(ipts, ivmap)
+             ENDIF
+             IF (ok_beetle_survival_union) THEN
+                i_beetles_survival_gp(ipts, ivmap) = un - (un - MIN(un, alive_brood)) * &
+                     (un - i_hosts_dead_gp(ipts, ivmap)) * (un - drought_surv)
+             ELSE
+                i_beetles_survival_gp(ipts, ivmap) = &
+                     MAX(alive_brood, &
+                     i_hosts_dead_gp(ipts, ivmap), drought_surv)
+             ENDIF
 
              i_hosts_attractivity_gp(ipts, ivmap) = &
                   MAX(i_hosts_defence_gp(ipts, ivmap) , &
@@ -775,6 +808,31 @@ CONTAINS
                   (i_beetles_generation_gp(ipts, ivmap) + &
                   i_beetles_activity_legacy(ipts, xvm, 1)) / deux
 
+             ! Guillaume M. -- OK_BEETLE_HOST_DEPLETION: patch-killing beetles stop when the attackable
+             ! host runs out at the landscape scale. d = wood of the classes counted by nc (>= 2) per m2
+             ! of cell over its running mean; the sigmoid, normalised to 1 at d >= 1, scales the pressure
+             ! that becomes next year's mass attack. The reference is updated after use.
+             IF (ok_beetle_host_depletion) THEN
+                host_wood = zero
+                DO iagec = 1, nagec_pft(ivmap)
+                   IF (nc(ipts, ivmap, iagec) .EQ. 0) CYCLE
+                   ivm = start_index(ivmap) + (iagec - 1)
+                   host_wood = host_wood + veget_max(ipts, ivm) * &
+                        SUM((circ_class_biomass(ipts, ivm, :, isapabove, icarbon) + &
+                        circ_class_biomass(ipts, ivm, :, iheartabove, icarbon)) * circ_class_n(ipts, ivm, :))
+                ENDDO
+                IF (host_wood_ref(ipts, xvm) .GT. min_stomate) THEN
+                   host_brake = MIN(un, (un / (un + EXP(-s_host_depl * &
+                        (host_wood / host_wood_ref(ipts, xvm) - host_depl_limit)))) / &
+                        (un / (un + EXP(-s_host_depl * (un - host_depl_limit)))))
+                   i_beetles_pressure(ipts, ivmap) = i_beetles_pressure(ipts, ivmap) * host_brake
+                ELSE
+                   host_wood_ref(ipts, xvm) = host_wood
+                ENDIF
+                host_wood_ref(ipts, xvm:xvm+nagec_pft(ivmap)-1) = host_wood_ref(ipts, xvm) + &
+                     (host_wood - host_wood_ref(ipts, xvm)) / host_ref_years
+             ENDIF
+
              ! Estimate the risk index at the pixel level.
              P_beetles_attacked_gp(ipts, ivmap) =  i_hosts_attractivity_gp(ipts, ivmap) * &
                   i_beetles_pressure(ipts, ivmap)
@@ -791,6 +849,9 @@ CONTAINS
                 P_beetles_attacked_monitor(ipts, ivm) = P_beetles_attacked_gp(ipts, ivmap)
                 P_beetles_attacked_legacy(ipts, ivm) = i_beetles_pressure(ipts, ivmap)
              END DO
+             ! Guillaume M. -- The mass-attack index reads last year's pressure in the first age-class
+             ! slot (xvm); the group value goes to every class, occupied or not, so that slot holds it.
+             P_beetles_attacked_legacy(ipts, xvm:xvm+nagec_pft(ivmap)-1) = i_beetles_pressure(ipts, ivmap)
 
              !Debug
              IF(printlev_loc >= 4) THEN
@@ -815,6 +876,8 @@ CONTAINS
 
              ! Distribute the total infected biomass over the different age classes
              ! of the same species
+             kill_gp = zero
+             bm_gp = zero
              DO iagec = 1, nagec_pft(ivmap)
                 ! Determine the PFT index for the age classes within the species
                 ! group under consideration
@@ -940,18 +1003,29 @@ CONTAINS
                 ! ratio between dead wood from previous beetle outbreaks (breeding
                 ! grounds) and uninfected biomass (fresh food) is seen as a driver of new
                 ! infections. Make sure the legacy stays inbetween zero and one.
-                beetle_temp1(ipts, ivm, :) = zero
-
-                DO iyear = 1, legacy_years - 1
-                   beetle_temp1(ipts, ivm, iyear + 1) = i_beetles_activity_legacy(ipts, ivm, iyear)
-                ENDDO
-
-                beetle_temp1(ipts, ivm, 1) = un / (un + exp(S_activity(ivm)* &
-                     (DR_beetles(ipts, ivm) - act_limit(ivm))))
-
-                i_beetles_activity_legacy(ipts, ivm, :) = beetle_temp1(ipts, ivm, :)
+                IF (bm_stand .GT. min_stomate) THEN
+                   kill_gp = kill_gp + B_beetles_kill_legacy(ipts, ivm, 1)
+                   bm_gp = bm_gp + bm_stand
+                ENDIF
 
              ENDDO   ! End loop nagec
+
+             ! Guillaume M. -- The pressure reads the activity of the first age-class slot (xvm), where
+             ! beetles never kill. Activity is a state of the group: one mortality rate over the
+             ! occupied classes, written to every class.
+             dr_gp = zero
+             IF (bm_gp .GT. min_stomate) dr_gp = MIN(kill_gp / bm_gp, un)
+             ! Guillaume M. -- OK_BEETLE_LIVE_BROOD: trees killed by beetles feed the next
+             ! generation only as far as their brood success relative to windfall.
+             IF (ok_beetle_live_brood) dr_gp = beetle_live_brood * dr_gp
+             act_gp = un / (un + exp(S_activity(xvm) * (dr_gp - act_limit(xvm))))
+             DO iagec = 1, nagec_pft(ivmap)
+                ivm = start_index(ivmap) + (iagec - 1)
+                DO iyear = legacy_years, 2, -1
+                   i_beetles_activity_legacy(ipts, ivm, iyear) = i_beetles_activity_legacy(ipts, ivm, iyear - 1)
+                ENDDO
+                i_beetles_activity_legacy(ipts, ivm, 1) = act_gp
+             ENDDO
 
           ELSE
              ! No mortality from bark beetles. Set the mortality to zero to avoid problems
