@@ -2911,20 +2911,6 @@ CONTAINS
     ok_storm_wind_per_event = .FALSE.
     CALL getin_p('OK_STORM_WIND_PER_EVENT', ok_storm_wind_per_event)
     !
-    !Config Key   = OK_STORM_KILL_BOTH_ZONES
-    !Config Desc  = Storm mortality is the sum of the edge-zone and interior-zone kills
-    !Config If    = OK_WINDTHROW
-    !Config Def   = n
-    !Config Help  = Each forest slot is split into an edge zone and an interior zone, each with its own
-    !Config         damage type (breakage or uprooting). When the two types differ, the interior call
-    !Config         zeroes the edge-zone kill. Set to y to compute each zone in its own zeroed array
-    !Config         and sum both by damage type. Kept separate from OK_STORM_WIND_PER_EVENT.
-    !Config         [CATEGORIE : ECHAFAUDAGE DE VALIDATION -- retirer (chemin y structurel)
-    !Config          apres le banc regional et le recalage de DAILY_MAX_TUNE avec ce drapeau]
-    !Config Units = [-]
-    ok_storm_kill_both_zones = .FALSE.
-    CALL getin_p('OK_STORM_KILL_BOTH_ZONES', ok_storm_kill_both_zones)
-    !
     !Config Key   = OK_STORM_PEAK_TRIGGER
     !Config Desc  = Storm onset on the daily peak wind over a local climatological peak
     !Config If    = OK_WINDTHROW
@@ -3197,81 +3183,6 @@ CONTAINS
     !Config Units = [-]
     edge_pest_susc = 1.5_r_std
     CALL getin_p('EDGE_PEST_SUSC', edge_pest_susc)
-    !
-    !Config Key   = OK_AED_PEST_FRESH
-    !Config Desc  = Beetle edge effect carried by fresh, lagged edges, acting on mortality
-    !Config If    = OK_AED_PEST, OK_AED_FEEDBACK, N_CLASS0 >= 3
-    !Config Def   = n
-    !Config Help  = Observed kills cluster along fresh sun-exposed edges one to three years
-    !Config         after the opening; old edges behave like the interior. Under this flag
-    !Config         the OK_AED_PEST health gain is bypassed and a gain acts on the mortality
-    !Config         probability of a fresh-edge band (class-0 openings of chosen ages) and of
-    !Config         an old-edge band. See MODULE_DESIGN_AED_PEST_FRESH_EDGE.md.
-    !Config Units = [-]
-    ok_aed_pest_fresh = .FALSE.
-    CALL getin_p('OK_AED_PEST_FRESH', ok_aed_pest_fresh)
-    !
-    !Config Key   = EDGE_PEST_FRESH_GAIN
-    !Config Desc  = Mortality gain inside the fresh-edge band
-    !Config If    = OK_AED_PEST_FRESH
-    !Config Def   = 3.0
-    !Config Help  = Ratio of the edge to the interior mortality probability, capped at one.
-    !Config         Field studies give 2 to 10 on fresh edges. Fixed from the literature,
-    !Config         not calibrated.
-    !Config Units = [-]
-    edge_pest_fresh_gain = 3.0_r_std
-    CALL getin_p('EDGE_PEST_FRESH_GAIN', edge_pest_fresh_gain)
-    !
-    !Config Key   = EDGE_PEST_FRESH_DEPTH
-    !Config Desc  = Depth of the fresh-edge band for bark beetles
-    !Config If    = OK_AED_PEST_FRESH
-    !Config Def   = 20.0
-    !Config Help  = Kills concentrate within 10 to 20 m of a fresh edge in field surveys.
-    !Config Units = [m]
-    edge_pest_fresh_depth = 20.0_r_std
-    CALL getin_p('EDGE_PEST_FRESH_DEPTH', edge_pest_fresh_depth)
-    !
-    !Config Key   = EDGE_PEST_LAG_MIN
-    !Config Desc  = Youngest opening age counted as fresh edge
-    !Config If    = OK_AED_PEST_FRESH
-    !Config Def   = 1
-    !Config Help  = Age in years of the class-0 openings whose edge starts to count. Beetles
-    !Config         rarely attack a new edge in its first season.
-    !Config Units = [years]
-    edge_pest_lag_min = 1
-    CALL getin_p('EDGE_PEST_LAG_MIN', edge_pest_lag_min)
-    !
-    !Config Key   = EDGE_PEST_LAG_MAX
-    !Config Desc  = Oldest opening age counted as fresh edge
-    !Config If    = OK_AED_PEST_FRESH
-    !Config Def   = 3
-    !Config Help  = Age in years beyond which an edge is old. Must stay below N_CLASS0 - 1,
-    !Config         the residence time of an opening in the conveyor.
-    !Config Units = [years]
-    edge_pest_lag_max = 3
-    CALL getin_p('EDGE_PEST_LAG_MAX', edge_pest_lag_max)
-    !
-    !Config Key   = EDGE_PEST_OLD_GAIN
-    !Config Desc  = Mortality gain inside the old-edge band
-    !Config If    = OK_AED_PEST_FRESH
-    !Config Def   = 1.0
-    !Config Help  = Same as the fresh gain on the whole dynamic edge, band EDGE_PEST_DEPTH.
-    !Config         Old and permanent edges are close to the interior in field data; 1.0
-    !Config         switches the band off.
-    !Config Units = [-]
-    edge_pest_old_gain = 1.0_r_std
-    CALL getin_p('EDGE_PEST_OLD_GAIN', edge_pest_old_gain)
-    !
-    !Config Key   = EDGE_PEST_BASE_FRAC
-    !Config Desc  = Scaling of the interior beetle mortality probability
-    !Config If    = OK_AED_PEST_FRESH
-    !Config Def   = 1.0
-    !Config Help  = The only same-world normalisation of the channel: calibrated so that the
-    !Config         beetle kill of the reference run is unchanged, the edge bands then only
-    !Config         redistribute it. Never used to tune a scenario.
-    !Config Units = [-]
-    edge_pest_base_frac = 1.0_r_std
-    CALL getin_p('EDGE_PEST_BASE_FRAC', edge_pest_base_frac)
     !
     !Config Key   = EDGE_STORM_ACCLIM_YR
     !Config Desc  = E-folding stand age of the wind acclimation of exposed stands (AED_STORM)
@@ -3572,7 +3483,7 @@ CONTAINS
     CALL getin_p('EDGE_MIN_PATCH_AREA', edge_min_patch_area)
     !
     !Config Key   = EDGE_SCENARIO
-    !Config Desc  = Edge-length scenario: real (calibrated chain), off (no edge), max (circular patches)
+    !Config Desc  = Edge-length scenario: real (calibrated chain), off (no edge), max (circular patches), min (mirror of max)
     !Config If    = OK_AED_FEEDBACK
     !Config Cat   = SCIENTIFIC OPTION
     !Config Def   = real
@@ -3586,6 +3497,8 @@ CONTAINS
     !Config         (0.056 m/m2 at 0.4 ha, against 0.022-0.048 observed). An upper bound by
     !Config         absence of coalescence, not by shape: a disc has the smallest perimeter
     !Config         at a given area. Meso, roads and water terms are unchanged under max.
+    !Config         min: log mirror of max, alpha = alpha_real**2 / alpha_circ for the four agents,
+    !Config         i.e. disturbances aggregated in compact patches (12-17 ha for fire, storm, harvest).
     !Config         real: nothing executed, bit-identical to the previous binary.
     !Config Units = [-]
     edge_scenario_str = 'real'
@@ -3594,10 +3507,11 @@ CONTAINS
     CASE ('real', 'REAL') ; edge_scenario = edge_scen_real
     CASE ('off',  'OFF')  ; edge_scenario = edge_scen_off
     CASE ('max',  'MAX')  ; edge_scenario = edge_scen_max
+    CASE ('min',  'MIN')  ; edge_scenario = edge_scen_min
     CASE DEFAULT
-       WRITE(numout,*) 'EDGE_SCENARIO must be real, off or max : ', TRIM(edge_scenario_str)
+       WRITE(numout,*) 'EDGE_SCENARIO must be real, off, max or min : ', TRIM(edge_scenario_str)
        CALL ipslerr_p(3,'constantes.f90','EDGE_SCENARIO unknown value',&
-            'Accepted: real (default), off, max','')
+            'Accepted: real (default), off, max, min','')
     END SELECT
     IF (printlev >= 1 .AND. edge_scenario /= edge_scen_real) &
          WRITE(numout,*) 'EDGE_SCENARIO = ', TRIM(edge_scenario_str), ' (', edge_scenario, ')'
@@ -4610,20 +4524,6 @@ CONTAINS
        CALL ipslerr_p(3, 'config_stomate_parameters', &
             'les modules OK_AED_* requierent OK_AED_FEEDBACK=y', &
             'calculate_aed consomme edge_length_dyn, alimentee par AED_FEEDBACK seul', '')
-    ENDIF
-    ! Guillaume M. -- Checked here, after N_CLASS0 is read: at the beetle call the conveyor
-    ! slot k holds the openings aged k - 2 years, so the oldest age read is N_CLASS0 - 2.
-    IF (ok_aed_pest_fresh) THEN
-       IF (.NOT. ok_aed_pest) CALL ipslerr_p(3, 'config_stomate_parameters', &
-            'OK_AED_PEST_FRESH requires OK_AED_PEST', 'it replaces its health gain', '')
-       IF (edge_pest_lag_min < 0 .OR. edge_pest_lag_max < edge_pest_lag_min &
-            .OR. edge_pest_lag_max > n_class0 - 2) CALL ipslerr_p(3, 'config_stomate_parameters', &
-            'OK_AED_PEST_FRESH: 0 <= EDGE_PEST_LAG_MIN <= EDGE_PEST_LAG_MAX <= N_CLASS0 - 2', &
-            'the fresh edge is read from the class-0 conveyor slots', '')
-       IF (edge_pest_fresh_depth <= zero .OR. edge_pest_fresh_gain < zero .OR. edge_pest_old_gain < zero &
-            .OR. edge_pest_base_frac <= zero .OR. edge_pest_base_frac > un) CALL ipslerr_p(3, &
-            'config_stomate_parameters', 'OK_AED_PEST_FRESH: depth > 0, gains >= 0, 0 < BASE_FRAC <= 1', &
-            'check the namelist', '')
     ENDIF
     !-
     ! allocation parameters

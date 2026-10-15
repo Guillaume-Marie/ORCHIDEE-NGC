@@ -1063,10 +1063,6 @@
     <field field_ref="FEDGE_PGAP_SLOWPROC" level="6"/>
     <field field_ref="EDGE_LENGTH_DYN" level="2"/>
     <field field_ref="PEST_EDGE_FRAC" level="5"/>
-    <field field_ref="EDGE_FRESH_LAG_DENS" level="5"/>
-    <field field_ref="PEST_FRESH_FRAC" level="5"/>
-    <field field_ref="PEST_OLD_FRAC" level="5"/>
-    <field field_ref="PEST_P_EDGE_GAIN" level="5"/>
     <field field_ref="ALPHA_HARVEST_EFF" level="2"/>
     <field field_ref="CLEARCUT_AREA"     level="2"/>
     <!-- level=1 : la rotation cible est le seul canal agissant sur la dynamique,
@@ -1113,6 +1109,7 @@
     <field field_ref="GPP" grid_ref="grid_nvm_out" level="0"/>
     <field field_ref="NBP_pool_c" level="1"/>
     <field field_ref="NBP_flux_c" level="1"/>
+    <field field_ref="NBP_FLUX_LCT_c" grid_ref="grid_nlctypes_out" level="1"/>
     <field field_ref="NBP_pool_n" level="1"/>
     <field field_ref="NBP_flux_n" level="1"/>
     <field field_ref="ESTIMATED_NEE" level="1"/>

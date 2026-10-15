@@ -1770,7 +1770,8 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
   ! Guillaume M. -- EDGE_SCENARIO (MODULE_DESIGN_EDGE_SCENARIO.md): real = the calibrated
   ! chain, off = no edge at all (trunk behaviour, AED = 50 km), max = every disturbed patch an
   ! isolated disc of edge_min_patch_area. One key so the three D5.2 runs differ by it alone.
-  INTEGER(i_std), PARAMETER  :: edge_scen_real = 0, edge_scen_off = 1, edge_scen_max = 2
+  ! Guillaume M. -- min = log mirror of max: alpha_real**2/alpha_circ, as far below real as max is above.
+  INTEGER(i_std), PARAMETER  :: edge_scen_real = 0, edge_scen_off = 1, edge_scen_max = 2, edge_scen_min = 3
   INTEGER(i_std), SAVE       :: edge_scenario = edge_scen_real  !! Edge scenario selector (-)
 !$OMP THREADPRIVATE(edge_scenario)
   !! --- Intensite de gestion : concept unique dont derivent tous les parametres de
@@ -2813,11 +2814,6 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
   ! is the maximum of the current storm only, reset at onset.
   LOGICAL, SAVE             :: ok_storm_wind_per_event     !! Damage wind taken over the current storm only
 !$OMP THREADPRIVATE(ok_storm_wind_per_event)
-  ! Guillaume M. -- OK_STORM_KILL_BOTH_ZONES: when the damage types of the edge and interior zones
-  ! differ, the interior call zeroes the edge-zone kill. Under this flag each zone is computed in
-  ! its own zeroed array and both are summed by damage type.
-  LOGICAL, SAVE             :: ok_storm_kill_both_zones    !! Storm kill = edge zone + interior zone
-!$OMP THREADPRIVATE(ok_storm_kill_both_zones)
   ! Guillaume M. -- OK_STORM_PEAK_TRIGGER: storm onset on the raw daily peak wind over a local
   ! climatological peak (mean over the last years of the n-th largest daily peak), one threshold
   ! everywhere.
@@ -2881,24 +2877,6 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
 !$OMP THREADPRIVATE(edge_pest_depth)
   REAL(r_std), SAVE         :: edge_pest_susc              !! Susceptibility gain applied to hosts within that band (unitless)
 !$OMP THREADPRIVATE(edge_pest_susc)
-  ! Guillaume M. -- OK_AED_PEST_FRESH: observed beetle kills cluster along FRESH sun-exposed
-  ! edges, one to three years after the opening, while old edges behave like the interior.
-  ! The gain then acts on the mortality probability of a fresh-edge band read from the
-  ! class-0 conveyor, plus an optional old-edge band (MODULE_DESIGN_AED_PEST_FRESH_EDGE.md).
-  LOGICAL, SAVE             :: ok_aed_pest_fresh           !! Beetle edge effect carried by fresh, lagged edges
-!$OMP THREADPRIVATE(ok_aed_pest_fresh)
-  REAL(r_std), SAVE         :: edge_pest_fresh_gain        !! Mortality gain inside the fresh-edge band (unitless)
-!$OMP THREADPRIVATE(edge_pest_fresh_gain)
-  REAL(r_std), SAVE         :: edge_pest_fresh_depth       !! Depth of the fresh-edge band (m)
-!$OMP THREADPRIVATE(edge_pest_fresh_depth)
-  INTEGER(i_std), SAVE      :: edge_pest_lag_min           !! Youngest opening age that counts as fresh edge (years)
-!$OMP THREADPRIVATE(edge_pest_lag_min)
-  INTEGER(i_std), SAVE      :: edge_pest_lag_max           !! Oldest opening age that counts as fresh edge (years)
-!$OMP THREADPRIVATE(edge_pest_lag_max)
-  REAL(r_std), SAVE         :: edge_pest_old_gain          !! Mortality gain inside the old-edge band (unitless)
-!$OMP THREADPRIVATE(edge_pest_old_gain)
-  REAL(r_std), SAVE         :: edge_pest_base_frac         !! Scaling of the interior mortality probability, same-world normalisation (unitless)
-!$OMP THREADPRIVATE(edge_pest_base_frac)
   LOGICAL, SAVE             :: ok_min_density_reset       !! Keep the dens_target-driven clearcut (sapiens_forestry CONDITION 1)
 !$OMP THREADPRIVATE(ok_min_density_reset)
   LOGICAL, SAVE             :: ok_slow_death_density      !! Keep the dens_target-driven slow death of sparse stands (stomate_kill)

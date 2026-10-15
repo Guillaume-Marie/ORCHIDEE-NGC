@@ -50,17 +50,6 @@ MODULE stomate_pest
 !$OMP THREADPRIVATE(firstcall_bark_beetle_damage)
   INTEGER(i_std), SAVE            :: printlev_loc                       !! Local level of text output
 !$OMP THREADPRIVATE(printlev_loc)
-  ! Guillaume M. -- OK_AED_PEST_FRESH diagnostics, computed on the last day of the year and
-  ! sent every day. Declared operation="maximum" in XIOS: an average would give value/31,
-  ! and a SAVE value does not survive the restart of the executable at each period.
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: diag_fresh_dens     !! Fresh lagged edge per forest area (m ha-1)
-!$OMP THREADPRIVATE(diag_fresh_dens)
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: diag_fresh_frac     !! Forest share in the fresh-edge band (unitless)
-!$OMP THREADPRIVATE(diag_fresh_frac)
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: diag_old_frac       !! Forest share in the old-edge band (unitless)
-!$OMP THREADPRIVATE(diag_old_frac)
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: diag_p_gain         !! Host-weighted P_eff / P_success (unitless)
-!$OMP THREADPRIVATE(diag_p_gain)
 
 CONTAINS
 
@@ -273,13 +262,6 @@ CONTAINS
     REAL(r_std)                                       :: dr_gp, act_gp             !! Group beetle mortality rate and activity index (-)
     REAL(r_std)                                       :: gen_w, gen_n              !! Area weighting and bounded group generation index (-)
     REAL(r_std)                                       :: drought_surv              !! Drought channel of beetle survival (-)
-    REAL(r_std), DIMENSION(npts)                      :: f_fresh                   !! Forest share in the fresh-edge band (unitless)
-    REAL(r_std), DIMENSION(npts)                      :: f_old                     !! Forest share in the old-edge band (unitless)
-    REAL(r_std), DIMENSION(npts)                      :: gain_w                    !! Host area weighting the P gain diagnostic (unitless)
-    REAL(r_std)                                       :: ffor                      !! Tree share of the grid cell (unitless)
-    REAL(r_std)                                       :: c0_fresh                  !! Class-0 openings of the selected ages (unitless)
-    REAL(r_std)                                       :: p_int                     !! Interior mortality probability (unitless)
-    INTEGER(i_std)                                    :: ik, n_sat                 !! conveyor slot, saturated cells
     REAL(r_std), DIMENSION(npts, nvm, beetle_legacy)  :: beetle_temp2
     LOGICAL, DIMENSION(npts, nvmap)                   :: beetle_gp                 !! Flag that indicates whether or not 
     !! bark beetle damage should
@@ -300,42 +282,6 @@ CONTAINS
 
     IF (printlev_loc .GE. 2) WRITE(numout, *) 'Entering stomate pest damage'
 
-    ! Guillaume M. -- OK_AED_PEST_FRESH bands. At this call the conveyor slot k holds the
-    ! openings aged k - 2 years (credited by age_class_distr, then aged, earlier this pass).
-    ! Both bands are forest shares, so the cell area cancels; if they overlap past one they
-    ! are scaled down together, a saturation counted in the log rather than an error.
-    CALL pest_fresh_alloc(npts)
-    f_fresh(:) = zero ; f_old(:) = zero ; gain_w(:) = zero ; n_sat = 0
-    IF (ok_aed_pest_fresh) THEN
-       IF (.NOT. ALLOCATED(class0_veg) .OR. .NOT. ALLOCATED(edge_open_conv)) CALL ipslerr_p(3, &
-            'bark_beetle_damage', 'OK_AED_PEST_FRESH needs the class-0 conveyor (N_CLASS0)', &
-            'and the AED_REGROWTH edge path that fills edge_open_conv', '')
-       diag_p_gain(:) = zero
-       DO ipts = 1, npts
-          ffor = zero
-          DO ivm = 1, nvm
-             IF (is_tree(ivm)) ffor = ffor + veget_max(ipts,ivm)
-          ENDDO
-          IF (ffor .LE. min_stomate .OR. area_forest(ipts) .LE. min_stomate) CYCLE
-          c0_fresh = zero
-          DO ik = edge_pest_lag_min + 2, edge_pest_lag_max + 2
-             c0_fresh = c0_fresh + SUM(class0_veg(ipts,:,ik))
-          ENDDO
-          diag_fresh_dens(ipts) = edge_open_conv(ipts) * c0_fresh / ffor * 1.0e4_r_std
-          f_fresh(ipts) = MIN(un, edge_pest_fresh_depth * edge_open_conv(ipts) * c0_fresh / ffor)
-          f_old(ipts) = MIN(un, edge_pest_depth * edge_length_dyn(ipts) / (area_forest(ipts) * m2_to_ha))
-          IF (f_fresh(ipts) + f_old(ipts) .GT. un) THEN
-             ffor = f_fresh(ipts) + f_old(ipts)
-             f_fresh(ipts) = f_fresh(ipts) / ffor
-             f_old(ipts) = f_old(ipts) / ffor
-             n_sat = n_sat + 1
-          ENDIF
-       ENDDO
-       diag_fresh_frac(:) = f_fresh(:)
-       diag_old_frac(:) = f_old(:)
-       IF (n_sat > 0) WRITE(numout,*) 'AED_PEST_FRESH: edge bands scaled to the whole forest in', &
-            n_sat, 'cells'
-    ENDIF
     ! 1.1 Initialize variables
     vegetmax_gp(:, :) = zero
     i_hosts_dead_gp(:, :) = zero
@@ -681,7 +627,7 @@ CONTAINS
                    ! edge_pest_depth. Bounded convex mix of the edge zone and the interior,
                    ! capped at one because the index is a probability. A gain of one leaves
                    ! the result unchanged, which makes the geometry testable on its own.
-                   IF (ok_aed_pest .AND. .NOT. ok_aed_pest_fresh) THEN
+                   IF (ok_aed_pest) THEN
                       pest_edge_frac(ipts) = MIN(un, edge_pest_depth * edge_length_dyn(ipts) / &
                            MAX(area_forest(ipts) * m2_to_ha, min_stomate))
                       ! Written as an increment rather than (1-f)*h + f*g: at a gain of one
@@ -886,22 +832,6 @@ CONTAINS
                 ! Estimate mortality rate at the PFT level (unitless).
                 P_success(ipts, ivm) = (i_hosts_health(ipts, ivm) + &
                      i_beetles_pressure(ipts, ivmap)) / deux
-                ! Guillaume M. -- OK_AED_PEST_FRESH: the gain is a ratio of MORTALITY, the
-                ! quantity field studies report; on host health it would be diluted by the
-                ! beetle pressure. Written as increments, so gains of one leave P_int.
-                IF (ok_aed_pest_fresh) THEN
-                   p_int = edge_pest_base_frac * P_success(ipts, ivm)
-                   IF (P_success(ipts, ivm) .GT. min_stomate) THEN
-                      diag_p_gain(ipts) = diag_p_gain(ipts) + veget_max(ipts, ivm) * &
-                           (p_int + f_fresh(ipts) * (MIN(un, edge_pest_fresh_gain * p_int) - p_int) &
-                                  + f_old(ipts) * (MIN(un, edge_pest_old_gain * p_int) - p_int)) &
-                           / P_success(ipts, ivm)
-                      gain_w(ipts) = gain_w(ipts) + veget_max(ipts, ivm)
-                   ENDIF
-                   P_success(ipts, ivm) = p_int &
-                        + f_fresh(ipts) * (MIN(un, edge_pest_fresh_gain * p_int) - p_int) &
-                        + f_old(ipts) * (MIN(un, edge_pest_old_gain * p_int) - p_int)
-                ENDIF
 
                 ! Estimate living biomass killed by bark beetles (gC or gN m-2)
                 B_beetles_kill(ipts, ivm) = P_success(ipts, ivm) * &
@@ -1060,14 +990,6 @@ CONTAINS
     CALL xios_orchidee_send_field("DR_beetles", DR_beetles)
     CALL xios_orchidee_send_field("P_beetles_attacked", P_beetles_attacked_monitor)
     CALL xios_orchidee_send_field("PEST_EDGE_FRAC", pest_edge_frac)
-    IF (ok_aed_pest_fresh) THEN
-       WHERE (gain_w(:) .GT. min_stomate)
-          diag_p_gain(:) = diag_p_gain(:) / gain_w(:)
-       ELSEWHERE
-          diag_p_gain(:) = zero
-       ENDWHERE
-    ENDIF
-    CALL pest_fresh_send
 
     ! Guillaume M. -- Beetle-affected area fed to the edge_length feedback: killed
     ! biomass (gC m-2 yr-1) is converted through pest_biomass_ref, as
@@ -1189,34 +1111,9 @@ CONTAINS
     CALL xios_orchidee_send_field("DR_beetles", DR_beetles)
     CALL xios_orchidee_send_field("P_beetles_attacked", P_beetles_attacked_monitor)
     CALL xios_orchidee_send_field("PEST_EDGE_FRAC", pest_edge_frac)
-    CALL pest_fresh_alloc(npts)
-    CALL pest_fresh_send
     CALL xios_orchidee_send_field("AREA_DAMAGED_PEST", area_damaged_pest)
 
   END SUBROUTINE pest_write
-
-  
-!! ================================================================================================================================
-!! SUBROUTINE   : pest_fresh_alloc / pest_fresh_send
-!!
-!>\BRIEF        Allocate (once) and send the OK_AED_PEST_FRESH diagnostics, which keep their
-!!               last annual value so that every daily send carries it.
-!! ================================================================================================================================
-  SUBROUTINE pest_fresh_alloc(npts)
-    INTEGER(i_std), INTENT(in) :: npts      !! Domain size (unitless)
-    IF (.NOT. ALLOCATED(diag_fresh_dens)) THEN
-       ALLOCATE(diag_fresh_dens(npts), diag_fresh_frac(npts), diag_old_frac(npts), diag_p_gain(npts))
-       diag_fresh_dens(:) = zero ; diag_fresh_frac(:) = zero ; diag_old_frac(:) = zero
-       diag_p_gain(:) = zero
-    ENDIF
-  END SUBROUTINE pest_fresh_alloc
-
-  SUBROUTINE pest_fresh_send
-    CALL xios_orchidee_send_field("EDGE_FRESH_LAG_DENS", diag_fresh_dens)
-    CALL xios_orchidee_send_field("PEST_FRESH_FRAC", diag_fresh_frac)
-    CALL xios_orchidee_send_field("PEST_OLD_FRAC", diag_old_frac)
-    CALL xios_orchidee_send_field("PEST_P_EDGE_GAIN", diag_p_gain)
-  END SUBROUTINE pest_fresh_send
 
 END MODULE stomate_pest
 

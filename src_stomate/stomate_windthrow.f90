@@ -25,7 +25,7 @@ MODULE stomate_windthrow
   USE ioipsl_para
   USE grid 
   USE xios_orchidee
-  USE time, ONLY : dt_sechiba
+  USE time, ONLY : dt_sechiba, LastTsYear
   USE stomate_data
   USE constantes
   USE constantes_soil
@@ -342,7 +342,7 @@ CONTAINS
     LOGICAL                                      :: storm_calm                   !! Today counts as calm for the storm decay
     REAL(r_std), DIMENSION(npts)                 :: peak_ratio_out               !! Daily peak / local reference, output only (-)
     LOGICAL, DIMENSION(npts)                     :: was_storm                    !! is_storm before today's onset test (OK_STORM_WIND_PER_EVENT)
-    REAL(r_std), DIMENSION(ncirc,2)              :: kz                           !! Kill per circ class, edge (1) and interior (2) zones (OK_STORM_KILL_BOTH_ZONES)
+    REAL(r_std), DIMENSION(ncirc,2)              :: kz                           !! Kill per circ class, edge (1) and interior (2) zones (OK_STORM_KILL_AREA_WEIGHTED)
 
     ! Temp output Variables for GALES model intercomparision
     REAL(r_std), DIMENSION(npts,nvm)             :: canopy_depth_out
@@ -586,7 +586,9 @@ CONTAINS
           IF (storm_calm) THEN
              count_storm(ipts) =  count_storm(ipts) + 1
           ENDIF
-          IF(count_storm(ipts) .LT. nb_days_storm) THEN
+          ! Guillaume M. (AI gen) -- An open storm is closed on the last time step of the
+          ! calendar year and killed with its accumulated dose: no damage carried to January.
+          IF(count_storm(ipts) .LT. nb_days_storm .AND. .NOT. LastTsYear) THEN
 !             CYCLE
               is_kill(ipts) = zero
           ELSE
@@ -1694,7 +1696,7 @@ CONTAINS
         ! We only do the damage for the virtual_circ_class_n GT min_stomate 
         !+++JINA virtual or ccn?       
         IF (virtual_circ_class_n(ipts,ivm,ncirc) .GT. min_stomate .AND. &
-            (ok_storm_kill_both_zones .OR. ok_storm_kill_area_weighted)) THEN
+            ok_storm_kill_area_weighted) THEN
             ! Guillaume M. -- Each zone in its own zeroed array, then summed by damage type: the
             ! legacy path below loses the edge-zone kill when the two damage types differ.
             kz(:,:) = zero

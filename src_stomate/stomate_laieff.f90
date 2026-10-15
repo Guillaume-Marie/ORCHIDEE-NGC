@@ -1092,18 +1092,20 @@ CONTAINS
        fedge_pgap(:) = 1.0_r_std - ((AED_light(:) - edge_distance_light/2._r_std)**2) &
                                   / (AED_light(:)**2)
 
+       ! Guillaume M. (AI gen) -- Edge light acts on tree PFTs only (AED_light is a forest
+       ! distance); other PFTs are multiplied by exactly 1. Same rule in slowproc_veget.
        DO iangle = 1, nangles
           DO ilevel = 1, nlevels_tot
              DO ipts = 1, npts
                 Pgap_cumul(ipts,:,ilevel,iangle) =                              &
                    Pgap_cumul(ipts,:,ilevel,iangle) *                           &
-                   (1.0_r_std + pgap_edge_factor * fedge_pgap(ipts))
+                   (1.0_r_std + pgap_edge_factor * MERGE(fedge_pgap(ipts), zero, is_tree(:)))
                 Pgap_perlevel(ipts,:,ilevel,iangle) =                           &
                    Pgap_perlevel(ipts,:,ilevel,iangle) *                        &
-                   (1.0_r_std + pgap_edge_factor * fedge_pgap(ipts))
+                   (1.0_r_std + pgap_edge_factor * MERGE(fedge_pgap(ipts), zero, is_tree(:)))
                 laieff(ilevel,ipts,:,iangle) =                                  &
                    laieff(ilevel,ipts,:,iangle) *                               &
-                   (1.0_r_std + laieff_edge_factor * fedge_pgap(ipts))
+                   (1.0_r_std + laieff_edge_factor * MERGE(fedge_pgap(ipts), zero, is_tree(:)))
              ENDDO
           ENDDO
        ENDDO

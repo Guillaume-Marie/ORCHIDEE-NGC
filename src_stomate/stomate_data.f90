@@ -1161,6 +1161,16 @@ CONTAINS
        alpha_pest_use(:)    = alpha_circ
        alpha_harvest_use(:) = alpha_circ
     ENDIF
+    !! Guillaume M. -- EDGE_SCENARIO=min (MODULE_DESIGN_EDGE_SCENARIO.md section 8): log mirror
+    !!     of max, alpha_real**2/alpha_circ, so min sits as far below real as max above it.
+    !!     Read as disturbances aggregated in compact discs (12-17 ha for fire, storm, harvest).
+    IF (edge_scenario == edge_scen_min) THEN
+       alpha_circ = deux * SQRT(pi / MAX(edge_min_patch_area, min_stomate))
+       alpha_fire_use(:)    = alpha_fire_use(:)**2    / alpha_circ
+       alpha_storm_use(:)   = alpha_storm_use(:)**2   / alpha_circ
+       alpha_pest_use(:)    = alpha_pest_use(:)**2    / alpha_circ
+       alpha_harvest_use(:) = alpha_harvest_use(:)**2 / alpha_circ
+    ENDIF
 
     IF (ok_edge_from_age_class .AND. ALLOCATED(class0_area)) THEN
        !! 1a-3a. Guillaume M. -- AED_REGROWTH path, class-0 conveyor. Ingest this step's

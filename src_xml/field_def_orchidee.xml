@@ -627,10 +627,6 @@
     <field id="FEDGE_PGAP_SLOWPROC" name="FEDGE_PGAP_SLOWPROC" long_name="Edge effect weight on canopy porosity (slowproc_veget)" unit="-"/>
     <field id="EDGE_LENGTH_DYN" name="EDGE_LENGTH_DYN" long_name="Dynamic edge length (AED_FEEDBACK)" unit="m"/>
     <field id="PEST_EDGE_FRAC" name="PEST_EDGE_FRAC" long_name="Share of forest area within the bark beetle edge band (AED_PEST)" unit="1"/>
-    <field id="EDGE_FRESH_LAG_DENS" name="EDGE_FRESH_LAG_DENS" long_name="Fresh lagged edge per forest area, class-0 openings of the selected ages (AED_PEST_FRESH)" unit="m/ha" operation="maximum"/>
-    <field id="PEST_FRESH_FRAC" name="PEST_FRESH_FRAC" long_name="Share of forest area within the fresh-edge beetle band (AED_PEST_FRESH)" unit="1" operation="maximum"/>
-    <field id="PEST_OLD_FRAC" name="PEST_OLD_FRAC" long_name="Share of forest area within the old-edge beetle band (AED_PEST_FRESH)" unit="1" operation="maximum"/>
-    <field id="PEST_P_EDGE_GAIN" name="PEST_P_EDGE_GAIN" long_name="Host-weighted ratio of the edge-modified to the original beetle mortality probability (AED_PEST_FRESH)" unit="1" operation="maximum"/>
     <field id="EDGE_MESO" name="EDGE_MESO" long_name="Meso-scale edge: forest/non-forest boundary, A*4*f*(1-f)/r" unit="m"/>
     <field id="EDGE_MACRO" name="EDGE_MACRO" long_name="Macro-scale edge: roads in forest, 2*RL*c_GRIP (GRIP4)" unit="m"/>
     <field id="EDGE_HYDRO" name="EDGE_HYDRO" long_name="Permanent edge: lakes, coastline and rivers in forest, read from EDGE_HYDRO_FILE" unit="m"/>
@@ -683,6 +679,7 @@
     <field id="GPP" name="GPP" long_name="Gross primary productivity (positive from atm to land, inc. atm_to_bm)" unit="gC/day/m^2/pft" grid_ref="grid_nvm"/>
     <field id="NBP_pool_c" name="NBP_pool_c" long_name="Pool-based net biome production" unit="kgC/s/m^2"/>
     <field id="NBP_flux_c" name="NBP_flux_c" long_name="Flux-based net biome production" unit="kgC/s/m^2"/>
+    <field id="NBP_FLUX_LCT_c" name="NBP_FLUX_LCT_c" long_name="Flux-based net biome production per land cover type (forest, grass, crop)" unit="kgC/s/m^2" grid_ref="grid_nlctypes"/>
     <field id="NBP_pool_n" name="NBP_pool_n" long_name="Pool-based net biome production" unit="kgN/s/m^2"/>
     <field id="NBP_flux_n" name="NBP_flux_n" long_name="Flux-based net biome production" unit="kgN/s/m^2"/>
     <field id="ESTIMATED_NEE" name="ESTIMATED_NEE" long_name="NEE estimated in stomate over 47 time steps" unit="gC/d/m^2"/>
@@ -786,8 +783,8 @@
     <field id="HARVEST_VEGET_c" name="HARVEST_VEGET_c" long_name="Carbon contained in harvest for different PFT" unit="gC/grid/y"  grid_ref="grid_nvm" operation="accumulate"/>
     <field id="HARVEST_FOREST_c" name="HARVEST_FOREST_c" long_name="Carbon contained in wood harvest" unit="gC/grid/y" operation="accumulate"/>
     <field id="HARVEST_FOREST_n" name="HARVEST_FOREST_n" long_name="Nitrogen contained in wood harvest" unit="gN/grid/y" operation="accumulate"/>
-    <field id="LCC_FOREST_c" name="LCC_FOREST_c" long_name="Carbon contained in lcc deforestation" unit="gC/grid/y"/>
-    <field id="LCC_FOREST_n" name="LCC_FOREST_n" long_name="Nitrogen contained in lcc deforestation" unit="gN/grid/y"/>
+    <field id="LCC_FOREST_c" name="LCC_FOREST_c" long_name="Carbon contained in lcc deforestation" unit="gC/grid/y" operation="accumulate"/>
+    <field id="LCC_FOREST_n" name="LCC_FOREST_n" long_name="Nitrogen contained in lcc deforestation" unit="gN/grid/y" operation="accumulate"/>
     <field id="HARVEST_LCC_ACC_c" name="HARVEST_LCC_ACC_c" long_name="Carbon contained in wood, grass and crops harvest and lcc" unit="gC/grid/y" operation="instant"/>
     <field id="HARVEST_LCC_ACC_n" name="HARVEST_LCC_ACC_n" long_name="Nitrogen contained in wood, grass and crop harvest and lcc" unit="gN/grid/y" operation="instant"/>
     <field id="WOOD_VOL_PIX_CUT" name="WOOD_VOL_PIX_CUT" long_name="The wood volume that was harvested or salvaged" unit="m3/m2" grid_ref="grid_ncut" operation="instant"/>
@@ -1029,7 +1026,7 @@
     <field id="RDI_TARGET_LOWER" name="RDI_TARGET_LOWER" long_name="Relative density index lower target" unit="-" grid_ref="grid_nvm"/>
     <field id="FOREST_MANAGED" name="FOREST_MANAGED" long_name="Forest management flag" unit="-" grid_ref="grid_nvm"/>
     <field id="WHYCHANGE" name="WHYCHANGE" long_name="Why change in forest management" unit="-" grid_ref="grid_nvm"/>
-    <!-- AGE_CLASS_BOUNDS_PFT (design/MODULE_DESIGN_AGE_CLASS_BOUNDS_PFT.md §6.6) :
+    <!-- AGE_CLASS_BOUNDS_PFT (design/DESIGN_MANAGEMENT.md §3) :
          WHYCHANGE est un CODE (1, 2, 3 ...), pas une quantite. La moyenne temporelle par
          defaut le dilue sur le mois (un drapeau pose un seul jour sort a code/30) et le
          rend illisible. whychange etant ecrase une seule fois par an et par creneau, un

@@ -3822,10 +3822,12 @@ CONTAINS
     IF (ok_aed_light .AND. ALLOCATED(AED_light)) THEN
        fedge_pgap(:) = 1.0_r_std - ((AED_light(:) - edge_distance_light/2._r_std)**2) &
                                   / (AED_light(:)**2)
+       ! Guillaume M. (AI gen) -- Tree PFTs only, as in fitting_laieff.
        DO ivm = 1, nvm
           DO ilev = 1, nlevels_tot
              Pgap_cumul(:,ivm,ilev) = Pgap_cumul(:,ivm,ilev) &
-                                    * (1.0_r_std + pgap_edge_factor * fedge_pgap(:))
+                                    * (1.0_r_std + pgap_edge_factor &
+                                    * MERGE(fedge_pgap(:), zero, is_tree(ivm)))
           ENDDO
        ENDDO
        Pgap_cumul(:,:,:) = MIN(1.0_r_std, MAX(0.0_r_std, Pgap_cumul(:,:,:)))

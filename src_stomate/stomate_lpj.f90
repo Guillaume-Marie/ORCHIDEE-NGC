@@ -768,6 +768,7 @@ CONTAINS
     REAL(r_std), DIMENSION(ncirc,nparts)                        :: temp3               !! Temporary variable for writing to history files
     REAL(r_std), DIMENSION(ncirc)                               :: temp_n              !! Temporary N per circ class (dominant-class diag fix)
     REAL(r_std), DIMENSION(npts,nlctypes,nelements,nlanduse)    :: temp4               !! Temporary variable for writing to history files
+    REAL(r_std), DIMENSION(npts,nlctypes) :: nbp_lct  !! NBP per land cover type (gC m-2 d-1)
     REAL(r_std), DIMENSION(npts,ndia_harvest+1,nelements,nlanduse):: temp5             !! Temporary variable to simplify compilation
     REAL(r_std), DIMENSION(npts,nvm,noutdiaclass)               :: temp6, temp7        !! Temporary variable for writing to history files
     REAL(r_std)                                                 :: dummy               !! dummy variable for prescribe
@@ -3866,6 +3867,17 @@ CONTAINS
        CALL xios_orchidee_send_field('MBC_NBP2'//TRIM(element_str(iele)), &
             (nbp_pool_end(:,iele)-nbp_accu_flux(:,iele)))
     END DO
+
+    ! Guillaume M. (AI gen) -- NBP_flux_c split by land cover type (forest, grass, crop) with the
+    ! formula of calculate_nbp_flux: -fco2_flux of the PFTs of the type minus its product decay.
+    ! Bare soil counts as grass (natural, not tree). The sum over types is NBP_flux_c.
+    nbp_lct(:,:) = - SUM(flux_prod_s(:,icarbon,:,:) + flux_prod_m(:,icarbon,:,:) &
+         + flux_prod_l(:,icarbon,:,:), 2)
+    DO ivm = 1, nvm
+       j = MERGE(iforest, MERGE(igrass, icrop, natural(ivm)), is_tree(ivm))
+       nbp_lct(:,j) = nbp_lct(:,j) - fco2_flux(:,ivm)
+    ENDDO
+    CALL xios_orchidee_send_field('NBP_FLUX_LCT_c', nbp_lct/1e3/one_day)
 
     
     ! Write the harvest pools to the history files. The code does not keep
