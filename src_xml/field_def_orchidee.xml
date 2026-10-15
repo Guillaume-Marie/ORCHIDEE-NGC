@@ -776,10 +776,10 @@
     <field id="HARVEST_AREA" name="HARVEST_AREA" long_name="Harvested area" unit="m^2/grid/day" grid_ref="grid_nvm"/>
     <field id="LCC_AREA" name="LCC_AREA" long_name="Land cover change area" unit="m^2/grid/day" grid_ref="grid_nvm"/>
     <field id="HARVEST_LCC_AREA_ACC" name="HARVEST_LCC_AREA_ACC" long_name="Harvested and lcc area accumulated" unit="m^2/grid/y" grid_ref="grid_nvm" operation="instant"/>
-    <field id="HARVEST_LCC_CROP_c" name="HARVEST_LCC_CROP_c" long_name="Carbon contained in crop harvest and lcc" unit="gC/grid/y"/>
-    <field id="HARVEST_LCC_CROP_n" name="HARVEST_LCC_CROP_n" long_name="Nitrogen contained in crop harvest and lcc" unit="gN/grid/y"/>
-    <field id="HARVEST_LCC_GRASS_c" name="HARVEST_LCC_GRASS_c" long_name="Carbon contained in grass harvest and lcc" unit="gC/grid/y"/>
-    <field id="HARVEST_LCC_GRASS_n" name="HARVEST_LCC_GRASS_n" long_name="Nitrogen contained in grass harvest and lcc" unit="gN/grid/y"/>
+    <field id="HARVEST_LCC_CROP_c" name="HARVEST_LCC_CROP_c" long_name="Carbon contained in crop harvest and lcc" unit="gC/grid/y" operation="accumulate"/>
+    <field id="HARVEST_LCC_CROP_n" name="HARVEST_LCC_CROP_n" long_name="Nitrogen contained in crop harvest and lcc" unit="gN/grid/y" operation="accumulate"/>
+    <field id="HARVEST_LCC_GRASS_c" name="HARVEST_LCC_GRASS_c" long_name="Carbon contained in grass harvest and lcc" unit="gC/grid/y" operation="accumulate"/>
+    <field id="HARVEST_LCC_GRASS_n" name="HARVEST_LCC_GRASS_n" long_name="Nitrogen contained in grass harvest and lcc" unit="gN/grid/y" operation="accumulate"/>
     <field id="HARVEST_VEGET_c" name="HARVEST_VEGET_c" long_name="Carbon contained in harvest for different PFT" unit="gC/grid/y"  grid_ref="grid_nvm" operation="accumulate"/>
     <field id="HARVEST_FOREST_c" name="HARVEST_FOREST_c" long_name="Carbon contained in wood harvest" unit="gC/grid/y" operation="accumulate"/>
     <field id="HARVEST_FOREST_n" name="HARVEST_FOREST_n" long_name="Nitrogen contained in wood harvest" unit="gN/grid/y" operation="accumulate"/>
