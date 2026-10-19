@@ -316,7 +316,8 @@ CONTAINS
     REAL(r_std), DIMENSION(nvm,ntrace)              :: ef_trace                  !! Emission factors for trace gases (g (kg dry mass)^{-1})
     REAL(r_std), DIMENSION(npts)                    :: vartmp                    !!
     REAL(r_std), DIMENSION(npts,nvm)                :: vartmp_pft                !!
-    REAL(r_std), DIMENSION(npts,nvm)                :: area_damaged_fire         !! Forest area killed by fire, cc-kill basal-area route (m2)
+    !! Forest area killed by fire, cc-kill basal-area route (m2)
+    REAL(r_std), DIMENSION(npts,nvm)                :: area_damaged_fire
     INTEGER :: ivm,x,m,k,n,i,icir,ipts,ihour,iele,ilit,ipar,ilev,imbc
     INTEGER :: itestpft,itestipts
 
@@ -820,7 +821,7 @@ CONTAINS
     ENDWHERE
 
     ! AED_FEEDBACK (Marie 2026): accumulate burnt area for edge_length feedback.
-    ! area_burnt is in ha; convert to m² before adding to the per-step accumulator.
+    ! area_burnt is in ha; convert to m2 before adding to the per-step accumulator.
     IF (ok_aed_feedback .AND. ALLOCATED(dA_fire)) THEN
       dA_fire(:) = dA_fire(:) + area_burnt(:) * 10000.0_r_std
     ENDIF
@@ -1621,7 +1622,8 @@ CONTAINS
     REAL(r_std), PARAMETER                           :: alpha_1hr=0.001            !! @tex $(Celcius^{-2})$ @endtex
     REAL(r_std), PARAMETER                           :: alpha_10hr=5.42E-5
     REAL(r_std), PARAMETER                           :: alpha_100hr=1.49E-5
-    ! c_r (VPD precip-suppression coeff) is now the calibratable module getin cr_fire (CR_FIRE, default 2.0) -- fire knob
+    ! c_r (VPD precip-suppression coeff) is now the calibratable module getin cr_fire (CR_FIRE,
+    ! default 2.0) -- fire knob
     REAL(r_std), DIMENSION(npts)                     :: alpha_fuel
     REAL(r_std), DIMENSION(npts)                     :: vartmp
     REAL(r_std), DIMENSION(npts)                     :: vartmp2
@@ -1753,7 +1755,7 @@ CONTAINS
         WRITE(numout,*) 'human_ign before:', human_ign(:)
         WRITE(numout,*) 'human_ign multiplier', edge_ignition_factor*fedge_ign(:)
       ENDIF
-      ! Guillaume M. -- The edge term is additive, so the base gives up the share
+      ! Guillaume M. (AI gen) -- The edge term is additive, so the base gives up the share
       ! edge_ignition_base_frac (default 1 = unchanged) to keep the total ignitions of a
       ! world with edges equal to the world without. A_ND_SCALE is the resolution factor
       ! and never carries this split.
@@ -2163,7 +2165,8 @@ CONTAINS
       WHERE (wetness_edge(:) .LE. 0.12)
         cf_10hr(:)=1.0
       ELSEWHERE ( wetness_edge(:) .GT. 0.12 .AND. wetness_edge(:) .LE. 0.51 )
-        cf_10hr(:)=1.09-0.72*wetness(:)
+        ! Guillaume M. (AI gen) -- Edge-dried wetness here too, as in the other branches.
+        cf_10hr(:)=1.09-0.72*wetness_edge(:)
       ELSEWHERE ( wetness_edge(:) .GT. 0.51 .AND. wetness_edge(:) .LE. 1.0 )
         cf_10hr(:)=1.47-1.47*wetness_edge(:)
       ELSEWHERE (wetness_edge(:) .GT. 1.0)

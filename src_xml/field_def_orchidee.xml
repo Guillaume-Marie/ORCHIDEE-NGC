@@ -652,13 +652,16 @@
     <field id="CLASS0_AREA"      name="CLASS0_AREA"      long_name="Class-0 (recently disturbed / open) area per grid cell (AED_REGROWTH)"           unit="m2"/>
     <field id="CLASS0_RECOVERED" name="CLASS0_RECOVERED" long_name="Class-0 area restituted to class 1 this year, grid-cell fraction (AED_REGROWTH). Was declared but NEVER assigned before 2026-08-09: it read zero everywhere and was used to conclude the conveyor restituted nothing."                unit="1"/>
     <!-- ATTENTION : FRAC_CLASS0 vaut A_open/f_forest = alpha_reg*f_class1/f_forest, un
-         INDICATEUR D'OUVERTURE, PAS une fraction de classe 0. Sous OK_AED_EDGE_RDI_WEIGHT
+         INDICATEUR D'OUVERTURE, PAS une fraction de classe 0. Avec le poids (1-RDI)
          la classe 1 est ponderee par (1-RDI), donc l'indicateur passe SOUS la vraie part de
          classe 1. Ne jamais l'empiler avec les classes d'age ; le vrai stock de classe 0 est
          CLASS0_VEG. L'ecart de 40,7 % contre 31,3 % mesure en 2026-07 tenait au terme de
          fragmentation, retire depuis : ce chiffre ne vaut plus. -->
     <field id="FRAC_CLASS0"      name="FRAC_CLASS0"      long_name="Openness indicator A_open/area_forest (NOT a class-0 fraction; see AED_REGROWTH)" unit="-"/>
     <field id="CLASS0_VEG"       name="CLASS0_VEG"       long_name="Grid-cell fraction held in the class-0 regeneration conveyor, summed over groups and slots (MATURITY_CONVEYOR, N_CLASS0)" unit="-"/>
+    <field id="CLASS0_VEG_AGENT" name="CLASS0_VEG_AGENT" long_name="CLASS0_VEG split by agent (fire, storm, pest, harvest)" unit="-" grid_ref="grid_nagent"/>
+    <field id="EDGE_FRESH_AGENT" name="EDGE_FRESH_AGENT" long_name="EDGE_FRESH split by agent, pro rata of alpha times the class-0 area of the agent" unit="m" grid_ref="grid_nagent"/>
+    <field id="EDGE_MICRO_AGENT" name="EDGE_MICRO_AGENT" long_name="EDGE_MICRO split by agent, alpha-weighted agent mix of the edge source" unit="m" grid_ref="grid_nagent"/>
     <field id="FIRE_FRACTION" name="FIRE_FRACTION" long_name="Fraction of burned area per day based on grid cell land area" unit="1/day"/>    
     <field id="CO2_FIRE" name="CO2_FIRE" long_name="Output CO2 flux from fire " unit="gC/day/m^2/pft" grid_ref="grid_nvm"/>
     <field id="CO2_FIRE_SURFACE" name="CO2_FIRE_SURFACE" long_name="Output CO2 flux from surface burning" unit="gC/day/m^2/pft" grid_ref="grid_nvm"/>
@@ -1262,9 +1265,9 @@
     <!-- Harmonised perturbed forest surface (cc_kill_to_area, basal-area route). One apples-to-apples
          m2 metric across fire/storm/pest, comparable to DA_HARVEST. GROSS flux over the output interval
          (uniform-pixel, double-counts repeated disturbance, may exceed stand area); do NOT sum across years. -->
-    <field id="AREA_DAMAGED_FIRE"  name="AREA_DAMAGED_FIRE"  long_name="gross forest area killed by fire (cc-kill basal-area; do not sum across years)" unit="m2" grid_ref="grid_nvm" operation="accumulate"/>
-    <field id="AREA_DAMAGED_STORM" name="AREA_DAMAGED_STORM" long_name="gross forest area killed by storm (cc-kill basal-area; do not sum across years)" unit="m2" grid_ref="grid_nvm" operation="accumulate"/>
-    <field id="AREA_DAMAGED_PEST"  name="AREA_DAMAGED_PEST"  long_name="gross forest area killed by bark beetle (cc-kill basal-area; do not sum across years)" unit="m2" grid_ref="grid_nvm" operation="accumulate"/>
+    <field id="AREA_DAMAGED_FIRE"  name="AREA_DAMAGED_FIRE"  long_name="gross forest area killed by fire during the output interval (cc-kill basal-area): a monthly INCREMENT, sum the 12 months for the year, do not sum years" unit="m2" grid_ref="grid_nvm" operation="accumulate"/>
+    <field id="AREA_DAMAGED_STORM" name="AREA_DAMAGED_STORM" long_name="gross forest area killed by storm during the output interval (cc-kill basal-area): a monthly INCREMENT, sum the 12 months for the year, do not sum years" unit="m2" grid_ref="grid_nvm" operation="accumulate"/>
+    <field id="AREA_DAMAGED_PEST"  name="AREA_DAMAGED_PEST"  long_name="gross forest area killed by bark beetle during the output interval (cc-kill basal-area): a monthly INCREMENT, sum the 12 months for the year, do not sum years" unit="m2" grid_ref="grid_nvm" operation="accumulate"/>
 
     <field id="B_beetles_kill" name="B_beetles_kill" long_name="Biomass killed by bark beetle" unit="tC/ha" grid_ref="grid_nvm" operation="maximum"/>
     <field id="Beetle_damage_woodvol" name="Beetle_damage_woodvol" long_name="Wood volume killed by bark beetle" unit="m^3/m^2" grid_ref="grid_nvm" operation="maximum"/>

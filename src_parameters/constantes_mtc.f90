@@ -855,7 +855,8 @@ MODULE constantes_mtc
 
   
   ! BARK BEETLES (ok_pest = y)
-  LOGICAL, PARAMETER, DIMENSION(nvmc) :: beetle_pft_mtc = &                            !! Do bark beetle attack? (true/false)
+  !! Do bark beetle attack? (true/false)
+  LOGICAL, PARAMETER, DIMENSION(nvmc) :: beetle_pft_mtc = &
   & (/ .FALSE.,   .FALSE.,   .FALSE.,   .TRUE.,   .FALSE.,   .FALSE.,.TRUE.,  &
   &    .FALSE.,   .FALSE.,   .FALSE.,   .FALSE.,   .FALSE.,   .FALSE. /)
 
@@ -2203,10 +2204,11 @@ REAL(r_std), PARAMETER, DIMENSION(nvmc) :: mortality_min_mtc = &       !! Asympt
   ! against the ~50 yr observed. /!\ This raises the threshold; it does NOT fix the ~1.3x
   ! excess in simulated diameter growth (0.53 vs 0.41 cm/yr observed), a separate defect.
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: largest_tree_dia_eu_mtc =  &               !! Maximal tree diameter (m). If this diameter is exceeded a
-  & (/ undef,  0.32,   0.23,    0.35,    0.30,    0.38,   0.32,  &                      !! a clearcut will happen
+  !! a clearcut will happen
+  & (/ undef,  0.32,   0.23,    0.35,    0.30,    0.38,   0.32,  &
   &     0.32,  0.30,   undef,  undef,  undef,  undef/)
 
-  ! ROTATION DE REFERENCE PAR MTC (2026-07-31). Duree de revolution d'un peuplement
+  ! ROTATION DE REFERENCE PAR MTC. Duree de revolution d'un peuplement
   ! conduit en gestion MULTIFONCTIONNELLE : c'est la reference que MI_ROTATION_FACTOR
   ! module ensuite par classe d'intensite. Le taux de recolte en decoule,
   ! taux = 1/(rotation_ref * facteur), et REMPLACE l'estimateur EFDA -- une serie de
@@ -2228,8 +2230,10 @@ REAL(r_std), PARAMETER, DIMENSION(nvmc) :: mortality_min_mtc = &       !! Asympt
   ! ne s'en distingue que par des surcharges de namelist. Sa rotation (10-14 ans en
   ! taillis de trituration, 25-35 ans en futaie de sciage) doit donc etre posee par
   ! ROTATION_REF sur ses creneaux PFT ; elle ne peut pas venir de cette table.
-  REAL(r_std), PARAMETER, DIMENSION(nvmc) :: rotation_ref_mtc =  &                      !! Reference rotation length (yr) under
-  & (/ undef,  110.,   80.,    60.,    120.,    110.,   110.,  &                        !! MULTIFUNCTIONAL management
+  !! Reference rotation length (yr) under
+  REAL(r_std), PARAMETER, DIMENSION(nvmc) :: rotation_ref_mtc =  &
+  !! MULTIFUNCTIONAL management
+  & (/ undef,  110.,   80.,    60.,    120.,    110.,   110.,  &
   &     80.,   50.,   undef,  undef,  undef,  undef/)
 
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: thin_intensity_eu_mtc = &                  !! Intensity of a thinnig event when a forest reach the upper

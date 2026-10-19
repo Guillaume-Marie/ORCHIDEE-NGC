@@ -1102,6 +1102,9 @@
     <field field_ref="CLASS0_RECOVERED" level="2"/>
     <field field_ref="FRAC_CLASS0"      level="2"/>
     <field field_ref="CLASS0_VEG"       level="2"/>
+    <field field_ref="CLASS0_VEG_AGENT" grid_ref="grid_nagent_out" level="2"/>
+    <field field_ref="EDGE_FRESH_AGENT" grid_ref="grid_nagent_out" level="2"/>
+    <field field_ref="EDGE_MICRO_AGENT" grid_ref="grid_nagent_out" level="2"/>
     <field field_ref="SLA" grid_ref="grid_nvm_out" level="0"/>
     <field field_ref="LAI_MEAN" grid_ref="grid_nvm_out" level="1"/>
     <field field_ref="LAI_MAX" grid_ref="grid_nvm_out" level="1"/>

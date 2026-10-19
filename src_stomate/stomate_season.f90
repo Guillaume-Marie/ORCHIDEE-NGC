@@ -1503,7 +1503,7 @@ CONTAINS
        ENDWHERE
     ENDDO
 
-    ! Guillaume M. -- OK_BEETLE_ACUTE_DROUGHT: track this year's low of monthly root-zone moisture
+    ! Guillaume M. (AI gen) -- OK_BEETLE_ACUTE_DROUGHT: track this year's low of monthly root-zone moisture
     ! over the active period (weekly air temperature above beetle_drought_tact).
     IF (ok_beetle_acute_drought) THEN
        DO j = 2, nvm
@@ -1675,7 +1675,7 @@ CONTAINS
          ENDDO
          tmp_legacy(:,:,1) = vegstress_season(:,:)       ! Update
          season_drought_legacy(:,:,:) = tmp_legacy(:,:,:)
-         ! Guillaume M. -- OK_BEETLE_ACUTE_DROUGHT: push this year's moisture low, then reset it.
+         ! Guillaume M. (AI gen) -- OK_BEETLE_ACUTE_DROUGHT: push this year's moisture low, then reset it.
          IF (ok_beetle_acute_drought) THEN
             DO iyear = beetle_drought_nref, 2, -1
                moist_min_legacy(:,:,iyear) = moist_min_legacy(:,:,iyear-1)
@@ -1957,9 +1957,11 @@ CONTAINS
                IF ( tbark_daily(ipts) .GT. min_temp_beetle(j) .AND. tbark_daily(ipts) &
                       .LT. max_temp_beetle(j) .AND. beetle_diapause(ipts,j) == 0) THEN
     
-                  ! Guillaume M. -- The development rate scales as a whole (brackets), so Teff ~ T - Tmin
+                  ! Guillaume M. (AI gen) -- The development rate scales as a whole (brackets), so Teff ~ T -
+                  ! Tmin
                   ! in degree-days, never negative.
-                  Teff= MAX(zero, (opt_temp_beetle(j) - min_temp_beetle(j))*(exp(eff_temp_beetle_a(j)* &
+                  Teff= MAX(zero, (opt_temp_beetle(j) &
+                       - min_temp_beetle(j))*(exp(eff_temp_beetle_a(j)* &
                         tbark_daily(ipts)) - exp(eff_temp_beetle_a(j)* &
                         eff_temp_beetle_b(j)-(eff_temp_beetle_b(j) - tbark_daily(ipts))/ &
                         eff_temp_beetle_c(j)) - eff_temp_beetle_d(j)))

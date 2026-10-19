@@ -442,7 +442,9 @@ CONTAINS
        !
        CALL xios_set_axis_attr("nvm",n_glo=nvm,LABEL=PFT_name(:),VALUE=(/(REAL(i,r_std),i=1,nvm)/))        
        CALL xios_set_axis_attr("nvmap",n_glo=nvmap ,VALUE=(/(REAL(i,r_std),i=1,nvmap)/))
-       CALL xios_set_axis_attr("nlut",n_glo=nlut ,LABEL=[CHARACTER(LEN=26) :: 'primary_and_secondary_land','pastures','crops','urban'],VALUE=(/(REAL(i,r_std),i=1,nlut)/))
+       CALL xios_set_axis_attr("nlut",n_glo=nlut , &
+            LABEL=[CHARACTER(LEN=26) :: 'primary_and_secondary_land','pastures','crops','urban'], &
+                 VALUE=(/(REAL(i,r_std),i=1,nlut)/))
        CALL xios_set_axis_attr("ncarb",n_glo=ncarb ,VALUE=(/(REAL(i,r_std),i=1,ncarb)/))
        CALL xios_set_axis_attr("nlaip1", n_glo=nlai+1,VALUE=(/(REAL(i,r_std),i=1,nlai+1)/))
        CALL xios_set_axis_attr("ngrnd",n_glo=ngrnd ,VALUE=znt(:))

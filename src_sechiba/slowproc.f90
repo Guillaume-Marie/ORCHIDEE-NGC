@@ -1917,7 +1917,8 @@ CONTAINS
     INTEGER(i_std)                                        :: ji, jv, ier,jst     !! Indices 
     LOGICAL                                               :: get_slope
     REAL(r_std)                                           :: frac_nobio1         !! temporary variable for frac_nobio(see above)
-    REAL(r_std)                                           :: precip_longterm_init !! Pluie annuelle supposee au cold start (mm/an)
+    !! Pluie annuelle supposee au cold start (mm/an)
+    REAL(r_std)                                           :: precip_longterm_init
     REAL(r_std), DIMENSION(kjpindex)                      :: tmp_real
     REAL(r_std), DIMENSION(kjpindex,nslm)                 :: stempdiag2_bid      !! matrix to store stempdiag_bid
     REAL(r_std), DIMENSION (kjpindex,nscm)                :: soilclass           !! Fractions of each soil textural class in the grid cell (0-1, unitless)
@@ -2557,11 +2558,13 @@ CONTAINS
 
     IF (ALL(precip_longterm(:) == val_exp)) THEN
         !Config Key   = PRECIP_LONGTERM_INIT
-        !Config Desc  = Pluie annuelle supposee au demarrage a froid, pour initialiser precip_longterm
+        !Config Desc  = Pluie annuelle supposee au demarrage a froid, pour initialiser
+        !Config         precip_longterm
         !Config If    = OK_STOMATE
         !Config Def   = 700.
         !Config Help  = A zero, pipe_tune2 est rabattu sur son plancher min_pipe_tune2 (7 m) le
-        !Config         premier jour. Or c'est ce jour-la que prescribe dimensionne les peuplements :
+        !Config         premier jour. Or c'est ce jour-la que prescribe dimensionne les peuplements
+        !Config         :
         !Config         la biomasse posee est ensuite relue avec l'allometrie climatique reelle
         !Config         (pipe_tune2 ~30), le diametre est divise par ~1.8, Nmax triple et le RDI
         !Config         tombe de 0.70 a ~0.23 sans qu'aucun arbre ne meure. Valeur par defaut :
@@ -2585,7 +2588,8 @@ CONTAINS
               ! Guillaume M. -- The COUNT intrinsic is unusable here: a local REAL named
               ! `count` shadows it in this routine, so COUNT(...) would be parsed as an
               ! array indexed by a logical. Hence SUM(MERGE(...)).
-              WRITE(numout,*) 'slowproc_init : cold start, precip_longterm initialise PAR MAILLE ', &
+              WRITE(numout, &
+                   *) 'slowproc_init : cold start, precip_longterm initialise PAR MAILLE ', &
                    'depuis le forcage ; mailles retombant sur le scalaire : ', &
                    SUM(MERGE(1,0,precip_forcing_mean(:) <= zero)), ' / ', kjpindex
            ELSE
@@ -3789,8 +3793,11 @@ CONTAINS
                                                                                    !! @tex $(m)$ @endtex (local because the 
                                                                                    !! call to effective_lai requires it)]
     REAL(r_std), DIMENSION(kjpindex)                       :: fracsum              !! Sum of both fracnobio and veget_max
-    REAL(r_std), DIMENSION(kjpindex)                       :: fedge_pgap           !! Edge effect weight on canopy porosity (0-1)
-                                                                                   !! See MODULE_DESIGN_AED_LIGHT.md §4.2
+    !! Edge effect weight on canopy porosity (0-1)
+    REAL(r_std), DIMENSION(kjpindex)                       :: fedge_pgap
+                                                                                   !! See
+                                                                       !! MODULE_DESIGN_AED_LIGHT.md
+                                                                                   !! sec.4.2
 
 !_ ================================================================================================================================
 
@@ -3818,7 +3825,7 @@ CONTAINS
     ! Guillaume M. -- Same modulation as in fitting_laieff (stomate_laieff), applied here so
     ! that the SAVEd Pgap_cumul feeding the veget -> condveg (albedo) -> enerbil cascade stays
     ! consistent. AED_light comes from stomate_data.calculate_aed, refreshed daily by stomate.
-    ! See MODULE_DESIGN_AED_LIGHT.md §4.2.
+    ! See MODULE_DESIGN_AED_LIGHT.md sec.4.2.
     IF (ok_aed_light .AND. ALLOCATED(AED_light)) THEN
        fedge_pgap(:) = 1.0_r_std - ((AED_light(:) - edge_distance_light/2._r_std)**2) &
                                   / (AED_light(:)**2)
@@ -4273,9 +4280,12 @@ CONTAINS
                                                                              !!        (normalized by maskvals(3))
                                                                              !!   'var': mask values are taken from a 
                                                                              !!     variable inside the file (>0)
-    REAL(r_std), DIMENSION(nbpt,nagec)                   :: acfrac           !! Age-class area fractions per pixel (structured cold start)
-    INTEGER(i_std)                                       :: ic_acf           !! Indice de classe d'age pour AGE_CLASS_INIT_FRAC
-    REAL(r_std), DIMENSION(nbpt)                         :: acnorm           !! Per-group renormalisation of acfrac
+    !! Age-class area fractions per pixel (structured cold start)
+    REAL(r_std), DIMENSION(nbpt,nagec)                   :: acfrac
+    !! Indice de classe d'age pour AGE_CLASS_INIT_FRAC
+    INTEGER(i_std)                                       :: ic_acf
+    !! Per-group renormalisation of acfrac
+    REAL(r_std), DIMENSION(nbpt)                         :: acnorm
     REAL(r_std), DIMENSION(3)                            :: maskvals         !! values to use to mask (according to 
                                                                              !!   `maskingtype') 
     CHARACTER(LEN=250)                                   :: namemaskvar      !! name of the variable to use to mask 
@@ -4563,13 +4573,13 @@ CONTAINS
        ! the age classes can change between this part of the code and between 
        ! land_cover_change main, due to growth or death.
        veget_next_out(:,:) = 0.0
-       ! Guillaume M. -- The age-class split is gated on `init` ONLY. A partial restart
+       ! Guillaume M. (AI gen) -- The age-class split is gated on `init` ONLY. A partial restart
        ! (soil kept, veget_max dropped, PFT map re-read) still counts as a cold start for
        ! the vegetation. The ELSE branch is not a "flag off" case: it serves every annual
        ! VEGET_UPDATE call, where all-to-youngest is the convention. Taking the first
        ! branch unconditionally would reset the age structure every year.
        IF (init) THEN
-          ! Guillaume M. -- Cold-start area is spread over the species age classes rather
+          ! Guillaume M. (AI gen) -- Cold-start area is spread over the species age classes rather
           ! than all put in the youngest one, which would make every stand reach rotation
           ! together (synchronised clearfell wave). Fractions come from AGE_CLASS_INIT_FRAC,
           ! renormalised to 1, even by default; each class then establishes at its own
@@ -4578,7 +4588,7 @@ CONTAINS
              acfrac(:,ic_acf) = age_class_init_frac(ic_acf)
           ENDDO
           DO ivma=1,nvmap
-             ! Guillaume M. -- Renormalise PER GROUP: non-forest groups have nagec_pft = 1,
+             ! Guillaume M. (AI gen) -- Renormalise PER GROUP: non-forest groups have nagec_pft = 1,
              ! and spreading 4 fractions over 1 slot would not conserve area. Normalise on
              ! the age classes the group ACTUALLY has.
              acnorm(:) = SUM(acfrac(:,1:nagec_pft(ivma)), DIM=2)

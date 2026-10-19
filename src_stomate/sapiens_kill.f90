@@ -583,6 +583,27 @@ CONTAINS
                   init_biomass(ipts,ivm,:,:) - actu_biomass(:,:)
              init_biomass(ipts,ivm,:,:) =  actu_biomass(:,:)
 
+             ! Guillaume M. (AI gen) -- Demand-paced coppice cut by area (COPPICE_DEMAND).
+             ! Only where the demand set ph_cut_frac: PAI<MAI coppice marks stay unexecuted.
+             IF (ALLOCATED(ph_cut_frac)) THEN
+                IF (ph_cut_frac(ipts,ivm) .GT. zero) THEN
+                   CALL clearcut_harvest_aboveground_dead_roots(npts, ipts, &
+                        ivm, ifm_cop, icut_clear, bm_to_litter, &
+                        woody_litter_by_cut, circ_class_biomass, circ_class_kill, &
+                        circ_class_n, harvest_pool, harvest_type, harvest_cut, &
+                        harvest_area, harvest_pool_bound, veget_max,&
+                        last_cut, age_stand, mai_count,&
+                        max(zero, clearcut_residue(ivm,ifm_cop) - &
+                         branch_harvest(ivm,ifm_cop) * branch_ratio(ivm)))
+                   actu_biomass = cc_to_biomass(npts,nvm,&
+                        circ_class_biomass(ipts,ivm,:,:,:),&
+                        circ_class_n(ipts,ivm,:))
+                   biomass_cut(ipts,ivm,:,:,ifm_cop,icut_clear) = &
+                        init_biomass(ipts,ivm,:,:) - actu_biomass(:,:)
+                   init_biomass(ipts,ivm,:,:) =  actu_biomass(:,:)
+                ENDIF
+             ENDIF
+
              ! Not only do we harvest stems during thinning, we have to 
              ! adjust the mortality.  We'll do all this in a subroutine.
              CALL thinning_harvest_aboveground_dead_roots(npts, ipts, &
@@ -1136,11 +1157,13 @@ CONTAINS
     !! 0.4 Local variables
     INTEGER(i_std)                                               :: idia, icir, imbc   !! Indices
     INTEGER(i_std)                                               :: iele, ipar         !! Indices
-    LOGICAL                                                      :: ph_area_scaled     !! PROGRESSIVE_HARVEST: credit only the fraction actually cut
+    !! PROGRESSIVE_HARVEST: credit only the fraction actually cut
+    LOGICAL                                                      :: ph_area_scaled
     REAL(r_std), DIMENSION(nelements)                            :: total_nonheart_biomass_harvest
     REAL(r_std), DIMENSION(nelements)                            :: total_nonheart_biomass_kill
     REAL(r_std), DIMENSION(nelements)                            :: harvest_ratio
-    REAL(r_std)                                                  :: left_frac          !! Share of the killed aboveground wood counted as breeding material (unitless)
+    !! Share of the killed aboveground wood counted as breeding material (unitless)
+    REAL(r_std)                                                  :: left_frac
     REAL(r_std), DIMENSION(ncirc)                                :: diameters_temp
     REAL(r_std), DIMENSION(npts,nvm,nmbcomp,nelements)           :: check_intern       !! Contains the components of the internal
                                                                                        !! mass balance chech for this routine
@@ -1256,23 +1279,6 @@ CONTAINS
           END IF
        END DO
 
-       ! Guillaume M. -- Probe: which FACTOR is non finite? The writes below are products
-       ! biomass x kill with no division, so a NaN can only come from an already non finite
-       ! factor, or from Inf x 0 -- the latter poisons 9 compartments x 2 elements at once.
-       ! /!\ Test isnan AND abs > 1e30: a diluted 1e33 sentinel gives an Inf, not a NaN, and
-       ! a probe asking isnan alone misses it.
-       IF ( ANY(isnan(circ_class_biomass(ipts,ivm,icir,:,:))) .OR. &
-            ANY(ABS(circ_class_biomass(ipts,ivm,icir,:,:)) > 1.e30) .OR. &
-            isnan(circ_class_kill(ipts,ivm,icir,ifm,icut)) .OR. &
-            ABS(circ_class_kill(ipts,ivm,icir,ifm,icut)) > 1.e30 ) THEN
-          WRITE(numout,*) '[KILLNF] ipts',ipts,' ipft',ivm,' icir',icir, &
-               ' ifm',ifm,' icut',icut, &
-               ' | bm nan',ANY(isnan(circ_class_biomass(ipts,ivm,icir,:,:))), &
-               ' bm inf',ANY(ABS(circ_class_biomass(ipts,ivm,icir,:,:)) > 1.e30), &
-               ' | kill',circ_class_kill(ipts,ivm,icir,ifm,icut), &
-               ' | bm max',MAXVAL(ABS(circ_class_biomass(ipts,ivm,icir,:,:)))
-          CALL flush(numout)
-       ENDIF
 
        ! all of the following biomass becomes litter
        bm_to_litter(ipts,ivm,isapbelow,:) = &
@@ -1308,7 +1314,7 @@ CONTAINS
 
        ! Save woody litter by icut. This will be used in pest module
        ! (stomate_pest) for one of the susceptibility indice.
-       ! Guillaume M. -- Beetles breed in stems only. The harvest takes stems first and leaves the
+       ! Guillaume M. (AI gen) -- Beetles breed in stems only. The harvest takes stems first and leaves the
        ! branches (harvest_fraction = 1 - branch_ratio for stems only), so the stems left are what
        ! remains once the branch share is set aside.
        left_frac = MAX(zero, un - harvest_fraction - branch_ratio(ivm))
@@ -1562,7 +1568,8 @@ CONTAINS
 
     INTEGER(i_std)                                               :: idia, icir,imbc    !! Indices
     INTEGER(i_std)                                               :: iele, ipar         !! Indices
-    LOGICAL                                                      :: ph_area_scaled     !! PROGRESSIVE_HARVEST: credit only the fraction actually cut
+    !! PROGRESSIVE_HARVEST: credit only the fraction actually cut
+    LOGICAL                                                      :: ph_area_scaled
     REAL(r_std), DIMENSION(nelements)                            :: total_nonheart_biomass_harvest
     REAL(r_std), DIMENSION(nelements)                            :: total_nonheart_biomass_living
     REAL(r_std), DIMENSION(nelements)                            :: total_nonheart_biomass_kill
@@ -1572,10 +1579,17 @@ CONTAINS
     REAL(r_std), DIMENSION(ncirc)                                :: diameters_temp
     REAL(r_std), DIMENSION(nelements)                            :: dead_heartwood_be
     REAL(r_std), DIMENSION(nelements)                            :: dead_sapwood_be
-    REAL(r_std)                                                  :: cc_taken           !! Trees actually taken from this
-                                                                                       !! class, bounded by the population
-                                                                                       !! @tex $(ind m^{-2})$ @endtex
-    REAL(r_std)                                                  :: cop_frac           !! Share of the class taken (-)
+    !! Trees actually taken from this
+    REAL(r_std)                                                  :: cc_taken
+                                                                                       !! class,
+                                                                                       !! bounded by
+                                                                                       !! the
+                                                                                       !! population
+                                                                                       !! @tex $(ind
+                                                                                       !! m^{-2})$
+                                                                                       !! @endtex
+    !! Share of the class taken (-)
+    REAL(r_std)                                                  :: cop_frac
     REAL(r_std), DIMENSION(npts,nvm,nmbcomp,nelements)           :: check_intern       !! Contains the components of the internal
                                                                                        !! mass balance chech for this routine
                                                                                        !! @tex $(gC pixel^{-1} dt^{-1})$ @endtex

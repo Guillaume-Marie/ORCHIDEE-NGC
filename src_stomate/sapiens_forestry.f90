@@ -376,30 +376,60 @@ CONTAINS
                                                                                   !! for SRC minus one
     REAL(r_std)                                            :: qm_dia              !! quadratic mean diameter of the forest (m)
     REAL(r_std)                                            :: qm_dia_up_half      !! quadratic mean diameter of the dominant class (m)
-    REAL(r_std)                                            :: rot_target_loc      !! AGE_ROTATION: effective per-pixel target rotation age (yr): map value or scalar
-    REAL(r_std), DIMENSION(npts)                           :: ph_f_cut            !! PROGRESSIVE_HARVEST: rotation-paced fraction of the mature area to cut (-)
-    REAL(r_std), DIMENSION(npts,nvm)                       :: ph_f_cut_pft        !! HARVEST_FEED_COUPLING: per-PFT cut fraction (group quota); flag off = pixel value copied to every PFT (-)
-    REAL(r_std)                                            :: ph_a_grp            !! HARVEST_FEED_COUPLING: thinning-managed area of the species group (m2)
-    REAL(r_std)                                            :: ph_a_term           !! HARVEST_FEED_COUPLING: area of the group terminal age class (m2)
-    REAL(r_std)                                            :: ph_r4               !! HARVEST_FEED_COUPLING: terminal-class filling ratio vs MAT_TARGET_FRAC (-)
-    REAL(r_std)                                            :: ph_gmod             !! HARVEST_FEED_COUPLING: demand modulation g, in [harv_g_min, harv_g_max] (-)
-    INTEGER(i_std)                                         :: ph_jv, ph_jv1, ph_jv2 !! HARVEST_FEED_COUPLING: group scan index and PFT bounds of the group
-    REAL(r_std)                                            :: ph_a_forest         !! PROGRESSIVE_HARVEST: forest area of the pixel (m2)
-    REAL(r_std)                                            :: ph_demand           !! PROGRESSIVE_HARVEST: surface a couper par an, Sigma_jv A_jv/R(jv) (m2)
-    REAL(r_std)                                            :: ph_a_mature         !! PROGRESSIVE_HARVEST: area of the slots meeting the clearcut criterion (m2)
-    REAL(r_std)                                            :: ph_slot_area        !! PROGRESSIVE_HARVEST: ground area of one PFT slot (m2)
-    REAL(r_std)                                            :: ph_qm_dia_up_half   !! PROGRESSIVE_HARVEST: dominant-class QMD in the pre-pass (m)
-    LOGICAL                                                :: ph_active           !! PROGRESSIVE_HARVEST: this slot is cut fractionally this year
-    LOGICAL                                                :: ph_dia_ok           !! PROGRESSIVE_HARVEST: eligibilite de coupe (test de diametre retire sous PH)
-    LOGICAL                                                :: thin_this_slot      !! FALSE dans la derniere classe d age : phase de recolte, pas d eclaircie
-    LOGICAL                                                :: forced_thin_slot    !! TRUE si le creneau subit l eclaircie ANNUELLE forcee
-    INTEGER(i_std)                                         :: iage_ft             !! Rang de la classe de maturite dans son groupe, pour l eclaircie forcee
-    REAL(r_std)                                            :: rdi_thin_goal       !! RDI vise par l eclaircie : bande basse, ou cible forcee
-    INTEGER(i_std)                                         :: iage_th             !! Indice de classe d age pour la bande de RDI fixe
-    INTEGER(i_std)                                         :: iage_thin_lo        !! Premiere classe d age eclaircie : 2, ou 1 sous OK_RDI_BAND_CLASS1
-    REAL(r_std)                                            :: dfac_loc            !! Modulation du diametre de coupe par l'intensite de gestion (-)
-    LOGICAL                                                :: allow_mgmt_cut      !! AGE_CLASS_BOUNDS_PFT: this slot may undergo a MANAGEMENT clearcut (last age class)
-    REAL(r_std), PARAMETER                                 :: ph_min_survivor = 0.01 !! PROGRESSIVE_HARVEST: minimum surviving share below which the cut is treated as a whole-slot clearcut (-)
+    !! AGE_ROTATION: effective per-pixel target rotation age (yr): map value or scalar
+    REAL(r_std)                                            :: rot_target_loc
+    !! PROGRESSIVE_HARVEST: rotation-paced fraction of the mature area to cut (-)
+    REAL(r_std), DIMENSION(npts)                           :: ph_f_cut
+    !! HARVEST_FEED_COUPLING: per-PFT cut fraction (group quota); flag off = pixel value copied to
+    !! every PFT (-)
+    REAL(r_std), DIMENSION(npts,nvm)                       :: ph_f_cut_pft
+    REAL(r_std), DIMENSION(npts,nvm) :: ph_f_cop   !! COPPICE_DEMAND: terminal cut share (-)
+    REAL(r_std)                      :: ph_dem_cop !! COPPICE_DEMAND: coppice area due yearly (m2)
+    REAL(r_std)                      :: ph_a_cop   !! COPPICE_DEMAND: terminal coppice area (m2)
+    LOGICAL                          :: cop_wait   !! COPPICE_DEMAND: the demand rules this cut
+    !! HARVEST_FEED_COUPLING: thinning-managed area of the species group (m2)
+    REAL(r_std)                                            :: ph_a_grp
+    !! HARVEST_FEED_COUPLING: area of the group terminal age class (m2)
+    REAL(r_std)                                            :: ph_a_term
+    !! HARVEST_FEED_COUPLING: terminal-class filling ratio vs MAT_TARGET_FRAC (-)
+    REAL(r_std)                                            :: ph_r4
+    !! HARVEST_FEED_COUPLING: demand modulation g, in [harv_g_min, harv_g_max] (-)
+    REAL(r_std)                                            :: ph_gmod
+    !! HARVEST_FEED_COUPLING: group scan index and PFT bounds of the group
+    INTEGER(i_std)                                         :: ph_jv, ph_jv1, ph_jv2
+    !! PROGRESSIVE_HARVEST: forest area of the pixel (m2)
+    REAL(r_std)                                            :: ph_a_forest
+    !! PROGRESSIVE_HARVEST: surface a couper par an, Sigma_jv A_jv/R(jv) (m2)
+    REAL(r_std)                                            :: ph_demand
+    !! PROGRESSIVE_HARVEST: area of the slots meeting the clearcut criterion (m2)
+    REAL(r_std)                                            :: ph_a_mature
+    !! PROGRESSIVE_HARVEST: ground area of one PFT slot (m2)
+    REAL(r_std)                                            :: ph_slot_area
+    !! PROGRESSIVE_HARVEST: dominant-class QMD in the pre-pass (m)
+    REAL(r_std)                                            :: ph_qm_dia_up_half
+    !! PROGRESSIVE_HARVEST: this slot is cut fractionally this year
+    LOGICAL                                                :: ph_active
+    !! PROGRESSIVE_HARVEST: eligibilite de coupe (test de diametre retire sous PH)
+    LOGICAL                                                :: ph_dia_ok
+    !! FALSE dans la derniere classe d age : phase de recolte, pas d eclaircie
+    LOGICAL                                                :: thin_this_slot
+    !! TRUE si le creneau subit l eclaircie ANNUELLE forcee
+    LOGICAL                                                :: forced_thin_slot
+    !! Rang de la classe de maturite dans son groupe, pour l eclaircie forcee
+    INTEGER(i_std)                                         :: iage_ft
+    !! RDI vise par l eclaircie : bande basse, ou cible forcee
+    REAL(r_std)                                            :: rdi_thin_goal
+    !! Indice de classe d age pour la bande de RDI fixe
+    INTEGER(i_std)                                         :: iage_th
+    !! Premiere classe d age eclaircie : 2, ou 1 sous OK_RDI_BAND_CLASS1
+    INTEGER(i_std)                                         :: iage_thin_lo
+    !! Modulation du diametre de coupe par l'intensite de gestion (-)
+    REAL(r_std)                                            :: dfac_loc
+    !! AGE_CLASS_BOUNDS_PFT: this slot may undergo a MANAGEMENT clearcut (last age class)
+    LOGICAL                                                :: allow_mgmt_cut
+    !! PROGRESSIVE_HARVEST: minimum surviving share below which the cut is treated as a whole-slot
+    !! clearcut (-)
+    REAL(r_std), PARAMETER                                 :: ph_min_survivor = 0.01
     INTEGER(i_std)                                         :: ierr                !! error message
     INTEGER(i_std)                                         :: igroup_new          !! Species group to which the species with which
                                                                                   !! the stand will be replanted belongs (unitless)
@@ -407,9 +437,12 @@ CONTAINS
                                                                                   !! belongs (unitless)
     REAL(r_std), DIMENSION(ncirc)                          :: circ_class_n_new    !! variable used to sort circ_class_n
     REAL(r_std), DIMENSION(ncirc,nparts,nelements)         :: circ_class_biomass_new !! variable used to sort circ_class_biomass
-    REAL(r_std)                                            :: ramp_u              !! Avancement du peuplement dans sa classe d'amelioration (0-1)
-    REAL(r_std)                                            :: ramp_lo             !! Consigne de RDI interpolee sur la rampe (-)
-    LOGICAL                                                :: cond1_collapsed     !! CONDITION 1 : le peuplement est-il EFFONDRE (et non ouvert a dessein)
+    !! Avancement du peuplement dans sa classe d'amelioration (0-1)
+    REAL(r_std)                                            :: ramp_u
+    !! Consigne de RDI interpolee sur la rampe (-)
+    REAL(r_std)                                            :: ramp_lo
+    !! CONDITION 1 : le peuplement est-il EFFONDRE (et non ouvert a dessein)
+    LOGICAL                                                :: cond1_collapsed
     REAL(r_std), DIMENSION(npts,nvm)                       :: rdi                 !! Relative density index (unitless, 0-2)
     REAL(r_std), DIMENSION(npts,nvm)                       :: rdi_target_upper    !! Upper limit of RDI. When reached the stand
                                                                                   !! needs to be thinned (unitless)   
@@ -566,6 +599,7 @@ CONTAINS
     !  Guillaume M. -- /!\ Deliberate approximation: the pre-pass replicates CONDITION 2 ONLY.
     !  Slots exiting earlier through CONDITION 1/1bis stay in A_mature, which is a
     !  denominator setting a pace, not a cut list.
+    ph_f_cop(:,:) = zero
     IF (ok_progressive_harvest) THEN
 
        IF (.NOT. ALLOCATED(ph_cut_frac)) THEN
@@ -600,14 +634,24 @@ CONTAINS
                 ph_a_mature = zero
                 ph_a_grp    = zero
                 ph_a_term   = zero
+                ph_dem_cop  = zero
+                ph_a_cop    = zero
                 DO ivm = ph_jv1, ph_jv2
                    IF (veget_max(ipts,ivm) == zero) CYCLE
-                   ! Guillaume M. -- Demand and supply share the SAME management filter:
+                   ph_slot_area = veget_max(ipts,ivm) * area(ipts) * contfrac(ipts)
+                   ! Guillaume M. (AI gen) -- Coppice demand A/R; supply = terminal slot.
+                   IF (forest_managed(ipts,ivm) .EQ. ifm_cop) THEN
+                      ! Guillaume M. (AI gen) -- Coppice R = ROTATION_REF, no intensity factor.
+                      ph_dem_cop = ph_dem_cop + ph_slot_area / MAX(rotation_ref(ivm), min_stomate)
+                      IF (ivm .EQ. ph_jv2 .AND. &
+                           SUM(circ_class_biomass(ipts,ivm,:,:,icarbon)) .GT. min_stomate) &
+                           ph_a_cop = ph_slot_area
+                   ENDIF
+                   ! Guillaume M. (AI gen) -- Demand and supply share the SAME management filter:
                    ! the historical path counts every tree PFT in the demand but only
                    ! ifm_thin mature slots in the supply, inflating f_cut wherever
                    ! management is mixed. Fixed here only -- flag off keeps it as is.
                    IF (forest_managed(ipts,ivm) .NE. ifm_thin) CYCLE
-                   ph_slot_area = veget_max(ipts,ivm) * area(ipts) * contfrac(ipts)
                    ph_a_grp = ph_a_grp + ph_slot_area
                    IF (ALLOCATED(target_rotation_age)) THEN
                       ph_demand = ph_demand + ph_slot_area &
@@ -616,10 +660,16 @@ CONTAINS
                    ! r4 counts the terminal-class AREA (an empty mature slot is still area)
                    IF (ivm .EQ. ph_jv2) ph_a_term = ph_a_term + ph_slot_area
                    ! Supply keeps the main-loop guards: no biomass, nothing to cut
-                   IF (SUM(SUM(circ_class_biomass(ipts,ivm,:,:,icarbon),1),1) .LE. min_stomate) CYCLE
-                   IF (ok_clearcut_last_class .AND. ivm .NE. ph_jv2) CYCLE
+                   IF (SUM(SUM(circ_class_biomass(ipts,ivm,:,:,icarbon),1), &
+                        1) .LE. min_stomate) CYCLE
+                   IF (ivm .NE. ph_jv2) CYCLE
                    ph_a_mature = ph_a_mature + ph_slot_area
                 ENDDO ! ivm
+
+                ! Guillaume M. (AI gen) -- Stays 0 without demand file: historical coppice cut.
+                IF (TRIM(harvest_demand_file) /= 'NONE' .AND. ph_a_cop .GT. min_stomate) &
+                     ph_f_cop(ipts,ph_jv1:ph_jv2) = MIN(un, &
+                     harvest_demand_mult(ipts) * ph_dem_cop / ph_a_cop)
 
                 IF (ph_a_mature .LE. min_stomate .OR. ph_demand .LE. min_stomate) CYCLE
 
@@ -629,9 +679,10 @@ CONTAINS
                 ! mode); the MAX(r4, min_stomate) keeps 0**gain well defined.
                 ph_gmod = un
                 IF (nagec_pft(agec_group(ph_jv)) .GT. 1 .AND. ph_a_grp .GT. min_stomate) THEN
-                   ! Guillaume M. -- Setpoint follows the rotation where MAT_A3_ENTRY is set
+                   ! Guillaume M. (AI gen) -- Setpoint follows the rotation where MAT_A3_ENTRY is set
                    ! (design/MODULE_DESIGN_MAT_TARGET_A3.md), MAT_TARGET_FRAC(n) elsewhere.
-                   ph_r4 = ph_a_term / (MAX(mat_target_frac_eff(ipts, ph_jv, nagec_pft(agec_group(ph_jv))), &
+                   ph_r4 = ph_a_term / (MAX(mat_target_frac_eff(ipts, ph_jv, &
+                        nagec_pft(agec_group(ph_jv))), &
                         min_stomate) * ph_a_grp)
                    IF (ph_r4 .LT. mat_band_low .OR. ph_r4 .GT. mat_band_high) THEN
                       ph_gmod = MIN(harv_g_max, MAX(harv_g_min, &
@@ -639,7 +690,9 @@ CONTAINS
                    ENDIF
                 ENDIF
 
-                ph_f_cut_pft(ipts, ph_jv1:ph_jv2) = MIN(un, ph_gmod * ph_demand / ph_a_mature)
+                ! Guillaume M. (AI gen) -- harvest_demand_mult imposes a demand trend (1 = none).
+                ph_f_cut_pft(ipts, ph_jv1:ph_jv2) = MIN(un, &
+                     harvest_demand_mult(ipts) * ph_gmod * ph_demand / ph_a_mature)
 
              ENDDO ! ph_jv
           ENDDO ! ipts
@@ -677,7 +730,7 @@ CONTAINS
              ! Guillaume M. -- The management-cut gate must apply here too, otherwise
              ! A_mature would count slots the main loop then refuses to cut and f_cut
              ! would be under-estimated by the same amount.
-             IF (ok_clearcut_last_class) THEN
+             IF (nagec > 1) THEN
                 IF (ivm .NE. start_index(agec_group(ivm)) &
                      + nagec_pft(agec_group(ivm)) - 1) CYCLE
              ENDIF
@@ -699,7 +752,7 @@ CONTAINS
                 ! PH_MAX_FRACTION / PH_MIN_FRACTION were removed as no-ops -- the cap
                 ! duplicated this MIN and the floor tested f_cut < 0 on a ratio of positive
                 ! areas. See constantes.f90.
-                ph_f_cut(ipts) = MIN(un, ph_demand / ph_a_mature)
+                ph_f_cut(ipts) = MIN(un, harvest_demand_mult(ipts) * ph_demand / ph_a_mature)
 
              ENDIF
 
@@ -733,13 +786,13 @@ CONTAINS
           ! There is no biomass, so nothing to manage
           IF(SUM(SUM(circ_class_biomass(ipts,ivm,:,:,icarbon),1),1) .LE. min_stomate) CYCLE
 
-          ! Guillaume M. -- Under ok_clearcut_last_class, MANAGEMENT clearcuts (CONDITION
+          ! Guillaume M. -- With several age classes, MANAGEMENT clearcuts (CONDITION
           ! 2/2bis and 3/3bis) are restricted to the last age class, which carries the
           ! end-of-rotation function. Deliberately not covered: technical resets, the
           ! stand-failure CONDITION 1, species change on coppice and every natural
           ! disturbance -- all must be able to reset any class.
           allow_mgmt_cut = .TRUE.
-          IF (ok_clearcut_last_class) THEN
+          IF (nagec > 1) THEN
              allow_mgmt_cut = ( ivm .EQ. start_index(agec_group(ivm)) &
                   + nagec_pft(agec_group(ivm)) - 1 )
           ENDIF
@@ -960,14 +1013,8 @@ CONTAINS
 
                 ! CONDITION 1: there are less than [dens_target] trees left
 
-                ! Guillaume M. -- CONDITION 1 is disabled under ok_min_density_reset=n:
-                ! density alone cannot tell a stand that is open BY DESIGN from a collapsed
-                ! one, and a class 1 established at a low PRESCRIBE_RDI_FRAC sits under
-                ! dens_target and was clear-cut within the year.
-                !
                 ! /!\ The enclosing parenthesis is MANDATORY: .AND. binds tighter than .OR.,
-                ! so "gate .AND. A .OR. B .OR. C" would gate A only and silently leave the
-                ! thin and uneven branches active -- a half-disabled reset.
+                ! so "gate .AND. A .OR. B .OR. C" would gate A only.
                 !
                 ! Guillaume M. -- The discriminator is SIZE, not count: an open young stand
                 ! has few THIN stems, a collapsed one has few THICK stems.
@@ -984,14 +1031,15 @@ CONTAINS
                    cond1_collapsed = (rdi_stand(ipts,ivm) .LT. min_density_rdi_floor)
                 ENDIF
 
-                IF( ok_min_density_reset .AND. cond1_collapsed .AND. &
+                IF( cond1_collapsed .AND. &
                     (qm_dia .GE. age_class_bound(1,ivm)) .AND. ( &
                     ((fm_change_map(ipts,ivm) .EQ. ifm_none)&
                        .AND. SUM(circ_class_n(ipts,ivm,:))*m2_to_ha .LT. dens_target(ivm, ifm_none)) .OR.&
                      ((fm_change_map(ipts,ivm) .EQ. ifm_thin)&
                        .AND. SUM(circ_class_n(ipts,ivm,:))*m2_to_ha .LT. dens_target(ivm, ifm_thin)) .OR.&
                      ((fm_change_map(ipts,ivm) .EQ. ifm_uneven)&
-                       .AND. SUM(circ_class_n(ipts,ivm,:))*m2_to_ha .LT. dens_target(ivm, ifm_uneven)) ) ) &
+                       .AND. SUM(circ_class_n(ipts,ivm,:))*m2_to_ha .LT. dens_target(ivm, &
+                            ifm_uneven)) ) ) &
                         THEN
                 
                    whychange(ipts,ivm) = 1
@@ -1365,7 +1413,7 @@ CONTAINS
                 ! the FUNCTIONAL-class paradigm and must not be activated separately.
                 iage_thin_lo = 2
                 IF (ok_rdi_band_class1) iage_thin_lo = 1
-                IF (ok_clearcut_last_class .AND. nagec > 1) THEN
+                IF (nagec > 1) THEN
                    iage_th = ivm - start_index(agec_group(ivm)) + 1
                    IF (iage_th >= iage_thin_lo .AND. iage_th <= nagec_pft(agec_group(ivm)) - 1) THEN
                       rdi_target_upper(ipts,ivm) = rdi_band_high(ivm)
@@ -1442,10 +1490,10 @@ CONTAINS
                 ! Guillaume M. -- /!\ Without thinning AND without an RDI cap here, only
                 ! self-thinning and the EXPLICIT disturbances regulate density: the external
                 ! acceptance criterion is standing biomass against inventories. Gated on
-                ! ok_clearcut_last_class, which already confines the management cut to this
+                ! nagec > 1, which already confines the management cut to this
                 ! class -- without it the class would lose both its outlet and its regulation.
                 thin_this_slot = .TRUE.
-                IF (ok_clearcut_last_class .AND. nagec > 1) THEN
+                IF (nagec > 1) THEN
                    iage_th = ivm - start_index(agec_group(ivm)) + 1
                    thin_this_slot = (iage_th >= iage_thin_lo .AND. &
                         iage_th <= nagec_pft(agec_group(ivm)) - 1)
@@ -1580,9 +1628,24 @@ CONTAINS
                 ENDIF
                 !-
 
+                ! Guillaume M. (AI gen) -- Demand: terminal slot cut by area, others wait.
+                cop_wait = ph_f_cop(ipts,ivm) .GT. zero .AND. &
+                     qm_dia_up_half .GE. coppice_diameter(ivm)
+                IF (cop_wait .AND. ivm .EQ. start_index(agec_group(ivm)) &
+                     + nagec_pft(agec_group(ivm)) - 1) THEN
+                   ! Guillaume M. (AI gen) -- Same snap as CONDITION 2: f near 1 is the whole cut.
+                   cop_wait = (un - ph_f_cop(ipts,ivm)) .GT. ph_min_survivor
+                   IF (cop_wait) THEN
+                      CALL clearcut_harvest(circ_class_n(ipts,ivm,:), &
+                           circ_class_kill(ipts,ivm,:,ifm_cop,icut_clear), &
+                           frac=ph_f_cop(ipts,ivm))
+                      ph_cut_frac(ipts,ivm) = ph_f_cop(ipts,ivm)
+                   ENDIF
+                ENDIF
+
                 ! We have already coppiced once, so we know our target
                 ! tree density.
-                IF(qm_dia_up_half  .GE. coppice_diameter(ivm) .AND. &
+                IF(.NOT. cop_wait .AND. qm_dia_up_half  .GE. coppice_diameter(ivm) .AND. &
                      coppice_dens(ipts,ivm) .GT. zero)THEN
 
                    ! Debug
@@ -1701,7 +1764,7 @@ CONTAINS
                    
                   
                 ! First time coppicing still need to save the coppice density
-                ELSEIF(qm_dia_up_half  .GE. coppice_diameter(ivm))THEN
+                ELSEIF(.NOT. cop_wait .AND. qm_dia_up_half  .GE. coppice_diameter(ivm))THEN
                    
                    ! debug
                    IF(printlev_loc>=4)THEN
@@ -2097,14 +2160,25 @@ CONTAINS
  !! 0  Variable and parameter declaration
 
     !! 0.1 Input variables
-    REAL(r_std), DIMENSION(:), INTENT(in)            :: circ_class_n_temp          !! Number of trees in each circumference
+    !! Number of trees in each circumference
+    REAL(r_std), DIMENSION(:), INTENT(in)            :: circ_class_n_temp
                                                                                    !! class
-    REAL(r_std), OPTIONAL, INTENT(in)                :: frac                       !! PROGRESSIVE_HARVEST: area fraction of the
-                                                                                   !! slot to clearcut (-). Absent = whole slot,
-                                                                                   !! i.e. the historical behaviour (bit-neutral).
+    !! PROGRESSIVE_HARVEST: area fraction of the
+    REAL(r_std), OPTIONAL, INTENT(in)                :: frac
+                                                                                   !! slot to
+                                                                                   !! clearcut (-).
+                                                                                   !! Absent = whole
+                                                                                   !! slot,
+                                                                                   !! i.e. the
+                                                                                   !! historical
+                                                                                   !! behaviour
+                                                                                   !! (bit-neutral).
     !! 0.2 Output variables
     REAL(r_std), DIMENSION(:), INTENT(out)           :: circ_class_kill_temp       !! Number of trees within a circ that needs
-                                                                                   !! to be killed @tex $(ind m^{-2})$ @endtex
+                                                                                   !! to be killed
+                                                                                   !! @tex $(ind
+                                                                                   !! m^{-2})$
+                                                                                   !! @endtex
 
     !! 0.3 Modified variables
 

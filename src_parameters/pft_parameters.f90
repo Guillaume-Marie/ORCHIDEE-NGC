@@ -5739,7 +5739,8 @@ CONTAINS
     !! 0. Variables and parameters declaration
 
     !! 0.4 Local variable
-    INTEGER(i_std)  ::  ivma, ivm             !! indices for number of pfts with and without age classes
+    !! indices for number of pfts with and without age classes
+    INTEGER(i_std)  ::  ivma, ivm
 
     !_ ================================================================================================================================
 
@@ -6344,12 +6345,13 @@ CONTAINS
     !Config Units = [an]
     CALL getin_p("ROTATION_REF",rotation_ref)
     !
-    ! Guillaume M. -- MAT_TARGET_A3: the terminal age class is entered by DIAMETER, so its
+    ! Guillaume M. (AI gen) -- MAT_TARGET_A3: the terminal age class is entered by DIAMETER, so its
     ! entry age a3 does not move with the rotation and the equilibrium terminal share is
     ! 1 - a3/R. Measured on 100-yr single-pixel benches: ~52 yr conifers, ~58 yr oak/beech.
     ! See design/MODULE_DESIGN_MAT_TARGET_A3.md.
     !Config Key   = MAT_A3_ENTRY
-    !Config Desc  = Age of entry into the terminal age class, per PFT; sets the terminal setpoint to 1 - a3/R
+    !Config Desc  = Age of entry into the terminal age class, per PFT; sets the terminal setpoint to
+    !Config         1 - a3/R
     !Config If    = OK_MATURITY_TRANSFER or OK_HARVEST_FEED_COUPLING
     !Config Def   = -1 (inactive) for every PFT
     !Config Help  = When > 0, the maturity regulator and the harvest-feed coupling read a
@@ -6490,17 +6492,18 @@ CONTAINS
     !Config Desc  = Intensity of a thinnig event when a forest reach the upper
     !rdi limit
     !Config if    = OK_STOMATE 
-    !Config Def   = undef, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, undef, undef, undef, undef
+    !Config Def   = undef, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, undef, undef, undef,
+    !Config         undef
     !Config Help  = 
     !Config Units = [-]
     !Config Key   = RDI_BAND_LOW / RDI_BAND_HIGH
     !Config Desc  = Bande de RDI cible des classes intermediaires, PAR CRENEAU
-    !Config If    = OK_CLEARCUT_LAST_CLASS
+    !Config If    = NAGEC > 1
     !Config Def   = 0.70 / 0.80
     !Config Help  = Court-circuite les polynomes calculate_rdi_boundaries pour les classes
     !Config         2..nagec-1 : au-dela de la classe 1 la cible n'est plus une propriete
     !Config         du peuplement mais une CONSIGNE de gestion.
-    !Config         /!\ INDEXES PAR CRENEAU depuis le 2026-08-12. Ils etaient SCALAIRES, donc
+    !Config         /!\ INDEXES PAR CRENEAU now. Ils etaient SCALAIRES, donc
     !Config         incapables de distinguer la classe 2 de la classe 3, et a fortiori de
     !Config         varier a l'interieur d'une classe. Or la conduite en arbres d'avenir
     !Config         demande une consigne qui DESCEND pendant la classe 3 : la classe 2 doit
@@ -6539,7 +6542,7 @@ CONTAINS
     !Config         les ~18 ans de la classe vaut 12,5 %/an, un regime d'eclaircie ordinaire.
     !Config         0.04 correspond a ~59 tiges/ha a 16 cm, soit les 50-70 arbres d'avenir
     !Config         des itineraires publies, et donne RDI ~0,30 en classe terminale au
-    !Config         diametre d'exploitabilite. Voir design/MODULE_DESIGN_CTN_BASAL_AREA.md §7.
+    !Config         diametre d'exploitabilite. Voir design/MODULE_DESIGN_CTN_BASAL_AREA.md sec.7.
     !Config Units = [-]
     rdi_ramp_out(:) = 0.04_r_std
     CALL getin_p('RDI_RAMP_OUT', rdi_ramp_out)
@@ -7104,7 +7107,7 @@ CONTAINS
        !Config if    = OK_STOMATE, OK_PEST
        !Config Def   = undef, undef, undef, -5.0, undef, undef, -5.0, undef,
        !undef, undef, undef, undef, undef
-       ! Guillaume M. -- The default announced here read 15.5 while constantes_mtc
+       ! Guillaume M. (AI gen) -- The default announced here read 15.5 while constantes_mtc
        ! gives -5.0, which is the value actually used. The sign is what matters: it
        ! is negative, so the index RISES with stand density, i.e. a denser stand is
        ! more susceptible, which is what the name implies.
@@ -7928,7 +7931,7 @@ CONTAINS
 !! Only tree PFTs are touched: largest_tree_dia is meaningless for grasses and crops
 !! (a zero would collapse every bound to zero and push any stand up a class at once).
 !!
-!! No-op when OK_AGE_CLASS_BOUND_PFT is false => bit-identical to the historical code.
+!! No-op with a single age class (nagec < 2).
 !!
 !! RECENT CHANGE(S): None
 !!
@@ -7938,7 +7941,8 @@ CONTAINS
 !!
 !! FLOWCHART    : None
 !! \n
-!_ ================================================================================================================================
+!_
+! ================================================================================================================================
 
   SUBROUTINE derive_age_class_bounds()
 
@@ -7949,9 +7953,9 @@ CONTAINS
     INTEGER(i_std) :: ic        !! Age class index
     REAL(r_std)    :: cut_dia   !! Effective clearcut diameter of this PFT (m)
 
-    !_ ================================================================================================================================
+    !_
+    ! ================================================================================================================================
 
-    IF (.NOT. ok_age_class_bound_pft) RETURN
     IF (.NOT. ALLOCATED(age_class_bound)) RETURN
     IF (nagec < 2) RETURN
 

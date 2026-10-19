@@ -133,9 +133,11 @@ CONTAINS
     REAL(r_std), DIMENSION(:,:,:,:), INTENT(in)      :: root_profile             !! Normalized root mass/length fraction in each soil layer (0-1, unitless)
     REAL(r_std), DIMENSION(:,:), INTENT(in)          :: wind_ratio_sum_save      !! Sum of wind speed ratio to longterm wind speed when this ratio exceeded
                                                                                  !! certain threshold, stored for wind_days
-    REAL(r_std), DIMENSION(:,:), INTENT(in)          :: wind_ratio_max_save      !! Daily maximum wind ratio (vs 5yr mean), stored for wind_days - JJ 2026
+    !! Daily maximum wind ratio (vs 5yr mean), stored for wind_days - JJ 2026
+    REAL(r_std), DIMENSION(:,:), INTENT(in)          :: wind_ratio_max_save
     REAL(r_std), DIMENSION(:,:), INTENT(in)          :: wind_speed_max_save      !! Daily maximum wind speed, stored for wind_days (default 3) (m s-1)
-    REAL(r_std), DIMENSION(:,:), INTENT(in)          :: age_stand_area           !! Area-weighted mean stand age (years), AED_STORM sensitivity
+    !! Area-weighted mean stand age (years), AED_STORM sensitivity
+    REAL(r_std), DIMENSION(:,:), INTENT(in)          :: age_stand_area
 
  !! 0.2 Output variables
     
@@ -145,16 +147,21 @@ CONTAINS
                                    INTENT(inout) :: circ_class_kill              !! Number of trees within a circ that needs
                                                                                  !! to be killed @tex $(ind m^{-2})$ @endtex  
     REAL(r_std), DIMENSION(:), INTENT(inout)     :: max_wind_speed_storm         !! Daily maximum wind speed at 2 meter (ms-1) during a storm event
-    REAL(r_std), DIMENSION(:), INTENT(inout)     :: max_wind_ratio_storm         !! Daily maximum wind ratio (vs 5yr mean) during a storm event - JJ 2026
+    !! Daily maximum wind ratio (vs 5yr mean) during a storm event - JJ 2026
+    REAL(r_std), DIMENSION(:), INTENT(inout)     :: max_wind_ratio_storm
 
-    INTEGER(i_std), DIMENSION(:), INTENT(inout)  :: count_storm                  !! Number of days after a storm
+    !! Number of days after a storm
+    INTEGER(i_std), DIMENSION(:), INTENT(inout)  :: count_storm
 
     LOGICAL, DIMENSION(:), INTENT(inout)         :: is_storm                     !! Are we in a storm event ? 
 
  !! 0.4 Local variables
-    INTEGER(i_std)                               :: islm,ipts,ivm                !! Index for the loops
-    INTEGER(i_std)                               :: icir,i,iele, iyear           !! Index for the loops
-    REAL(r_std), DIMENSION(npts,nvm)             :: area_damaged_storm           !! Forest area killed by storm, cc-kill basal-area route (m2)
+    !! Index for the loops
+    INTEGER(i_std)                               :: islm,ipts,ivm
+    !! Index for the loops
+    INTEGER(i_std)                               :: icir,i,iele, iyear
+    !! Forest area killed by storm, cc-kill basal-area route (m2)
+    REAL(r_std), DIMENSION(npts,nvm)             :: area_damaged_storm
     CHARACTER(30)                                :: var_name                     !! To store variable names for I/O
     INTEGER(i_std), DIMENSION(npts)              :: soil_type                    !! Soil types: 
                                                                                  !!  1. Free-draining mineral soils;
@@ -165,8 +172,13 @@ CONTAINS
     REAL(r_std), DIMENSION(npts,nvm,ncirc)       :: virtual_circ_class_n         !! Virtual number of trees within each circumference
     REAL(r_std), DIMENSION(ncirc)                :: mean_dbh                     !! Diameter at breast height (dbh) of the mean tree
                                                                                  !! of the circumference-class @tex $(m)$ @endtex
-    REAL(r_std), DIMENSION(ncirc)                :: ccn_inv                      !! JJ 2026: circ_class_n restricted to inventory-visible
-                                                                                 !! trees (dbh >= dia_thresh_inv), used for spacing/RDI (ind m-2)
+    !! JJ 2026: circ_class_n restricted to inventory-visible
+    REAL(r_std), DIMENSION(ncirc)                :: ccn_inv
+                                                                                 !! trees (dbh >=
+                                                                                 !! dia_thresh_inv),
+                                                                                 !! used for
+                                                                                 !! spacing/RDI (ind
+                                                                                 !! m-2)
     REAL(r_std), DIMENSION(ncirc)                :: mean_height                  !! Height of the mean tree of the given dbh-class 
                                                                                  !! @tex $(m)$ @endtex
     REAL(r_std)                                  :: lai                          !! Leaf area index @tex $(unitless)$ @endtex
@@ -207,18 +219,27 @@ CONTAINS
     REAL(r_std)                                  :: max_gap_factor               !! Variable used for calculating gustiness 
                                                                                  !! @tex $(unitless)$ @endtex
     REAL(r_std)                                  :: term_a                       !! Variable used for calculating gustiness 
-    ! Guillaume M. -- OK_STORM_EDGE_BAND: wind load averaged over the band and over the interior
-    REAL(r_std)                                  :: bm_a, bm_b, bm_k             !! Coefficients of the mean-load curve (Hale et al. 2015)
-    REAL(r_std)                                  :: edge_load_band               !! Mean wind load over the edge band (unitless)
-    REAL(r_std)                                  :: edge_load_inner              !! Mean wind load over the interior (unitless)
-    REAL(r_std)                                  :: x_band                       !! Distance from the edge, in tree heights (unitless)
-    REAL(r_std)                                  :: band_heights                 !! Width of the edge-affected band, capped (tree heights)
-    REAL(r_std)                                  :: gx_band, mx_band             !! Gust factor and mean load at that distance (unitless)
+    ! Guillaume M. (AI gen) -- OK_STORM_EDGE_BAND: wind load averaged over the band and over the interior
+    !! Coefficients of the mean-load curve (Hale et al. 2015)
+    REAL(r_std)                                  :: bm_a, bm_b, bm_k
+    !! Mean wind load over the edge band (unitless)
+    REAL(r_std)                                  :: edge_load_band
+    !! Mean wind load over the interior (unitless)
+    REAL(r_std)                                  :: edge_load_inner
+    !! Distance from the edge, in tree heights (unitless)
+    REAL(r_std)                                  :: x_band
+    !! Width of the edge-affected band, capped (tree heights)
+    REAL(r_std)                                  :: band_heights
+    !! Gust factor and mean load at that distance (unitless)
+    REAL(r_std)                                  :: gx_band, mx_band
     INTEGER(i_std)                               :: i_band                       !! Quadrature point
-    INTEGER(i_std), PARAMETER                    :: n_band = 8                   !! Quadrature points over each zone
-    ! Guillaume M. -- OK_SPACING_TOP_CLASS: stem count the tree spacing is built on
-    REAL(r_std)                                  :: spacing_n                    !! Stem density used for the spacing (trees m-2)
-    REAL(r_std), PARAMETER                       :: max_heights_from_edge = 9.0_r_std !! Reference distance, well inside the stand (tree heights)
+    !! Quadrature points over each zone
+    INTEGER(i_std), PARAMETER                    :: n_band = 8
+    ! Guillaume M. (AI gen) -- OK_SPACING_TOP_CLASS: stem count the tree spacing is built on
+    !! Stem density used for the spacing (trees m-2)
+    REAL(r_std)                                  :: spacing_n
+    !! Reference distance, well inside the stand (tree heights)
+    REAL(r_std), PARAMETER                       :: max_heights_from_edge = 9.0_r_std
                                                                                  !! @tex $(unitless)$ @endtex
     REAL(r_std)                                  :: term_b                       !! Variable used for calculating gustiness 
                                                                                  !! @tex $(unitless)$ @endtex
@@ -303,11 +324,16 @@ CONTAINS
     REAL(r_std)                                  :: distance_from_force          !! The distance from the force was set to 1.3 for breakage and 0.0 for overturning
     REAL(r_std), DIMENSION(npts)                 :: closer_area_fraction         !! Closer area fraction 
     REAL(r_std), DIMENSION(npts)                 :: further_area_fraction        !! Further area fraction 
-    REAL(r_std)                                  :: storm_sens                   !! AED_STORM stand-age sensitivity of this slot (unitless)
-    INTEGER(i_std)                               :: icls_storm                   !! age class of this slot (1..nagec)
-    REAL(r_std), DIMENSION(npts)                 :: storm_edge_sens              !! AED_STORM diagnostic: area-weighted sensitivity (unitless)
-    REAL(r_std), DIMENSION(npts)                 :: storm_edge_w                 !! AED_STORM diagnostic: weight (tree veget_max)
-    LOGICAL, SAVE                                :: firstcall_aed_storm = .TRUE. !! one journal line when the edge channel is active
+    !! AED_STORM stand-age sensitivity of this slot (unitless)
+    REAL(r_std)                                  :: storm_sens
+    !! age class of this slot (1..nagec)
+    INTEGER(i_std)                               :: icls_storm
+    !! AED_STORM diagnostic: area-weighted sensitivity (unitless)
+    REAL(r_std), DIMENSION(npts)                 :: storm_edge_sens
+    !! AED_STORM diagnostic: weight (tree veget_max)
+    REAL(r_std), DIMENSION(npts)                 :: storm_edge_w
+    !! one journal line when the edge channel is active
+    LOGICAL, SAVE                                :: firstcall_aed_storm = .TRUE.
 !$OMP THREADPRIVATE(firstcall_aed_storm)
     REAL(r_std), DIMENSION(npts,nvm,nparts,nelements) :: biomass  
     REAL(r_std), DIMENSION(npts)                 :: wind_in                      !! To save the daily maximum wind speed at 2 meter (ms-1)
@@ -322,10 +348,14 @@ CONTAINS
     REAL(r_std), DIMENSION(npts,nvm)             :: max_wind_speed_pft_further
     REAL(r_std), DIMENSION(npts,nvm)             :: max_wind_speed_pft_closer
     REAL(r_std), DIMENSION(npts,nvm)             :: wind_damage_all              !! Damage from wind throw (gC m-2) 
-    REAL(r_std), DIMENSION(npts,nvm)             :: wind_damage_rate             !! Share of the stand biomass killed by wind throw (-)
-    REAL(r_std)                                  :: stand_biomass                !! Stand biomass of one PFT (gC m-2)
-    REAL(r_std), DIMENSION(npts)                 :: wind_storm_diag              !! Storm wind used by the damage law today, before the post-kill reset (m s-1)
-    REAL(r_std)                                  :: thr_gust                     !! Critical gust of a zone, CWS x STORM_GUST_GREF (m s-1)
+    !! Share of the stand biomass killed by wind throw (-)
+    REAL(r_std), DIMENSION(npts,nvm)             :: wind_damage_rate
+    !! Stand biomass of one PFT (gC m-2)
+    REAL(r_std)                                  :: stand_biomass
+    !! Storm wind used by the damage law today, before the post-kill reset (m s-1)
+    REAL(r_std), DIMENSION(npts)                 :: wind_storm_diag
+    !! Critical gust of a zone, CWS x STORM_GUST_GREF (m s-1)
+    REAL(r_std)                                  :: thr_gust
     REAL(r_std), DIMENSION(npts,nvm)             :: wood_damage_all              !! Damage from wind throw (gC m-2) 
 
     REAL(r_std), DIMENSION(npts,nvm)             :: height
@@ -337,12 +367,18 @@ CONTAINS
     REAL(r_std), DIMENSION(npts,nvm)             :: qm_dia
     REAL(r_std), DIMENSION(npts,nvm)             :: rdi
     REAL(r_std)                                  :: actual_maxheight
-    REAL(r_std), DIMENSION(npts)                 :: weight_ratio                 !! JJ 2026: Gompertz damage weight from storm wind-ratio (0..wind_ratio_a)
-    REAL(r_std), DIMENSION(npts)                 :: wind_ratio_max               !! JJ 2026: yesterday's daily max wind ratio (diagnostic)
-    LOGICAL                                      :: storm_calm                   !! Today counts as calm for the storm decay
-    REAL(r_std), DIMENSION(npts)                 :: peak_ratio_out               !! Daily peak / local reference, output only (-)
-    LOGICAL, DIMENSION(npts)                     :: was_storm                    !! is_storm before today's onset test (OK_STORM_WIND_PER_EVENT)
-    REAL(r_std), DIMENSION(ncirc,2)              :: kz                           !! Kill per circ class, edge (1) and interior (2) zones (OK_STORM_KILL_AREA_WEIGHTED)
+    !! JJ 2026: Gompertz damage weight from storm wind-ratio (0..wind_ratio_a)
+    REAL(r_std), DIMENSION(npts)                 :: weight_ratio
+    !! JJ 2026: yesterday's daily max wind ratio (diagnostic)
+    REAL(r_std), DIMENSION(npts)                 :: wind_ratio_max
+    !! Today counts as calm for the storm decay
+    LOGICAL                                      :: storm_calm
+    !! Daily peak / local reference, output only (-)
+    REAL(r_std), DIMENSION(npts)                 :: peak_ratio_out
+    !! is_storm before today's onset test
+    LOGICAL, DIMENSION(npts)                     :: was_storm
+    !! Kill per circ class, edge (1) and interior (2) zones (area-weighted)
+    REAL(r_std), DIMENSION(ncirc,2)              :: kz
 
     ! Temp output Variables for GALES model intercomparision
     REAL(r_std), DIMENSION(npts,nvm)             :: canopy_depth_out
@@ -353,8 +389,10 @@ CONTAINS
     REAL(r_std)                                  :: roots_below                  !! temporary variable containing the share of roots below 80 cm depth (0-1, unitless)
     REAL(r_std), DIMENSION(npts)                 :: is_kill
     REAL(r_std), DIMENSION(npts,nvm)             :: wind_damage_wood_vol         !! Wood volume loss from wind throw @tex $(m^3 m^{-2})$ @endtex
-    REAL(r_std), DIMENSION(npts,nvm)             :: wind_profile_closer          !! Effective wind multiplier (log-profile, or 1) for the closer logistic
-    REAL(r_std), DIMENSION(npts,nvm)             :: wind_profile_further         !! Effective wind multiplier (log-profile, or 1) for the further logistic
+    !! Effective wind multiplier (log-profile, or 1) for the closer logistic
+    REAL(r_std), DIMENSION(npts,nvm)             :: wind_profile_closer
+    !! Effective wind multiplier (log-profile, or 1) for the further logistic
+    REAL(r_std), DIMENSION(npts,nvm)             :: wind_profile_further
 
 !_ ============================================================================================================================================================================
 
@@ -364,7 +402,7 @@ CONTAINS
       ! inside the compute loop under a local firstcall, it hangs the run as soon as the
       ! ranks stop reaching it together. Use printlev, read once at startup by every rank.
        printlev_loc=printlev
-       ! Guillaume M. -- OK_WIND_PRODUCT and WIND_STORM_PRODUCT_THR removed: the single-product
+       ! Guillaume M. (AI gen) -- OK_WIND_PRODUCT and WIND_STORM_PRODUCT_THR removed: the single-product
        ! onset favoured long windy spells over short violent storms. Onset is the legacy AND of
        ! two thresholds, or the peak rule (OK_STORM_PEAK_TRIGGER).
 
@@ -425,14 +463,16 @@ CONTAINS
     storm_edge_sens = zero
     storm_edge_w = zero
 
-    ! Guillaume M. -- AED_STORM reads edge_length_dyn, which only AED_FEEDBACK fills.
+    ! Guillaume M. (AI gen) -- AED_STORM reads edge_length_dyn, which only AED_FEEDBACK fills.
     IF (ok_aed_storm .AND. .NOT. ok_aed_feedback) THEN
        CALL ipslerr_p(3, 'wind_damage', 'OK_AED_STORM=y requires OK_AED_FEEDBACK=y', &
             'edge_length_dyn is only filled by update_edge_length', '')
     ENDIF
     IF (ok_aed_storm .AND. firstcall_aed_storm .AND. edge_scenario /= edge_scen_off) THEN
-       IF (printlev_loc >= 1) WRITE(numout,*) '[AED] wind_damage: edge-based closer fraction active ', &
-            '(factor, acclim_yr, plateau) = ', edge_storm_factor, edge_storm_acclim_yr, edge_storm_plateau
+       IF (printlev_loc >= 1) WRITE(numout, &
+            *) '[AED] wind_damage: edge-based closer fraction active ', &
+            '(factor, acclim_yr, plateau) = ', edge_storm_factor, edge_storm_acclim_yr, &
+                 edge_storm_plateau
        firstcall_aed_storm = .FALSE.
     ENDIF
 
@@ -497,7 +537,7 @@ CONTAINS
     ! when the flag is_storm is set to TRUE.
     was_storm(:) = is_storm(:)
     IF (ok_storm_peak_trigger) THEN
-        ! Guillaume M. -- Onset on the raw daily peak over the local reference peak (no
+        ! Guillaume M. (AI gen) -- Onset on the raw daily peak over the local reference peak (no
         ! DAILY_MAX_TUNE: detection is decoupled from damage magnitude). No reference, no onset.
         WHERE (peak_ref(:) > zero .AND. .NOT. is_storm(:))
             WHERE (wind_speed_max_save(:,1) .GE. wind_peak_trigger_thr * peak_ref(:))
@@ -530,28 +570,20 @@ CONTAINS
        wind_in(ipts) = wind_speed_max_save(ipts,1)
        wind_ratio_max(ipts) = wind_ratio_max_save(ipts,1)
 
-       ! Guillaume M. -- Under OK_STORM_WIND_PER_EVENT the damage wind is the maximum of the
-       ! current storm: reset at onset (an older record, restart included, is dropped) and
-       ! raised on storm days only. Otherwise it is raised every day and reset after a kill.
-       IF (ok_storm_wind_per_event) THEN
-          IF (is_storm(ipts)) THEN
-             IF (.NOT. was_storm(ipts)) THEN
-                max_wind_speed_storm(ipts) = zero
-                max_wind_ratio_storm(ipts) = zero
-             ENDIF
-             max_wind_speed_storm(ipts)= &
-               max(max_wind_speed_storm(ipts), wind_speed_daily(ipts))
-             max_wind_ratio_storm(ipts) = &
-               max(max_wind_ratio_storm(ipts), MAXVAL(wind_ratio_max_save(ipts,:)))
+       ! Guillaume M. (AI gen) -- The damage wind is the maximum of the current storm: reset
+       ! at onset (an older record, restart included, is dropped), raised on storm days only.
+       IF (is_storm(ipts)) THEN
+          IF (.NOT. was_storm(ipts)) THEN
+             max_wind_speed_storm(ipts) = zero
+             max_wind_ratio_storm(ipts) = zero
           ENDIF
-       ELSE
           max_wind_speed_storm(ipts)= &
             max(max_wind_speed_storm(ipts), wind_speed_daily(ipts))
           max_wind_ratio_storm(ipts) = &
             max(max_wind_ratio_storm(ipts), MAXVAL(wind_ratio_max_save(ipts,:)))
        ENDIF
 
-       ! Guillaume M. -- OK_STORM_GUST: the episode doses start from zero at the storm onset.
+       ! Guillaume M. (AI gen) -- OK_STORM_GUST: the episode doses start from zero at the storm onset.
        IF (ok_storm_gust) THEN
           IF (is_storm(ipts) .AND. .NOT. was_storm(ipts)) THEN
              storm_gust_dose_closer(ipts,:) = zero
@@ -559,7 +591,7 @@ CONTAINS
           ENDIF
        ENDIF
 
-       ! Guillaume M. -- Gompertz weight on the storm wind ratio (against the 5-year mean):
+       ! Guillaume M. (AI gen) -- Gompertz weight on the storm wind ratio (against the 5-year mean):
        ! scales the damage magnitude with how anomalous the storm wind is locally.
        weight_ratio(ipts) = &
            wind_ratio_a * &
@@ -572,7 +604,7 @@ CONTAINS
 
           ! Guillaume M. -- The storm decays (count++) once the trigger metric falls back
           ! below its threshold, using the same metric as the onset test above.
-          ! Guillaume M. -- peak_ref is only allocated under OK_STORM_PEAK_TRIGGER: read it in
+          ! Guillaume M. (AI gen) -- peak_ref is only allocated under OK_STORM_PEAK_TRIGGER: read it in
           ! its own branch (Fortran does not short-circuit .AND./.OR.).
           IF (ok_storm_peak_trigger) THEN
              IF (peak_ref(ipts) .LE. zero) THEN
@@ -823,7 +855,7 @@ CONTAINS
             ccn_inv(ncirc) = circ_class_n(ipts,ivm,ncirc)
         ENDIF
 
-        ! Guillaume M. -- Stem count the spacing is built on. The tree studied below is the
+        ! Guillaume M. (AI gen) -- Stem count the spacing is built on. The tree studied below is the
         ! one of the LARGEST circumference class: crown, height, stem mass and breaking
         ! moment all read ncirc. Counting every merchantable tree gives that dominant tree
         ! the ground area of an average one, hence too little wind load. Under the flag the
@@ -1043,7 +1075,7 @@ CONTAINS
         ! requires further refinement and improvement.
         IF (ok_aed_storm .AND. edge_scenario /= edge_scen_off .AND. ALLOCATED(edge_length_dyn) &
             .AND. ALLOCATED(edge_fresh)) THEN
-           ! Guillaume M. -- AED_STORM: the closer zone is the strip of width X (the wind
+           ! Guillaume M. (AI gen) -- AED_STORM: the closer zone is the strip of width X (the wind
            ! penetration depth computed above) along the AED edge of the cell, one side
            ! windward (0.25, same convention as the gap frame), weighted by a stand-age
            ! sensitivity: 1 in age class 1 (the regeneration opening), then decaying with
@@ -1056,12 +1088,12 @@ CONTAINS
                    * EXP(-MAX(zero, age_stand_area(ipts,ivm)) / edge_storm_acclim_yr)
            ENDIF
            IF (area_forest(ipts) > min_stomate) THEN
-              ! Guillaume M. -- Two exposures: the fresh edge (class-0 openings of the last
+              ! Guillaume M. (AI gen) -- Two exposures: the fresh edge (class-0 openings of the last
               ! n_class0-1 years) exposes every bordering stand at full sensitivity, mature
               ! ones included (Persson 1975: trees sheltered until yesterday); the rest of
               ! the edge exposes by stand age. Measured without the fresh term: the big
               ! storm years lost half their damage in the harvested mature class.
-              ! Guillaume M. -- Same width as the load: a band the edge does not load is
+              ! Guillaume M. (AI gen) -- Same width as the load: a band the edge does not load is
               ! interior, whatever the wind penetration depth (OK_STORM_EDGE_BAND).
               area_total_closer = MIN(un, edge_storm_factor * 0.25_r_std &
                    * MERGE(MIN(tree_heights_from_edge, edge_load_max_heights), &
@@ -1098,13 +1130,15 @@ CONTAINS
             closer_area_fraction(ipts) = MIN(un,area_total_closer / (area(ipts)*veget_max(ipts,ivm) - &
                  (n_gap * clear_cut_max)))
             further_area_fraction(ipts) = MAX(zero, un - closer_area_fraction(ipts))
-            IF (ok_aed_storm .AND. edge_scenario /= edge_scen_off .AND. ALLOCATED(edge_length_dyn)) THEN
-               ! Guillaume M. -- AED_STORM: the edge strip is a share of the WHOLE slot. The harvest
+            IF (ok_aed_storm .AND. edge_scenario &
+                 /= edge_scen_off .AND. ALLOCATED(edge_length_dyn)) THEN
+               ! Guillaume M. (AI gen) -- AED_STORM: the edge strip is a share of the WHOLE slot. The harvest
                ! gaps of the last five years are already inside the micro edge, and their area has
                ! moved to class 0 in the age-class conveyor; subtracting them here drives the
                ! denominator to zero on freshly cut mature slots and pins the fraction at 1
                ! whatever the gain (measured: gain 0.46 and 1 gave identical damage).
-               closer_area_fraction(ipts) = MIN(un, area_total_closer / (area(ipts)*veget_max(ipts,ivm)))
+               closer_area_fraction(ipts) = MIN(un, area_total_closer &
+                    / (area(ipts)*veget_max(ipts,ivm)))
                further_area_fraction(ipts) = un - closer_area_fraction(ipts)
                area_total_further = area(ipts)*veget_max(ipts,ivm) - area_total_closer
             ENDIF
@@ -1174,7 +1208,7 @@ CONTAINS
         ! x/h is the tree_heights_from_edge
         term_a = MAX(-2.1 * ratio_spacing_height + 0.91, zero) 
         term_b = 1.0611 * LOG(ratio_spacing_height) + 4.2
-        ! Guillaume M. -- Coefficients of the mean-load curve, kept here so that wind_load_at
+        ! Guillaume M. (AI gen) -- Coefficients of the mean-load curve, kept here so that wind_load_at
         ! (OK_STORM_EDGE_BAND) reads exactly the same numbers as the two point evaluations below.
         bm_a = 0.68_r_std * ratio_spacing_height - 0.0385_r_std
         bm_b = (-0.68_r_std * ratio_spacing_height + 0.4785_r_std) * mean_gap_factor
@@ -1222,12 +1256,12 @@ CONTAINS
         edge_factor = 1.0 
         gust_factor_further(ipts,ivm) = g_further(ipts,ivm) *  edge_factor
 
-        ! Guillaume M. -- The two loads above are read at ONE distance each: the outer edge of
+        ! Guillaume M. (AI gen) -- The two loads above are read at ONE distance each: the outer edge of
         ! the near band, and nine tree heights. A band compared to a point is biased towards
         ! the least exposed end of the band, and the edge comes out more resistant than the
         ! interior. Here the load is averaged over the band and over the interior instead.
         IF (ok_storm_edge_band) THEN
-           ! Guillaume M. -- The band stops where the edge term is spent, not where the wind
+           ! Guillaume M. (AI gen) -- The band stops where the edge term is spent, not where the wind
            ! stops penetrating: tree_heights_from_edge is a penetration depth (28/LAI/h) and
            ! reaches 4 to 6 heights in an open stand, while the edge term of Hale et al. decays
            ! by a factor 3 per height. Beyond the cap a tree is an interior tree.
@@ -1521,7 +1555,8 @@ CONTAINS
         wind_profile_closer(ipts,ivm) = &
             LOG((canopy_height_dom - canopy_height_dom*height_displacement)/z0_wind(ipts,ivm))/ &
             LOG((actual_maxheight - canopy_height_dom*height_displacement)/z0_wind(ipts,ivm))
-        max_wind_speed_pft_closer(ipts,ivm) = max_wind_speed_storm(ipts) * wind_profile_closer(ipts,ivm)
+        max_wind_speed_pft_closer(ipts,ivm) = max_wind_speed_storm(ipts) &
+             * wind_profile_closer(ipts,ivm)
         ! Guillaume M. -- The closer logistic uses the profile-adjusted wind only when
         ! wind_cal_pft is true, raw max_wind_speed_storm otherwise. The stored multiplier
         ! must mirror that choice.
@@ -1542,16 +1577,22 @@ CONTAINS
         ! which is dependent on the difference between the actual wind speed and the 
         ! final_cws (the lower one of the cws from overturning or stem_breakage. 
         IF (ok_storm_gust) THEN
-           ! Guillaume M. -- Dose: episode hours with gust above the zone's critical gust (CWS x STORM_GUST_GREF); the
-           ! logistic midpoint is raised by STORM_GUST_KAPPA x the usual yearly hours above it (stands acclimated to
-           ! frequent strong gusts). No canopy profile: the CWS is already defined above the displacement height.
+           ! Guillaume M. (AI gen) -- Dose: episode hours with gust above the zone's critical gust (CWS x
+           ! STORM_GUST_GREF); the
+           ! logistic midpoint is raised by STORM_GUST_KAPPA x the usual yearly hours above it
+           ! (stands acclimated to
+           ! frequent strong gusts). No canopy profile: the CWS is already defined above the
+           ! displacement height.
            wind_damage_rate_closer(ipts,ivm) = zero
            IF (cws_final_closer(ipts,ivm) .GT. min_stomate) THEN
               thr_gust = cws_final_closer(ipts,ivm) * storm_gust_gref
-              IF (is_storm(ipts)) storm_gust_dose_closer(ipts,ivm) = storm_gust_dose_closer(ipts,ivm) + &
+              IF (is_storm(ipts)) storm_gust_dose_closer(ipts,ivm) = storm_gust_dose_closer(ipts, &
+                   ivm) + &
                    hours_above(gust_hours(ipts,:), thr_gust)
-              wind_damage_rate_closer(ipts,ivm) = max_damage_closer(ivm) * dose_damage(storm_gust_dose_closer(ipts,ivm), &
-                   storm_gust_d50 + storm_gust_kappa * hours_above(gust_hours_clim(ipts,:), thr_gust))
+              wind_damage_rate_closer(ipts,ivm) = max_damage_closer(ivm) &
+                   * dose_damage(storm_gust_dose_closer(ipts,ivm), &
+                   storm_gust_d50 + storm_gust_kappa * hours_above(gust_hours_clim(ipts,:), &
+                        thr_gust))
            ENDIF
            wind_profile_closer(ipts,ivm) = un
         ELSEIF(wind_cal_pft) THEN
@@ -1642,7 +1683,8 @@ CONTAINS
         wind_profile_further(ipts,ivm) = &
             LOG((canopy_height_dom - canopy_height_dom*height_displacement)/z0_wind(ipts,ivm))/ &
             LOG((actual_maxheight - canopy_height_dom*height_displacement)/z0_wind(ipts,ivm))
-        max_wind_speed_pft_further(ipts,ivm) = max_wind_speed_storm(ipts) * wind_profile_further(ipts,ivm)
+        max_wind_speed_pft_further(ipts,ivm) = max_wind_speed_storm(ipts) &
+             * wind_profile_further(ipts,ivm)
         ! Guillaume M. -- The stored multiplier mirrors the wind_cal_pft choice made by
         ! the further logistic.
         IF (.NOT. wind_cal_pft) wind_profile_further(ipts,ivm) = un
@@ -1650,16 +1692,19 @@ CONTAINS
         ! Wind damage level is considered as a logistic function with sigmoidal
         ! shape, which is calculated as function of a critical wind speed, an actual
         ! wind speed, a scaling factor(s)=0.8 and a maximum damage rate(80%)=0.8.
-        ! Guillaume M. -- Same relative-intensity law for the interior zone (see the closer zone).
+        ! Guillaume M. (AI gen) -- Same relative-intensity law for the interior zone (see the closer zone).
         IF (ok_storm_gust) THEN
-           ! Guillaume M. -- Same gust dose for the interior zone (see the edge zone).
+           ! Guillaume M. (AI gen) -- Same gust dose for the interior zone (see the edge zone).
            wind_damage_rate_further(ipts,ivm) = zero
            IF (cws_final_further(ipts,ivm) .GT. min_stomate) THEN
               thr_gust = cws_final_further(ipts,ivm) * storm_gust_gref
-              IF (is_storm(ipts)) storm_gust_dose_further(ipts,ivm) = storm_gust_dose_further(ipts,ivm) + &
+              IF (is_storm(ipts)) storm_gust_dose_further(ipts, &
+                   ivm) = storm_gust_dose_further(ipts,ivm) + &
                    hours_above(gust_hours(ipts,:), thr_gust)
-              wind_damage_rate_further(ipts,ivm) = max_damage_further(ivm) * dose_damage(storm_gust_dose_further(ipts,ivm), &
-                   storm_gust_d50 + storm_gust_kappa * hours_above(gust_hours_clim(ipts,:), thr_gust))
+              wind_damage_rate_further(ipts,ivm) = max_damage_further(ivm) &
+                   * dose_damage(storm_gust_dose_further(ipts,ivm), &
+                   storm_gust_d50 + storm_gust_kappa * hours_above(gust_hours_clim(ipts,:), &
+                        thr_gust))
            ENDIF
            wind_profile_further(ipts,ivm) = un
         ELSEIF(wind_cal_pft) THEN
@@ -1695,10 +1740,9 @@ CONTAINS
         !! 5. Determine which trees are killed by wind damage
         ! We only do the damage for the virtual_circ_class_n GT min_stomate 
         !+++JINA virtual or ccn?       
-        IF (virtual_circ_class_n(ipts,ivm,ncirc) .GT. min_stomate .AND. &
-            ok_storm_kill_area_weighted) THEN
-            ! Guillaume M. -- Each zone in its own zeroed array, then summed by damage type: the
-            ! legacy path below loses the edge-zone kill when the two damage types differ.
+        IF (virtual_circ_class_n(ipts,ivm,ncirc) .GT. min_stomate) THEN
+            ! Guillaume M. (AI gen) -- Each zone in its own zeroed array, then summed by damage
+            ! type, so that the edge-zone kill is kept when the two damage types differ.
             kz(:,:) = zero
             CALL cal_storm_circ_class_kill( &
                 SUM(circ_class_biomass(ipts,ivm,:,:,icarbon),2), &
@@ -1720,66 +1764,6 @@ CONTAINS
             ELSE
                kill_uproot(ipts,ivm,:) = kill_uproot(ipts,ivm,:) + kz(:,2)
             ENDIF
-        ELSEIF (virtual_circ_class_n(ipts,ivm,ncirc) .GT. min_stomate) THEN
-  
-            !! 5.1. Kill trees in closer area  
-            IF (wind_damage_type_closer(ipts,ivm) == ibreakage) THEN
-                IF(printlev_loc .GE. 4 .AND. ivm .EQ. test_pft .AND. ipts .EQ. test_grid) THEN
-                    WRITE(numout,*) 'Closer: kill_breakage'
-                ENDIF
-                CALL cal_storm_circ_class_kill( &
-                    SUM(circ_class_biomass(ipts,ivm,:,:,icarbon),2), &
-                    circ_class_n(ipts,ivm,:),wind_damage_rate_closer(ipts,ivm), &
-                    closer_area_fraction(ipts), kill_break(ipts,ivm,:), ivm, ipts ) 
-
-                ! We assume that there is Only one damage type will occur due to
-                ! its lower limiting wind speed
-                kill_uproot(ipts,ivm,:) = zero
-            ELSE
-                IF(printlev_loc .GE. 4 .AND. ivm .EQ. test_pft .AND. ipts .EQ. test_grid) THEN
-                    WRITE(numout,*) 'Closer: kill_uproot'
-                ENDIF
-                CALL cal_storm_circ_class_kill( &
-                    SUM(circ_class_biomass(ipts,ivm,:,:,icarbon),2), &
-                    circ_class_n(ipts,ivm,:),wind_damage_rate_closer(ipts,ivm), &
-                    closer_area_fraction(ipts), kill_uproot(ipts,ivm,:), ivm, ipts ) 
-                ! We assume that there is Only one damage type will occur due to
-                ! its lower limited wind speed
-                kill_break(ipts,ivm,:) = zero
-            ENDIF
-                 
-            !! 5.2 Kill trees in further area  
-            IF (wind_damage_type_further(ipts,ivm) == ibreakage) THEN
-                ! Total damage = closer + further
-                IF(printlev_loc .GE. 4 .AND. ivm .EQ. test_pft .AND. ipts .EQ. test_grid) THEN
-                    WRITE(numout,*) 'Further: kill_breakage'
-                ENDIF
-                CALL cal_storm_circ_class_kill( &
-                    SUM(circ_class_biomass(ipts,ivm,:,:,icarbon),2), &
-                    circ_class_n(ipts,ivm,:),wind_damage_rate_further(ipts,ivm), &
-                    further_area_fraction(ipts), kill_break(ipts,ivm,:), ivm, ipts ) 
-                ! We assume that there is only one damage type will occur due to
-                ! its lower limited wind speed
-                kill_uproot(ipts,ivm,:) = zero
-            ELSE
-                IF(printlev_loc .GE. 4 .AND. ivm .EQ. test_pft .AND. ipts .EQ. test_grid) THEN
-                    WRITE(numout,*) 'Further: kill_uproot'
-                ENDIF
-
-                CALL cal_storm_circ_class_kill( &
-                    SUM(circ_class_biomass(ipts,ivm,:,:,icarbon),2), &
-                    circ_class_n(ipts,ivm,:),wind_damage_rate_further(ipts,ivm), &
-                    further_area_fraction(ipts), kill_uproot(ipts,ivm,:), ivm, ipts ) 
-                ! We assume that there is only one damage type will occur due to
-                ! its lower limited wind speed
-                kill_break(ipts,ivm,:) = zero
-            ENDIF
-
-        ELSE
-
-            ! set no damage for the no vegetation area 
-            kill_break(ipts,ivm,:) = zero
-            kill_uproot(ipts,ivm,:) = zero
         END IF ! if ccn > min_stomate
               
         ! For the tree height below five meters (7.0m), we assumed that the damage will
@@ -1838,9 +1822,11 @@ CONTAINS
         ENDDO
 
         wind_damage_wood_vol(ipts,ivm) = wood_damage_all(ipts,ivm)/ (pipe_density(ivm))
-        ! Guillaume M. -- Share of the stand biomass killed: the numerator sums biomass per tree x trees
+        ! Guillaume M. (AI gen) -- Share of the stand biomass killed: the numerator sums biomass per tree x
+        ! trees
         ! killed, so the denominator is biomass per tree x trees (circ_class_n). Output only.
-        stand_biomass = SUM(SUM(circ_class_biomass(ipts,ivm,:,:,icarbon),2) * circ_class_n(ipts,ivm,:))
+        stand_biomass = SUM(SUM(circ_class_biomass(ipts,ivm,:,:,icarbon),2) * circ_class_n(ipts, &
+             ivm,:))
         IF (stand_biomass .GT. min_stomate) THEN
            wind_damage_rate(ipts,ivm) = wind_damage_all(ipts,ivm) / stand_biomass
         ELSE
@@ -1874,14 +1860,15 @@ CONTAINS
 
       END DO ! loop nvm
       
-      ! Guillaume M. -- Keep the storm wind the damage law used before it is reset after a kill, so the
+      ! Guillaume M. (AI gen) -- Keep the storm wind the damage law used before it is reset after a kill, so
+      ! the
       ! diagnostic is not zero on exactly the storm-end days it is meant for.
       wind_storm_diag(ipts) = max_wind_speed_storm(ipts)
       IF (is_kill(ipts) == un) THEN
            max_wind_speed_storm(ipts) = zero
            max_wind_ratio_storm(ipts) = zero
       ENDIF
-      ! Guillaume M. -- OK_STORM_GUST: the doses are spent by the kill.
+      ! Guillaume M. (AI gen) -- OK_STORM_GUST: the doses are spent by the kill.
       IF (ok_storm_gust) THEN
          IF (is_kill(ipts) == un) THEN
             storm_gust_dose_closer(ipts,:) = zero
@@ -1985,14 +1972,14 @@ CONTAINS
     CALL xios_orchidee_send_field("DAILY_MAX_WIND", wind_in)
     CALL xios_orchidee_send_field("WIND_SUM",SUM(wind_ratio_sum_save(:,:),2))
     CALL xios_orchidee_send_field("WIND_DAMAGE_RATE",wind_damage_rate)
-    ! Guillaume M. -- OK_STORM_GUST: today's gust and the episode doses (after the post-kill reset).
+    ! Guillaume M. (AI gen) -- OK_STORM_GUST: today's gust and the episode doses (after the post-kill reset).
     IF (ok_storm_gust) THEN
        CALL xios_orchidee_send_field("GUST_DAILY_MAX", gust_daily)
        CALL xios_orchidee_send_field("STORM_GUST_DOSE_CLOSER", storm_gust_dose_closer)
        CALL xios_orchidee_send_field("STORM_GUST_DOSE_FURTHER", storm_gust_dose_further)
     ENDIF
     CALL xios_orchidee_send_field("IS_KILL_STORM", is_kill)
-    ! Guillaume M. -- Daily peak over the local reference, sent under its flag only.
+    ! Guillaume M. (AI gen) -- Daily peak over the local reference, sent under its flag only.
     IF (ok_storm_peak_trigger) THEN
        WHERE (peak_ref(:) > zero)
           peak_ratio_out(:) = wind_speed_max_save(:,1) / peak_ref(:)
@@ -2030,7 +2017,8 @@ CONTAINS
     CALL xios_orchidee_send_field("DLF_FURTHER_BK",DLF_breaking_further)
     CALL xios_orchidee_send_field("DLF_FURTHER_OV",DLF_overturning_further)
     CALL xios_orchidee_send_field("DAILY_MAX_WIND_PFT",max_wind_speed_pft_further)
-    ! Guillaume M. -- Inputs of the damage logistic, to read the effective wind against the CWS at each
+    ! Guillaume M. (AI gen) -- Inputs of the damage logistic, to read the effective wind against the CWS at
+    ! each
     ! storm end: canopy-profile multipliers (1 when WIND_CAL_PFT = n) and the storm wind they scale.
     CALL xios_orchidee_send_field("WIND_PROFILE_CLOSER",wind_profile_closer)
     CALL xios_orchidee_send_field("WIND_PROFILE_FURTHER",wind_profile_further)
@@ -2535,12 +2523,14 @@ CONTAINS
         !! 0.2 Output variables
         
         !! 0.3 Modified variables
-	REAL(r_std),DIMENSION(:),INTENT(inout) :: kill_temp         !! storm mortality for each diameter class (accumulated)
+	!! storm mortality for each diameter class (accumulated)
+	REAL(r_std),DIMENSION(:),INTENT(inout) :: kill_temp
         
         !! 0.4 Local variables
 	REAL(r_std)                          :: biomass_to_kill     !! target biomass to remove
 	REAL(r_std)                          :: living_biomass      !! living carbon mass per closer/further area
-	REAL(r_std)                          :: zone_weight         !! area fraction applied to the trees killed (1 = legacy)
+	!! area fraction applied to the trees killed (1 = legacy)
+	REAL(r_std)                          :: zone_weight
 	INTEGER(i_std)                       :: icir
  
   !==============================================================================================
@@ -2548,11 +2538,10 @@ CONTAINS
     ! Now the damage rate is based on the total biomass and number of trees
     ! Biomass is removed from the largest circ class to smallest one.
     biomass_to_kill = SUM(biomass_temp * circ_class_n_temp) * damage_rate * area_frac
-    ! Guillaume M. -- Biomass to kill and living biomass both carry area_frac, so it cancels unless the
-    ! trees killed are weighted by it too: under OK_STORM_KILL_AREA_WEIGHTED each zone kills its rate
-    ! over its own area only (legacy: over the whole slot).
-    zone_weight = un
-    IF (ok_storm_kill_area_weighted) zone_weight = area_frac
+    ! Guillaume M. (AI gen) -- Biomass to kill and living biomass both carry area_frac, so it
+    ! cancels unless the trees killed are weighted by it too: each zone kills its rate over its
+    ! own area only.
+    zone_weight = area_frac
     
     IF(printlev_loc .GE. 4 .AND. ivm .EQ. test_pft .AND. ipts .EQ. test_grid) THEN
         WRITE(numout,*) 'biomass_temp',biomass_temp
@@ -2577,28 +2566,16 @@ CONTAINS
            CYCLE
         ENDIF
 
-        ! Guillaume M. -- Legacy expressions kept verbatim when the flag is off; the weighted one is ordered
-        ! w*b/l*n so the compiler cannot share a rounded (b/l)*n with the legacy kill + (b/l)*n, which
-        ! -O3 fuses into one FMA (bit-for-bit neutrality).
         IF(living_biomass .LE. biomass_to_kill)THEN
             ! biomass to kill exceeds the living mass. Remove all by the fraction of area.
             biomass_to_kill = biomass_to_kill - living_biomass
-            IF (ok_storm_kill_area_weighted) THEN
-               kill_temp(icir) = kill_temp(icir) + circ_class_n_temp(icir) * zone_weight
-            ELSE
-               kill_temp(icir) = kill_temp(icir) + circ_class_n_temp(icir)
-            ENDIF
+            kill_temp(icir) = kill_temp(icir) + circ_class_n_temp(icir) * zone_weight
 
         ELSE
             ! biomass to kill is less than the living mass. Remove number of individuals
             ! proportional to the biomass
-            IF (ok_storm_kill_area_weighted) THEN
-               kill_temp(icir)= kill_temp(icir) + zone_weight * biomass_to_kill / living_biomass * &
-                   circ_class_n_temp(icir)
-            ELSE
-               kill_temp(icir)= kill_temp(icir) + biomass_to_kill/living_biomass * &
-                   circ_class_n_temp(icir)
-            ENDIF
+            kill_temp(icir)= kill_temp(icir) + zone_weight * biomass_to_kill / living_biomass * &
+                circ_class_n_temp(icir)
             biomass_to_kill = zero
 
         ENDIF ! living_biomass .LE. biomass_to_kill
@@ -2732,11 +2709,13 @@ CONTAINS
 
   !! ================================================================================================================================
   !! FUNCTION     : hours_above
-  !>\BRIEF        Hours with gust >= thr, interpolated linearly in the hours-above-level curve of STORM_GUST_FILE (OK_STORM_GUST).
+  !>\BRIEF Hours with gust >= thr, interpolated linearly in the hours-above-level curve of
+  ! STORM_GUST_FILE (OK_STORM_GUST).
   !! ================================================================================================================================
   REAL(r_std) FUNCTION hours_above(curve, thr)
 
-    REAL(r_std), DIMENSION(ngust_lev), INTENT(in) :: curve   !! Hours with gust >= each level of gust_levels (h)
+    !! Hours with gust >= each level of gust_levels (h)
+    REAL(r_std), DIMENSION(ngust_lev), INTENT(in) :: curve
     REAL(r_std), INTENT(in)                       :: thr     !! Gust threshold (m s-1)
     INTEGER(i_std)                                :: k
 
@@ -2746,7 +2725,8 @@ CONTAINS
     ENDIF
     DO k = 1, ngust_lev - 1
        IF (thr .LT. gust_levels(k+1)) THEN
-          hours_above = curve(k) + (curve(k+1) - curve(k)) * (thr - gust_levels(k)) / (gust_levels(k+1) - gust_levels(k))
+          hours_above = curve(k) + (curve(k+1) - curve(k)) * (thr - gust_levels(k)) &
+               / (gust_levels(k+1) - gust_levels(k))
           RETURN
        ENDIF
     ENDDO
@@ -2756,8 +2736,10 @@ CONTAINS
 
   !! ================================================================================================================================
   !! FUNCTION     : dose_damage
-  !>\BRIEF        Share of the maximum damage for an episode dose (h above the critical gust): logistic of midpoint d50 and
-  !!               width STORM_GUST_S, shifted to 0 at zero dose and scaled to 1 for a large dose (OK_STORM_GUST).
+  !>\BRIEF Share of the maximum damage for an episode dose (h above the critical gust): logistic of
+  ! midpoint d50 and
+  !!               width STORM_GUST_S, shifted to 0 at zero dose and scaled to 1 for a large dose
+  !! (OK_STORM_GUST).
   !! ================================================================================================================================
   REAL(r_std) FUNCTION dose_damage(dose, d50)
 

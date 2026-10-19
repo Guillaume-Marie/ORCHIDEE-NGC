@@ -1333,13 +1333,17 @@ REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:)   :: ndying_year       !! Reference
   REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: dia_boost_end     !!Shape parameter of the unmanaged forest circular
                                                                     !!distance distributi
 !$OMP THREADPRIVATE(dia_boost_end)  
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: rdi_ramp_out  !!RDI vise en SORTIE de la classe d'amelioration, PAR CRENEAU (-)
+  !!RDI vise en SORTIE de la classe d'amelioration, PAR CRENEAU (-)
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: rdi_ramp_out
 !$OMP THREADPRIVATE(rdi_ramp_out)
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: forced_thin_intensity  !! Fraction de RDI retiree chaque annee par l'eclaircie forcee, PAR CRENEAU (-)
+  !! Fraction de RDI retiree chaque annee par l'eclaircie forcee, PAR CRENEAU (-)
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: forced_thin_intensity
 !$OMP THREADPRIVATE(forced_thin_intensity)
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: rdi_band_low  !!Borne BASSE de la bande de RDI cible, PAR CRENEAU (-)
+  !!Borne BASSE de la bande de RDI cible, PAR CRENEAU (-)
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: rdi_band_low
 !$OMP THREADPRIVATE(rdi_band_low)
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: rdi_band_high !!Borne HAUTE de la bande de RDI cible, PAR CRENEAU (-)
+  !!Borne HAUTE de la bande de RDI cible, PAR CRENEAU (-)
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: rdi_band_high
 !$OMP THREADPRIVATE(rdi_band_high)
   REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: thin_intensity    !!Intensity of a thinnig event when a forest reach the upper
                                                                     !!rdi limit 
@@ -1372,22 +1376,43 @@ REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:)   :: ndying_year       !! Reference
                                                                     !! trees larger than this.
                                                                     !! @tex $(cm)$ @endtex
 !$OMP THREADPRIVATE(largest_tree_dia)
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: rotation_ref      !! Rotation de reference PAR PFT (an), gestion multifonctionnelle.
-                                                                    !! Defaut par MTC (rotation_ref_mtc) ; surchargeable par ROTATION_REF.
-                                                                    !! <= 0 => pas de rotation definie pour ce PFT.
+  !! Rotation de reference PAR PFT (an), gestion multifonctionnelle.
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: rotation_ref
+                                                                    !! Defaut par MTC
+                                                                    !! (rotation_ref_mtc) ;
+                                                                    !! surchargeable par
+                                                                    !! ROTATION_REF.
+                                                                    !! <= 0 => pas de rotation
+                                                                    !! definie pour ce PFT.
 !$OMP THREADPRIVATE(rotation_ref)
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: mat_a3_entry      !! MAT_TARGET_A3: age of entry into the terminal age class (yr), per PFT.
-                                                                    !! <= 0 = inactive, the terminal setpoint stays MAT_TARGET_FRAC(nagec).
+  !! MAT_TARGET_A3: age of entry into the terminal age class (yr), per PFT.
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: mat_a3_entry
+                                                                    !! <= 0 = inactive, the terminal
+                                                                    !! setpoint stays
+                                                                    !! MAT_TARGET_FRAC(nagec).
 !$OMP THREADPRIVATE(mat_a3_entry)
-  LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:) :: fm_src_pft            !! Force forest_managed = ifm_src (taillis courte rotation) sur ces PFT.
-                                                                    !! Defaut FALSE partout. Pilote PAR PFT et non en dur sur "eucalyptus" :
-                                                                    !! il n'existe pas de MTC eucalyptus, l'espece n'est qu'une affectation
-                                                                    !! PFT_TO_MTC assortie de surcharges de namelist.
+  !! Force forest_managed = ifm_src (taillis courte rotation) sur ces PFT.
+  LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:) :: fm_src_pft
+                                                                    !! Defaut FALSE partout. Pilote
+                                                                    !! PAR PFT et non en dur sur
+                                                                    !! "eucalyptus" :
+                                                                    !! il n'existe pas de MTC
+                                                                    !! eucalyptus, l'espece n'est
+                                                                    !! qu'une affectation
+                                                                    !! PFT_TO_MTC assortie de
+                                                                    !! surcharges de namelist.
 !$OMP THREADPRIVATE(fm_src_pft)
-  LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:) :: fm_cop_pft            !! Force forest_managed = ifm_cop (taillis simple) sur ces PFT.
-                                                                    !! Defaut FALSE partout. Meme patron que fm_src_pft, autre regime :
-                                                                    !! ifm_cop est la rotation longue (chene vert, 35-60 ans), ifm_src la
-                                                                    !! courte (eucalyptus, 10-14 ans). Exclusifs l'un de l'autre.
+  !! Force forest_managed = ifm_cop (taillis simple) sur ces PFT.
+  LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:) :: fm_cop_pft
+                                                                    !! Defaut FALSE partout. Meme
+                                                                    !! patron que fm_src_pft, autre
+                                                                    !! regime :
+                                                                    !! ifm_cop est la rotation
+                                                                    !! longue (chene vert, 35-60
+                                                                    !! ans), ifm_src la
+                                                                    !! courte (eucalyptus, 10-14
+                                                                    !! ans). Exclusifs l'un de
+                                                                    !! l'autre.
 !$OMP THREADPRIVATE(fm_cop_pft)
 
   REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: fuelwood_diameter !! Diameter below which the wood harvest is used as fuelwood (m)

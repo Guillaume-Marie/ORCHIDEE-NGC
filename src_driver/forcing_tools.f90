@@ -59,7 +59,8 @@ MODULE forcing_tools
   ! 
   PRIVATE
   PUBLIC :: forcing_open, forcing_close, forcing_printdate, forcing_getvalues, forcing_printpoint,&
-       &    forcing_getglogrid, forcing_givegridsize, forcing_givegrid, forcing_zoomgrid, forcing_integration_time, &
+       &    forcing_getglogrid, forcing_givegridsize, forcing_givegrid, forcing_zoomgrid, &
+            forcing_integration_time, &
        &    forcing_meanprecip
       
   !
@@ -5130,7 +5131,8 @@ END FUNCTION ExistVariable
 !!              comme le fait stomate (precip = (precip_rain + precip_snow)*one_day/dt_sechiba).
 !!
 !! \n
-!_ ==============================================================================================================================
+!_
+! ==============================================================================================================================
   SUBROUTINE forcing_meanprecip(model_guess, meanprec)
     !
     IMPLICIT NONE
@@ -5142,11 +5144,13 @@ END FUNCTION ExistVariable
     !
     !! 0.4 Local variables
     REAL(r_std), ALLOCATABLE, DIMENSION(:,:) :: sum_full, mean_full, mean_proc
-    REAL(r_std), ALLOCATABLE, DIMENSION(:,:) :: rainf_c, snowf_c
+    REAL(r_std), ALLOCATABLE, DIMENSION(:,:) :: rainf_c  !! rainfall slab read from file (kg m-2 s-1)
+    REAL(r_std), ALLOCATABLE, DIMENSION(:,:) :: snowf_c  !! snowfall slab read from file (kg m-2 s-1)
     INTEGER(i_std) :: ifile, it0, nct, ntot
     CHARACTER(LEN=80) :: cellmethod
     LOGICAL :: got_any
-    !_ ================================================================================================================================
+    !_
+    ! ================================================================================================================================
     !
     ALLOCATE(mean_proc(nbpoint_proc,1))
     mean_proc(:,:) = zero
@@ -5167,10 +5171,12 @@ END FUNCTION ExistVariable
              !
              ! Rainf, ou "precip" (deja total) pour les forcages a pas de temps journalier.
              IF ( ExistVariable(ifile, "Rainf") ) THEN
-                CALL forcing_varforslab(ifile, "Rainf", it0, nct, 1, model_guess, .FALSE., rainf_c, cellmethod)
+                CALL forcing_varforslab(ifile, "Rainf", it0, nct, 1, model_guess, .FALSE., &
+                     rainf_c, cellmethod)
                 got_any = .TRUE.
              ELSE IF ( ExistVariable(ifile, "precip") ) THEN
-                CALL forcing_varforslab(ifile, "precip", it0, nct, 1, model_guess, .FALSE., rainf_c, cellmethod)
+                CALL forcing_varforslab(ifile, "precip", it0, nct, 1, model_guess, .FALSE., &
+                     rainf_c, cellmethod)
                 got_any = .TRUE.
              ENDIF
              !
@@ -5178,7 +5184,8 @@ END FUNCTION ExistVariable
              ! que "precip", le total est deja dans rainf_c et ajouter une reconstruction de
              ! neige compterait la meme eau deux fois.
              IF ( ExistVariable(ifile, "Snowf") .AND. ExistVariable(ifile, "Rainf") ) THEN
-                CALL forcing_varforslab(ifile, "Snowf", it0, nct, 1, model_guess, .FALSE., snowf_c, cellmethod)
+                CALL forcing_varforslab(ifile, "Snowf", it0, nct, 1, model_guess, .FALSE., &
+                     snowf_c, cellmethod)
              ENDIF
              !
              sum_full(:,1) = sum_full(:,1) + SUM(rainf_c(:,1:nct) + snowf_c(:,1:nct), DIM=2)
@@ -5196,13 +5203,15 @@ END FUNCTION ExistVariable
           mean_full(:,1) = zero
        ENDIF
        !
-       WRITE(numout,*) "forcing_meanprecip : ", ntot, " pas de temps balayes sur ", nb_forcefile, " fichier(s)"
+       WRITE(numout,*) "forcing_meanprecip : ", ntot, " pas de temps balayes sur ", nb_forcefile, &
+            " fichier(s)"
        IF ( ntot > 0 .AND. got_any ) THEN
           WRITE(numout,*) "forcing_meanprecip : pluie+neige moyenne (mm/an) min/moy/max = ", &
                MINVAL(mean_full(:,1))*365., SUM(mean_full(:,1))/REAL(nbpoint_loc,r_std)*365., &
                MAXVAL(mean_full(:,1))*365.
        ELSE
-          WRITE(numout,*) "forcing_meanprecip : AUCUNE variable de precipitation lisible -> repli sur le scalaire"
+          WRITE(numout,*) "forcing_meanprecip : AUCUNE variable de precipitation lisible", &
+               " -> repli sur le scalaire"
        ENDIF
     ELSE
        ALLOCATE(mean_full(1,1))

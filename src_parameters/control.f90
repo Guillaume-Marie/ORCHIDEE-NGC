@@ -1469,7 +1469,6 @@ CONTAINS
        ! LARGEST_TREE_DIA au namelist. Deriver les bornes plus tot (dans
        ! config_stomate_parameters, ou age_class_bound est alloue) n'aurait vu que les
        ! defauts MTC et aurait ignore sans message le 0.20 m de l'eucalyptus.
-       ! No-op si OK_AGE_CLASS_BOUND_PFT=n.
        IF (printlev>=3) THEN
           WRITE(numout,*)'In control_initialize: call derive_age_class_bounds'
           CALL flush(numout)

@@ -657,25 +657,38 @@ END FUNCTION lai_to_biomass_0d
 
     !! 0.1 Input variables
     INTEGER(i_std), INTENT(in)  :: npts                                           !! Domain size (-)
-    INTEGER(i_std), INTENT(in)  :: pft                                            !! PFT index (tree) (-)
-    REAL(r_std), INTENT(in)     :: n_kill_cc(npts,ncirc)                          !! Trees killed per circ class (ind m-2)
-    REAL(r_std), INTENT(in)     :: circ_class_biomass(npts,ncirc,nparts,nelements)!! Biomass of  per circ class(gC ind-1)
-    REAL(r_std), INTENT(in)     :: circ_class_n(npts,ncirc)                       !! Stand density per circ class (ind m-2)
-    REAL(r_std), INTENT(in)     :: veget_max(npts)                                !! Prescribed PFT cover fraction (-)
-    REAL(r_std), INTENT(in)     :: cell_area(npts)                                !! Grid-cell area (m2)
-    REAL(r_std), INTENT(in)     :: maxheight(npts)                                !! pipe_tune2 of this pft (m), for wood_to_ba
+    !! PFT index (tree) (-)
+    INTEGER(i_std), INTENT(in)  :: pft
+    !! Trees killed per circ class (ind m-2)
+    REAL(r_std), INTENT(in)     :: n_kill_cc(npts,ncirc)
+    !! Biomass of  per circ class(gC ind-1)
+    REAL(r_std), INTENT(in)     :: circ_class_biomass(npts,ncirc,nparts,nelements)
+    !! Stand density per circ class (ind m-2)
+    REAL(r_std), INTENT(in)     :: circ_class_n(npts,ncirc)
+    !! Prescribed PFT cover fraction (-)
+    REAL(r_std), INTENT(in)     :: veget_max(npts)
+    !! Grid-cell area (m2)
+    REAL(r_std), INTENT(in)     :: cell_area(npts)
+    !! pipe_tune2 of this pft (m), for wood_to_ba
+    REAL(r_std), INTENT(in)     :: maxheight(npts)
 
     !! 0.2 Output variables
-    REAL(r_std), INTENT(out)    :: damaged_area(npts)                             !! Perturbed forest surface (m2)
+    !! Perturbed forest surface (m2)
+    REAL(r_std), INTENT(out)    :: damaged_area(npts)
 
     !! 0.4 Local variables
     INTEGER(i_std)                :: ji, l                                        !! Indices
-    REAL(r_std), DIMENSION(ncirc) :: ba                                           !! Basal area per individual tree (m2 ind-1)
-    REAL(r_std)                   :: n_kill                                       !! Trees killed in a circ class (ind m-2)
-    REAL(r_std)                   :: ba_kill, ba_stand                            !! Killed / stand basal area (m2 m-2)
-    REAL(r_std)                   :: frac                                         !! Killed fraction of the stand (-)
+    !! Basal area per individual tree (m2 ind-1)
+    REAL(r_std), DIMENSION(ncirc) :: ba
+    !! Trees killed in a circ class (ind m-2)
+    REAL(r_std)                   :: n_kill
+    !! Killed / stand basal area (m2 m-2)
+    REAL(r_std)                   :: ba_kill, ba_stand
+    !! Killed fraction of the stand (-)
+    REAL(r_std)                   :: frac
 
-!_ ================================================================================================================================
+!_
+! ================================================================================================================================
 
     damaged_area(:) = zero
     IF ( .NOT. is_tree(pft) ) RETURN
@@ -2569,7 +2582,8 @@ FUNCTION calculate_rdi(diameters_temp,circ_class_n_temp,alpha_st,ivm,ifm)
 !!
 !! RETURN VALUE : cc_grid_max_x (unitless)
 !! \n
-!_ ================================================================================================================================
+!_
+! ================================================================================================================================
 
 FUNCTION cc_grid_max_x(management)
 
@@ -2952,7 +2966,7 @@ END SUBROUTINE
 !!
 !! Diagnostic only: reads, WRITE and ipslerr_p(2). STRICTLY BIT-NEUTRAL.
 !!
-!! RECENT CHANGE(S) : created 2026-08-06, step 0 of design/MODULE_DESIGN_AREA_TRANSFER_AUDIT.md
+!! RECENT CHANGE(S) : created step 0 of design/MODULE_DESIGN_AREA_TRANSFER_AUDIT.md
 !!
 !! MAIN OUTPUT VARIABLE(S) : none
 !!
@@ -2960,19 +2974,25 @@ END SUBROUTINE
 !!
 !! FLOWCHART    :
 !! \n
-!_ ================================================================================================================================
+!_
+! ================================================================================================================================
 
   SUBROUTINE check_area_invariant(check_point, npts, veget_max, circ_class_n)
 
   !! 0. Variable and parameter description
 
     !! 0.1 Input variables
-    CHARACTER(*), INTENT(in)                          :: check_point          !! Where in the code this check runs
-    INTEGER(i_std), INTENT(in)                        :: npts                 !! Domain size (unitless)
-    REAL(r_std), DIMENSION(:,:), INTENT(in)           :: veget_max            !! Maximal coverage fraction of a PFT
+    !! Where in the code this check runs
+    CHARACTER(*), INTENT(in)                          :: check_point
+    !! Domain size (unitless)
+    INTEGER(i_std), INTENT(in)                        :: npts
+    !! Maximal coverage fraction of a PFT
+    REAL(r_std), DIMENSION(:,:), INTENT(in)           :: veget_max
                                                                               !! (unitless; 0-1)
-    REAL(r_std), DIMENSION(:,:,:), INTENT(in)         :: circ_class_n         !! Number of individuals per circumference
-                                                                              !! class @tex $(ind m^{-2})$ @endtex
+    !! Number of individuals per circumference
+    REAL(r_std), DIMENSION(:,:,:), INTENT(in)         :: circ_class_n
+                                                                              !! class @tex $(ind
+                                                                              !! m^{-2})$ @endtex
 
     !! 0.2 Output variables
 
@@ -2980,14 +3000,21 @@ END SUBROUTINE
 
     !! 0.4 Local variables
     INTEGER(i_std)                                    :: ipts, ivm            !! Indices
-    INTEGER(i_std)                                    :: n_residue            !! Slots with area below min_stomate
-    INTEGER(i_std)                                    :: n_orphan             !! Slots with content but no area
-    INTEGER(i_std)                                    :: n_window             !! Slots inside the check_veget window
-    INTEGER(i_std)                                    :: n_shown              !! Detailed lines already written
-    INTEGER(i_std), PARAMETER                         :: n_show_max = 10      !! Cap on detailed lines per call
-    REAL(r_std)                                       :: dens                 !! Individuals carried by the slot
+    !! Slots with area below min_stomate
+    INTEGER(i_std)                                    :: n_residue
+    !! Slots with content but no area
+    INTEGER(i_std)                                    :: n_orphan
+    !! Slots inside the check_veget window
+    INTEGER(i_std)                                    :: n_window
+    !! Detailed lines already written
+    INTEGER(i_std)                                    :: n_shown
+    !! Cap on detailed lines per call
+    INTEGER(i_std), PARAMETER                         :: n_show_max = 10
+    !! Individuals carried by the slot
+    REAL(r_std)                                       :: dens
 
-!_ ================================================================================================================================
+!_
+! ================================================================================================================================
 
     n_residue = 0
     n_orphan  = 0

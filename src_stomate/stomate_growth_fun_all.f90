@@ -444,10 +444,16 @@ CONTAINS
     REAL(r_std), DIMENSION(ncirc)                     :: s                      !! tree-level linear relationship between
                                                                                 !! basal area and height. This variable is
                                                                                 !! used to linearize the allocation scheme
-    REAL(r_std), DIMENSION(ncirc)                     :: circ_class_n_safe      !! circ_class_n with empty classes set to
-                                                                                !! one so the element-wise division below
-                                                                                !! stays finite (@tex $(trees m^{-2})$ @endtex)
-    REAL(r_std), DIMENSION(ncirc)                     :: Cs_inc_est             !! Initial value estimate for Cs_inc. The
+    !! circ_class_n with empty classes set to
+    REAL(r_std), DIMENSION(ncirc)                     :: circ_class_n_safe
+                                                                                !! one so the
+                                                                                !! element-wise
+                                                                                !! division below
+                                                                                !! stays finite
+                                                                                !! (@tex $(trees
+                                                                                !! m^{-2})$ @endtex)
+    !! Initial value estimate for Cs_inc. The
+    REAL(r_std), DIMENSION(ncirc)                     :: Cs_inc_est
                                                                                 !! value is used to linearize the ba~height
                                                                                 !! relationship 
                                                                                 !! @tex $(gC.plant^{-1})$ @endtex

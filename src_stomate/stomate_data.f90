@@ -94,45 +94,59 @@ MODULE stomate_data
   !
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: AED_fire    !! Avg edge distance for SPITFIRE (m)
 !$OMP THREADPRIVATE(AED_fire)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: AED_light   !! Avg edge distance for canopy light effect (m)
+  !! Avg edge distance for canopy light effect (m)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: AED_light
 !$OMP THREADPRIVATE(AED_light)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: area_forest !! Forest area per grid cell (ha, is_tree only)
+  !! Forest area per grid cell (ha, is_tree only)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: area_forest
 !$OMP THREADPRIVATE(area_forest)
 
   !
   ! Guillaume M. -- Dynamic edge_length (AED_FEEDBACK). edge_length_dyn evolves each
-  ! timestep from the perturbation accumulators (dA_fire/storm/pest, m² per dt_stomate),
-  ! relaxing toward the continuous-forest baseline aed_edge_ref_frac·edge_length_ref
+  ! timestep from the perturbation accumulators (dA_fire/storm/pest, m2 per dt_stomate),
+  ! relaxing toward the continuous-forest baseline aed_edge_ref_frac*edge_length_ref
   ! (default 0). See update_edge_length and MODULE_DESIGN_AED_FEEDBACK.md.
   !
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: edge_length_dyn !! dynamic edge length (m)
 !$OMP THREADPRIVATE(edge_length_dyn)
-  ! Guillaume M. -- OK_STORM_PEAK_TRIGGER: local reference of the daily peak wind. peak_top holds
+  ! Guillaume M. (AI gen) -- OK_STORM_PEAK_TRIGGER: local reference of the daily peak wind. peak_top holds
   ! the largest raw daily peaks of the current year, peak_ref_save the yearly n-th largest peak
   ! (0 = missing year), peak_ref their mean over the available years (0 = none, no onset).
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: peak_top      !! Largest daily peaks of the year, sorted (m s-1)
+  !! Largest daily peaks of the year, sorted (m s-1)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: peak_top
 !$OMP THREADPRIVATE(peak_top)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: peak_ref_save !! Yearly reference peaks, latest first (m s-1)
+  !! Yearly reference peaks, latest first (m s-1)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: peak_ref_save
 !$OMP THREADPRIVATE(peak_ref_save)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:)   :: peak_ref      !! Mean reference peak (m s-1), 0 if none
+  !! Mean reference peak (m s-1), 0 if none
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:)   :: peak_ref
 !$OMP THREADPRIVATE(peak_ref)
-  ! Guillaume M. -- OK_STORM_GUST: today's gust from STORM_GUST_FILE (daily maximum, hours above each level), the usual
-  ! yearly hours above each level (acclimation) and the dose of the current episode per zone (restart).
+  ! Guillaume M. (AI gen) -- OK_STORM_GUST: today's gust from STORM_GUST_FILE (daily maximum, hours above
+  ! each level), the usual
+  ! yearly hours above each level (acclimation) and the dose of the current episode per zone
+  ! (restart).
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:)   :: gust_levels      !! Gust levels of the file (m s-1)
 !$OMP THREADPRIVATE(gust_levels)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:)   :: gust_daily       !! Today's maximum gust over the cell (m s-1)
+  !! Today's maximum gust over the cell (m s-1)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:)   :: gust_daily
 !$OMP THREADPRIVATE(gust_daily)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: gust_hours       !! Today's hours with gust >= level (h)
+  !! Today's hours with gust >= level (h)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: gust_hours
 !$OMP THREADPRIVATE(gust_hours)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: gust_hours_clim  !! Usual yearly hours with gust >= level (h yr-1)
+  !! Usual yearly hours with gust >= level (h yr-1)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: gust_hours_clim
 !$OMP THREADPRIVATE(gust_hours_clim)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: storm_gust_dose_closer  !! Episode hours above the critical gust, edge zone (h)
+  !! Episode hours above the critical gust, edge zone (h)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: storm_gust_dose_closer
 !$OMP THREADPRIVATE(storm_gust_dose_closer)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: storm_gust_dose_further !! Episode hours above the critical gust, interior zone (h)
+  !! Episode hours above the critical gust, interior zone (h)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: storm_gust_dose_further
 !$OMP THREADPRIVATE(storm_gust_dose_further)
-  ! Guillaume M. -- OK_BEETLE_ACUTE_DROUGHT: yearly low of monthly root-zone moisture over the active
+  ! Guillaume M. (AI gen) -- OK_BEETLE_ACUTE_DROUGHT: yearly low of monthly root-zone moisture over the
+  ! active
   ! period, and the buffer of past yearly lows (latest first, 0 = missing year).
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)   :: moist_min_year   !! This year's low of vegstress_month (-)
+  !! This year's low of vegstress_month (-)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)   :: moist_min_year
 !$OMP THREADPRIVATE(moist_min_year)
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:,:) :: moist_min_legacy !! Yearly lows, latest first (-)
 !$OMP THREADPRIVATE(moist_min_legacy)
@@ -140,78 +154,92 @@ MODULE stomate_data
   ! class-0 conveyor, i.e. cut or killed in the last n_class0-1 years and not yet back in
   ! class 1. Along it even mature trees are unacclimated (Persson 1975), so the windthrow
   ! channel exposes it at full sensitivity whatever the stand age.
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: edge_fresh      !! edge along fresh class-0 openings (m)
+  !! edge along fresh class-0 openings (m)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: edge_fresh
 !$OMP THREADPRIVATE(edge_fresh)
-  ! Guillaume M. -- Conversion of an opened area into edge, the factor edge_fresh uses, kept
-  ! on its own so the beetle channel can convert the class-0 slots of the ages it selects.
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: edge_open_conv  !! edge per opened area (m m-2)
-!$OMP THREADPRIVATE(edge_open_conv)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: edge_length_ref !! EFDA reference edge length: validation reference & static edge when feedback off (m)
+  !! EFDA reference edge length: validation reference & static edge when feedback off (m)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: edge_length_ref
 !$OMP THREADPRIVATE(edge_length_ref)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: dA_fire   !! area perturbed by fire over dt_stomate (m²)
+  !! area perturbed by fire over dt_stomate (m2)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: dA_fire
 !$OMP THREADPRIVATE(dA_fire)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: dA_storm  !! area perturbed by storm over dt_stomate (m²)
+  !! area perturbed by storm over dt_stomate (m2)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: dA_storm
 !$OMP THREADPRIVATE(dA_storm)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: dA_pest   !! area perturbed by pest over dt_stomate (m²)
+  !! area perturbed by pest over dt_stomate (m2)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: dA_pest
 !$OMP THREADPRIVATE(dA_pest)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: dA_harvest !! area harvested or LCC-cut over dt_stomate (m²)
+  !! area harvested or LCC-cut over dt_stomate (m2)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: dA_harvest
 !$OMP THREADPRIVATE(dA_harvest)
 
   !
-  ! Guillaume M. -- AED_REGROWTH class-0 conveyor: stand-replaced area held as annual
-  ! cohorts per agent, ageing one bin per year and graduating at n_recruit years
-  ! (canopy reclosure). Under OK_EDGE_FROM_AGE_CLASS=y it replaces the tau_rec
-  ! relaxation of edge_length_dyn by a mechanistic recovery and yields frac_class0.
-  ! veget_max is NOT modified. See MODULE_DESIGN_AED_REGROWTH.md.
-  !
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:,:) :: class0_area      !! disturbed-area cohorts (npts,nagent,n_recruit_max) (m²)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:,:) :: class0_veg       !! MATURITY_CONVEYOR : aire en regeneration (npts,nvmap,n_class0),
-                                                                    !! Guillaume M. -- regenerating area as a grid-cell FRACTION, indexed by
-                                                                    !! forest GROUP -- not by agent like class0_area -- so that the area is
-                                                                    !! returned to the right species after n_class0 years. Both conveyors
-                                                                    !! coexist: class0_area feeds the edge, class0_veg carries actual area.
+  ! Guillaume M. (AI gen) -- Class-0 conveyor: area under regeneration as a grid-cell fraction
+  ! (npts,nvmap,n_class0), indexed by forest GROUP so that the area is returned to the right
+  ! species after n_class0 years. It carries actual area (veget_max is modified).
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:,:) :: class0_veg
 !$OMP THREADPRIVATE(class0_veg)
-!$OMP THREADPRIVATE(class0_area)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:)     :: class0_recovered !! area graduating back to forest this year (m²/yr)
+  ! Guillaume M. (AI gen) -- class0_veg split by agent (npts,n_class0,nagent), grid-cell
+  ! fraction summed over groups. Diagnostic only: no process reads it.
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:,:) :: class0_agent
+!$OMP THREADPRIVATE(class0_agent)
+  !! area graduating back to forest this year (m2/yr)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:)     :: class0_recovered
 !$OMP THREADPRIVATE(class0_recovered)
   ! Guillaume M. -- MATURITY_CONVEYOR: grid-cell fraction returned by the class-0 conveyor
   ! to the age-class-1 slot, per slot. Published by stomate_lpj and consumed later in the
   ! SAME annual pass by land_cover_change_main, so call order replaces restart persistence.
   ! Needed because loss_gain carries only ONE scalar per slot: netting feed against
   ! restitution erases the gain event that triggers replanting. This variable restores it.
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)   :: class0_restitute !! fraction restituee en classe 1 cette annee (-)
+  !! fraction restituee en classe 1 cette annee (-)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)   :: class0_restitute
 !$OMP THREADPRIVATE(class0_restitute)
   ! Guillaume M. -- AED_REGROWTH V2: edge derived from the young age-class area A_open
   ! (bounded by forest area), agent mix from a leaky disturbance-flux integrator. Replaces
   ! the unbounded class-0 conveyor. See MODULE_DESIGN_AED_REGROWTH_V2.md.
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)   :: agent_flux       !! leaky-integrated dA per agent (npts,nagent) for the v2 agent mix
+  !! leaky-integrated dA per agent (npts,nagent) for the v2 agent mix
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)   :: agent_flux
 !$OMP THREADPRIVATE(agent_flux)
-  REAL(r_std), SAVE         :: class0_year_clock_s = 0.0_r_std      !! seconds elapsed in the current conveyor year
+  !! seconds elapsed in the current conveyor year
+  REAL(r_std), SAVE         :: class0_year_clock_s = 0.0_r_std
 !$OMP THREADPRIVATE(class0_year_clock_s)
 
   !
-  ! Guillaume M. -- AED_SPINUP: spatial α lookup and spinup state.
+  ! Guillaume M. -- AED_SPINUP: spatial alpha lookup and spinup state.
   ! See MODULE_DESIGN_AED_SPINUP.md.
   !
-  INTEGER(i_std), PARAMETER :: nagent       = 4                  !! disturbance agents (fire, storm, pest, harvest)
+  !! disturbance agents (fire, storm, pest, harvest)
+  INTEGER(i_std), PARAMETER :: nagent       = 4
   INTEGER(i_std), PARAMETER :: IDX_FIRE     = 1
   INTEGER(i_std), PARAMETER :: IDX_STORM    = 2
   INTEGER(i_std), PARAMETER :: IDX_PEST     = 3
   INTEGER(i_std), PARAMETER :: IDX_HARVEST  = 4
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: mi_frac         !! fractions de classe d'intensite (npts, nmiclass), lues annuellement
+  !! fractions de classe d'intensite (npts, nmiclass), lues annuellement
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: mi_frac
 !$OMP THREADPRIVATE(mi_frac)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: rotation_ref_map !! ROTATION_REF_FILE: reference rotation per point and PFT (yr),
-                                                                  !! <= 0 = namelist ROTATION_REF(pft). Allocated only when the file is read.
+  !! ROTATION_REF_FILE: reference rotation per point and PFT (yr),
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: rotation_ref_map
+                                                                  !! <= 0 = namelist
+                                                                  !! ROTATION_REF(pft). Allocated
+                                                                  !! only when the file is read.
 !$OMP THREADPRIVATE(rotation_ref_map)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: road_length_map    !! FRAG_3TERMS macro: longueur de ROUTE par maille (m), statique.
-                                                                  !! Guillaume M. -- NOT an edge length: update_edge_length derives
-                                                                  !! EL_macro = 2 * RL * road_grip_correction from it.
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: harvest_demand_mult !! clear-cut demand multiplier
+                                                                  !! of the year (-), 1 = model
+!$OMP THREADPRIVATE(harvest_demand_mult)
+  !! FRAG_3TERMS macro: longueur de ROUTE par maille (m), statique.
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: road_length_map
+                                                                  !! Guillaume M. -- NOT an edge
+                                                                  !! length: update_edge_length
+                                                                  !! derives
+                                                                  !! EL_macro = 2 * RL *
+                                                                  !! road_grip_correction from it.
 !$OMP THREADPRIVATE(road_length_map)
 
-  ! Guillaume M. -- FRAG_3TERMS permanent: lake, coast and river edge, read from a map.
+  ! Guillaume M. (AI gen) -- FRAG_3TERMS permanent: lake, coast and river edge, read from a map.
   ! The meso term is built from veget_max on area_land, so its non-forest side is
   ! TERRESTRIAL ONLY: no channel exists by which water could cut forest. Static, like roads.
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: edge_hydro_map     !! FRAG_3TERMS permanent: lisiere foret/eau et foret/riviere par maille (m), statique.
+  !! FRAG_3TERMS permanent: lisiere foret/eau et foret/riviere par maille (m), statique.
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: edge_hydro_map
 !$OMP THREADPRIVATE(edge_hydro_map)
   !! Guillaume M. -- AED_EDGE_RDI_WEIGHT: relative density index N/Nmax(D) per slot,
   !! PRODUCED by stomate_lpj_vegetation, where it is already computed, and CONSUMED by
@@ -221,32 +249,48 @@ MODULE stomate_data
   !! Guillaume M. -- dia_factor scales the clearcut diameter with management intensity.
   !! It multiplies largest_tree_dia AND, through it, the age-class bounds that are
   !! fractions of it: the whole maturity scale of the pixel is rescaled.
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: dia_factor  !! Clearcut-diameter multiplier per pixel (-), 1 = unchanged
+  !! Clearcut-diameter multiplier per pixel (-), 1 = unchanged
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: dia_factor
 !$OMP THREADPRIVATE(dia_factor)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: rdi_stand       !! Relative density index N/Nmax(D) per (point, PFT slot) (-)
+  !! Relative density index N/Nmax(D) per (point, PFT slot) (-)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: rdi_stand
 !$OMP THREADPRIVATE(rdi_stand)
-  ! Guillaume M. -- MAT_AGE_ENTRY: leaky mean of the age of the area that enters each slot on
+  ! Guillaume M. (AI gen) -- MAT_AGE_ENTRY: leaky mean of the age of the area that enters each slot on
   ! an upward class transfer (yr), -1 = never fed. A cohort attribute carried by the moved
   ! parcel, not a slot velocity. PERSISTED (libIGCM restarts the binary every period).
   ! Feeds the online a3 of the terminal setpoint and the age-based R_growth.
   ! See design/MODULE_DESIGN_MAT_AGE_ENTRY.md.
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: mat_age_entry   !! Age of the area entering the slot, leaky mean (yr); <= 0 = no sample
+  !! Age of the area entering the slot, leaky mean (yr); <= 0 = no sample
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: mat_age_entry
 !$OMP THREADPRIVATE(mat_age_entry)
-  ! Guillaume M. -- ROTATION_GROWTH: the rotation the STAND can actually deliver, against the
+  ! Guillaume M. (AI gen) -- ROTATION_GROWTH: the rotation the STAND can actually deliver, against the
   ! published itinerary. Derived from mat_age_entry once a year, persisted because it is only
   ! recomputed on 31 December. Blended with a weight w in set_management_intensity.
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: rotation_growth !! Rotation derived from realised growth (yr), <=0 = undefined
+  !! Rotation derived from realised growth (yr), <=0 = undefined
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: rotation_growth
 !$OMP THREADPRIVATE(rotation_growth)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: clearcut_area     !! taille de parcelle de REALISATION (m2). ATTENTION : geometrie de lisiere
-                                                                 !! Guillaume M. -- edge geometry ONLY: it does NOT drive what the model
-                                                                 !! cuts (a cut empties the whole slot). It must never reach
-                                                                 !! sapiens_forestry nor the carbon code (tested property).
+  !! taille de parcelle de REALISATION (m2). ATTENTION : geometrie de lisiere
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: clearcut_area
+                                                                 !! Guillaume M. -- edge geometry
+                                                                 !! ONLY: it does NOT drive what the
+                                                                 !! model
+                                                                 !! cuts (a cut empties the whole
+                                                                 !! slot). It must never reach
+                                                                 !! sapiens_forestry nor the carbon
+                                                                 !! code (tested property).
 !$OMP THREADPRIVATE(clearcut_area)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: alpha_harvest !! coefficient de production de lisiere du harvest (m/m2)
+  !! coefficient de production de lisiere du harvest (m/m2)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:) :: alpha_harvest
 !$OMP THREADPRIVATE(alpha_harvest)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: target_rotation_age  !! rotation cible (npts,nvm) (an) — SEUL canal agissant sur la dynamique.
-                                                                          !! Guillaume M. -- PER PFT: a grid cell is a mosaic, and a single scalar
-                                                                          !! cannot carry 10 yr (eucalypt) and 150 yr (oak) at the same time.
+  !! rotation cible (npts,nvm) (an) -- SEUL canal agissant sur la dynamique.
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: target_rotation_age
+                                                                          !! Guillaume M. -- PER
+                                                                          !! PFT: a grid cell is a
+                                                                          !! mosaic, and a single
+                                                                          !! scalar
+                                                                          !! cannot carry 10 yr
+                                                                          !! (eucalypt) and 150 yr
+                                                                          !! (oak) at the same time.
 !$OMP THREADPRIVATE(target_rotation_age)
   ! Guillaume M. -- PROGRESSIVE_HARVEST: slot (ipts,ivm) area fraction actually clearcut
   ! this year by the phased clearcut (0 = no phased clearcut on that slot). Written by
@@ -254,17 +298,29 @@ MODULE stomate_data
   ! age_class_distr (slot split), and reset at each annual call of sapiens_forestry_main.
   ! Allocated only under ok_progressive_harvest -> test ALLOCATED before use.
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: ph_cut_frac  !! fraction d'aire du slot coupee (-)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: rdi_thin_limit_diag !! RDI target actually handed to thinning, AFTER the band override (-)
-                                                                    !! Guillaume M. -- RDI_TARGET_LOWER is recomputed for output without that
-                                                                    !! override, so it does NOT report what management used. undef = the
-                                                                    !! thinning decision point was never reached for this slot.
+  !! RDI target actually handed to thinning, AFTER the band override (-)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: rdi_thin_limit_diag
+                                                                    !! Guillaume M. --
+                                                                    !! RDI_TARGET_LOWER is
+                                                                    !! recomputed for output without
+                                                                    !! that
+                                                                    !! override, so it does NOT
+                                                                    !! report what management used.
+                                                                    !! undef = the
+                                                                    !! thinning decision point was
+                                                                    !! never reached for this slot.
 !$OMP THREADPRIVATE(rdi_thin_limit_diag)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: ac12_r_diag  !! MATURITY_CONVEYOR : rapport de hauteur h1/h_ref, DIAGNOSTIC (-)
+  !! MATURITY_CONVEYOR : rapport de hauteur h1/h_ref, DIAGNOSTIC (-)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: ac12_r_diag
 !$OMP THREADPRIVATE(ac12_r_diag)
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: ac12_freal_diag !! MATURITY_CONVEYOR : area fraction of the donor REALLY moved
-                                                                 !! this year, read AFTER the veget_max write, DIAGNOSTIC (-).
-                                                                 !! Guillaume M. -- the decided rate is clipped by the guards
-                                                                 !! before the write; only the realised flux is trustworthy.
+  !! MATURITY_CONVEYOR : area fraction of the donor REALLY moved
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:) :: ac12_freal_diag
+                                                                 !! this year, read AFTER the
+                                                                 !! veget_max write, DIAGNOSTIC (-).
+                                                                 !! Guillaume M. -- the decided rate
+                                                                 !! is clipped by the guards
+                                                                 !! before the write; only the
+                                                                 !! realised flux is trustworthy.
 !$OMP THREADPRIVATE(ac12_freal_diag)
 !$OMP THREADPRIVATE(ph_cut_frac)
 
@@ -749,22 +805,27 @@ CONTAINS
 !!
 !! REFERENCE(S) : Bowring et al. (2024) ; Marie (2026) edge_effect.pdf.
 !! \n
-!_ ================================================================================================================================
+!_
+! ================================================================================================================================
 
   SUBROUTINE calculate_aed(npts, veget_max, area, contfrac, edge_length)
 
     !! 0. Arguments
     INTEGER(i_std), INTENT(in)                    :: npts          !! Number of grid points
-    REAL(r_std), DIMENSION(npts,nvm), INTENT(in)  :: veget_max     !! Max vegetation fraction per PFT (unitless)
+    !! Max vegetation fraction per PFT (unitless)
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(in)  :: veget_max
     REAL(r_std), DIMENSION(npts),     INTENT(in)  :: area          !! Grid cell area (m^2)
-    REAL(r_std), DIMENSION(npts),     INTENT(in)  :: contfrac      !! Continental fraction (unitless)
-    REAL(r_std), DIMENSION(npts),     INTENT(in)  :: edge_length   !! Edge length from Edge_length.nc (m)
+    !! Continental fraction (unitless)
+    REAL(r_std), DIMENSION(npts),     INTENT(in)  :: contfrac
+    !! Edge length from Edge_length.nc (m)
+    REAL(r_std), DIMENSION(npts),     INTENT(in)  :: edge_length
 
     !! 0.2 Local variables
     INTEGER(i_std)                                :: ivm, ier
     REAL(r_std), DIMENSION(npts)                  :: area_burnable_veg !! ha
     REAL(r_std), DIMENSION(npts)                  :: area_land         !! ha
-    REAL(r_std), DIMENSION(npts)                  :: burnable_vegfrac, forest_vegfrac
+    REAL(r_std), DIMENSION(npts)                  :: burnable_vegfrac  !! burnable PFT fraction of the grid cell (-)
+    REAL(r_std), DIMENSION(npts)                  :: forest_vegfrac    !! forest PFT fraction of the grid cell (-)
 
     !! 1. Early return if no consumer of AED_fire/AED_light is active.
     !! Guillaume M. -- ok_spitfire MUST be part of the test: SPITFIRE uses AED_fire
@@ -794,21 +855,21 @@ CONTAINS
     !! 3. Land area in hectares (matches stomate_spitfire.f90:471)
     area_land(:) = area(:) * contfrac(:) / 10000.0
 
-    !! 4. Burnable fraction (trees + grass that can burn) — SPITFIRE denominator
+    !! 4. Burnable fraction (trees + grass that can burn) -- SPITFIRE denominator
     burnable_vegfrac(:) = zero
     DO ivm = 1, nvm
        IF (burnable(ivm)) burnable_vegfrac(:) = burnable_vegfrac(:) + veget_max(:,ivm)
     ENDDO
     area_burnable_veg(:) = area_land(:) * burnable_vegfrac(:)
 
-    !! 5. Forest fraction (is_tree only) — LIGHT denominator
+    !! 5. Forest fraction (is_tree only) -- LIGHT denominator
     forest_vegfrac(:) = zero
     DO ivm = 1, nvm
        IF (is_tree(ivm)) forest_vegfrac(:) = forest_vegfrac(:) + veget_max(:,ivm)
     ENDDO
     area_forest(:) = area_land(:) * forest_vegfrac(:)
 
-    !! 6. AED_fire — preserves the historical SPITFIRE behaviour
+    !! 6. AED_fire -- preserves the historical SPITFIRE behaviour
     WHERE (edge_length(:) > min_stomate)
        AED_fire(:) = area_burnable_veg(:) * 10000.0 / edge_length(:) / 2.0
     ELSEWHERE
@@ -817,7 +878,7 @@ CONTAINS
     AED_fire(:) = MIN(50000.0_r_std, AED_fire(:))
     WHERE (area_burnable_veg(:) < min_stomate) AED_fire(:) = 50000.0
 
-    !! Guillaume M. -- Floor, not a stop. Below edge_distance_wetness/2 the fuel factor
+    !! Guillaume M. (AI gen) -- Floor, not a stop. Below edge_distance_wetness/2 the fuel factor
     !! 1-(AED-d/2)^2/AED^2 would exceed 1: the cell is then entirely within the edge zone
     !! and saturates at 1. The former ipslerr_p(3) killed pan-EU runs on tiny coastal
     !! cells (a few percent of vegetation against a prescribed coastline edge), where
@@ -830,7 +891,7 @@ CONTAINS
        AED_fire(:) = MAX(AED_fire(:), edge_distance_wetness/2)
     ENDIF
 
-    !! 7. AED_light — new denominator for canopy light edge effect
+    !! 7. AED_light -- new denominator for canopy light edge effect
     WHERE (edge_length(:) > min_stomate)
        AED_light(:) = area_forest(:) * 10000.0 / edge_length(:) / 2.0
     ELSEWHERE
@@ -846,7 +907,7 @@ CONTAINS
     IF (ok_aed_light) THEN
        IF (ANY(AED_light(:) < edge_distance_light/2)) THEN
           CALL ipslerr_p(2, 'calculate_aed',                                       &
-               'AED_light < edge_distance_light/2 on some grid cells —',          &
+               'AED_light < edge_distance_light/2 on some grid cells -',          &
                'clamping at the lower threshold (fedge_pgap saturates).',         &
                '')
        ENDIF
@@ -869,14 +930,14 @@ CONTAINS
 !!                 the historical-perturbation edge); frac=0 -> pure perturbation-
 !!                 driven edge. Two paths. (a) Legacy AED_FEEDBACK (ok_edge_from_age_class=
 !!                 FALSE): forward Euler d(EL)/dt = Sum_i alpha_i*dA_i/dt - (EL-EL_base)/tau_rec.
-!!                 (b) AED_REGROWTH (ok_edge_from_age_class=TRUE): the dA_* are ingested
-!!                 into a class-0 conveyor of annual cohorts that graduate after
-!!                 n_recruit years; edge_length_dyn = EL_base + Sum_i alpha_i *
-!!                 class0_area_i (mechanistic recovery, no tau_rec). veget_max is
-!!                 NOT modified (Level-1). Either way edge_length_dyn is bounded by
+!!                 (b) AED_REGROWTH (ok_edge_from_age_class=TRUE): edge_length_dyn =
+!!                 EL_base + the edge of the young age-class area A_open (mechanistic
+!!                 recovery, no tau_rec). veget_max is
+!!                 NOT modified. Either way edge_length_dyn is bounded by
 !!                 the multi-patch cap and the dA_* are reset on exit.
 !!                 No-op when ok_aed_feedback is FALSE.
-!_ ================================================================================================================================
+!_
+! ================================================================================================================================
 
   SUBROUTINE set_management_intensity(npts, veget_max)
     !! Guillaume M. -- Single entry point of forest management
@@ -885,17 +946,25 @@ CONTAINS
     !! the dynamics), alpha_harvest (harvest edge coefficient) and clearcut_area (realised
     !! patch size, edge cap and diagnostic only). Called once per step, before the edge update.
     INTEGER(i_std),                      INTENT(in) :: npts       !! Nombre de points de grille
-    REAL(r_std),    DIMENSION(npts,nvm), INTENT(in) :: veget_max  !! Fraction max de vegetation par PFT
+    !! Fraction max de vegetation par PFT
+    REAL(r_std),    DIMENSION(npts,nvm), INTENT(in) :: veget_max
 
     ! --- Variables locales
     INTEGER(i_std)                    :: ji, jv, ic, icls
-    REAL(r_std)                       :: ftot, s_wmean, a_wmean, hmod, d_wmean
-    REAL(r_std)                       :: acls_tot, jmat
+    REAL(r_std)                       :: ftot     !! sum of the management-class fractions (-)
+    REAL(r_std)                       :: s_wmean  !! fraction-weighted clearcut size (m2)
+    REAL(r_std)                       :: a_wmean  !! fraction-weighted edge coefficient (m m-2)
+    REAL(r_std)                       :: hmod     !! modulation of the harvest edge coefficient (-)
+    REAL(r_std)                       :: d_wmean  !! fraction-weighted diameter factor (-)
+    REAL(r_std)                       :: acls_tot !! total area of the age classes of a group (-)
+    REAL(r_std)                       :: jmat     !! maturity index of an age class (-)
     REAL(r_std), DIMENSION(nmiclass)  :: alpha_c    !! alpha par classe = k/sqrt(S_c) (m/m2)
-    REAL(r_std), DIMENSION(nmiclass)  :: fc         !! fractions de classe de la maille, repli applique (-)
+    !! fractions de classe de la maille, repli applique (-)
+    REAL(r_std), DIMENSION(nmiclass)  :: fc
     REAL(r_std), DIMENSION(nagec)     :: acls       !! surface par classe d'age dans la maille
     REAL(r_std)                       :: r_wmean    !! moyenne ponderee de 1/mi_rotation_factor (-)
-    REAL(r_std), DIMENSION(nvm)       :: rref       !! reference rotation of this cell: map where covered, namelist elsewhere (yr)
+    !! reference rotation of this cell: map where covered, namelist elsewhere (yr)
+    REAL(r_std), DIMENSION(nvm)       :: rref
 
     IF (.NOT. ok_management_intensity) RETURN
     IF (.NOT. ALLOCATED(mi_frac)) RETURN
@@ -913,7 +982,7 @@ CONTAINS
 
     DO ji = 1, npts
 
-       !! Guillaume M. -- Regional reference where ROTATION_REF_FILE has one, namelist scalar
+       !! Guillaume M. (AI gen) -- Regional reference where ROTATION_REF_FILE has one, namelist scalar
        !! elsewhere (design/MODULE_DESIGN_ROTATION_REGION.md). The map replaces the REFERENCE
        !! only: the intensity factor still applies below. Not allocated = NONE = bit-neutral.
        rref(:) = rotation_ref(:)
@@ -921,14 +990,14 @@ CONTAINS
           WHERE (rotation_ref_map(ji,:) > zero) rref(:) = rotation_ref_map(ji,:)
        ENDIF
 
-       !! --- 1. Guillaume M. -- Normalise the class fractions: their sum can differ from 1
+       !! --- 1. Guillaume M. (AI gen) -- Normalise the class fractions: their sum can differ from 1
        !!        after interpolation, or on a cell holding no managed forest.
        ftot = zero
        DO ic = 1, nmiclass
           fc(ic) = MAX(mi_frac(ji,ic), zero)
           ftot   = ftot + fc(ic)
        END DO
-       !! Guillaume M. -- Silent map: the gap is the edge of the EFDA footprint, where the
+       !! Guillaume M. (AI gen) -- Silent map: the gap is the edge of the EFDA footprint, where the
        !! cells still carry managed forest, so fall back to MI_DEFAULT_CLASS instead of
        !! claiming no harvest. Routed through the normal path, so the rotation, the edge
        !! coefficient, the patch size and the diameter stay consistent with each other.
@@ -950,7 +1019,8 @@ CONTAINS
        !! class-only rate would turn an oak stand (100-150 yr) and a eucalypt (10-35 yr) at
        !! the same speed. /!\ The additive quantity is the RATE, not the rotation.
        !!   rate(ji,jv) = (1/rref(jv)) * Sigma_c f_c/mi_rotation_factor(c) / ftot
-       !!   with rref = ROTATION_REF(jv), or the regional map where ROTATION_REF_FILE covers the cell.
+       !!   with rref = ROTATION_REF(jv), or the regional map where ROTATION_REF_FILE covers the
+       !! cell.
        !! The class factor is PFT independent: averaged ONCE, then divided per PFT.
        r_wmean = zero
        DO ic = 1, nmiclass
@@ -1027,40 +1097,69 @@ CONTAINS
     !! 0. Arguments
     INTEGER(i_std), INTENT(in)                    :: npts      !! Number of grid points
     REAL(r_std),    INTENT(in)                    :: dt        !! Timestep duration (s)
-    REAL(r_std), DIMENSION(npts),     INTENT(in)  :: area      !! Grid cell area (m²)
+    REAL(r_std), DIMENSION(npts),     INTENT(in)  :: area      !! Grid cell area (m2)
     REAL(r_std), DIMENSION(npts),     INTENT(in)  :: contfrac  !! Continental fraction (-)
-    REAL(r_std), DIMENSION(npts,nvm), INTENT(in)  :: veget_max !! Max vegetation fraction per PFT (AED_REGROWTH: per-PFT recovery weighting)
+    !! Max vegetation fraction per PFT (AED_REGROWTH: per-PFT recovery weighting)
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(in)  :: veget_max
 
     !! 0.2 Local variables
     REAL(r_std), DIMENSION(npts)                  :: dEL_source, dEL_recovery, max_edge_phys
-    REAL(r_std), DIMENSION(npts)                  :: alpha_harvest_use  !! coef de lisiere harvest par maille (intensite de gestion, m/m2)
-    REAL(r_std), DIMENSION(npts)                  :: patch_area_eff     !! taille de parcelle pour le cap de lisiere (m2)
-    REAL(r_std), DIMENSION(npts)                  :: alpha_fire_use     !! coef de lisiere feu par maille (m/m2)
-    REAL(r_std), DIMENSION(npts)                  :: alpha_storm_use    !! coef de lisiere tempete par maille (m/m2)
-    REAL(r_std), DIMENSION(npts)                  :: alpha_pest_use     !! coef de lisiere scolyte par maille (m/m2)
-    REAL(r_std), DIMENSION(npts)                  :: edge_src, class0_tot, frac_class0_diag
-    REAL(r_std), DIMENSION(npts)                  :: edge_length_base   !! Continuous-forest baseline of the feedback (m)
+    !! coef de lisiere harvest par maille (intensite de gestion, m/m2)
+    REAL(r_std), DIMENSION(npts)                  :: alpha_harvest_use
+    !! taille de parcelle pour le cap de lisiere (m2)
+    REAL(r_std), DIMENSION(npts)                  :: patch_area_eff
+    !! coef de lisiere feu par maille (m/m2)
+    REAL(r_std), DIMENSION(npts)                  :: alpha_fire_use
+    !! coef de lisiere tempete par maille (m/m2)
+    REAL(r_std), DIMENSION(npts)                  :: alpha_storm_use
+    !! coef de lisiere scolyte par maille (m/m2)
+    REAL(r_std), DIMENSION(npts)                  :: alpha_pest_use
+    REAL(r_std), DIMENSION(npts)                  :: edge_src           !! edge added by the young age-class area (m)
+    REAL(r_std), DIMENSION(npts)                  :: class0_tot         !! open (young age-class) area, A_open (m2)
+    REAL(r_std), DIMENSION(npts)                  :: frac_class0_diag   !! A_open over forest area (-)
+    !! Continuous-forest baseline of the feedback (m)
+    REAL(r_std), DIMENSION(npts)                  :: edge_length_base
     INTEGER(i_std)                                :: ib
-    INTEGER(i_std)                                :: ji, jv, kk         !! AED_REGROWTH Trecruit(PFT) loop indices
-    REAL(r_std)                                   :: w_for, w_rec       !! per-point forest veget sum and recovery-weighted sum
-    REAL(r_std), DIMENSION(npts)                  :: A_open, alpha_eff, flux_tot   !! AED_REGROWTH v2 (A_open from young age class)
-    REAL(r_std), DIMENSION(npts)                  :: A_fresh                       !! AED_STORM: area still in the class-0 conveyor (m2)
-    REAL(r_std), DIMENSION(npts)                  :: f_class1                      !! Age-class-1 cover fraction, openness-weighted if asked (-)
-    REAL(r_std), DIMENSION(npts,nvm)              :: rref_out                      !! ROTATION_REF_MAP diagnostic: reference rotation used (yr)
-    REAL(r_std), DIMENSION(npts,nvm)              :: mtt_out                       !! MAT_TARGET_TERM diagnostic: effective terminal setpoint (-)
-    REAL(r_std), DIMENSION(npts,nvm)              :: mae_out                       !! MAT_AGE_ENTRY / ROTATION_GROWTH diagnostics (yr)
-    REAL(r_std), DIMENSION(npts)                  :: edge_meso, grain_eff          !! FRAG_3TERMS: meso edge (m) and per-cell grain (m)
-    REAL(r_std), DIMENSION(npts)                  :: edge_macro                    !! FRAG_3TERMS: macro edge from roads (m)
-    REAL(r_std), DIMENSION(npts)                  :: edge_hydro                    !! FRAG_3TERMS: permanent edge from lakes, coast and rivers (m)
-    REAL(r_std)                                   :: alpha_circ                    !! EDGE_SCENARIO=max: circular-patch alpha 2*sqrt(pi/a) (m/m2)
-    REAL(r_std), DIMENSION(npts)                  :: edge_micro                    !! FRAG_3TERMS: micro edge, what the dynamics add above the prescribed base (m)
-    REAL(r_std)                                   :: w_grain                       !! FRAG_3TERMS: veget_max-weighted grain accumulator
-    REAL(r_std), DIMENSION(npts)                  :: alpha_bg                      !! v2 piste B: climatological background α per cell
-    REAL(r_std)                                   :: decay_mix                     !! v2 agent-flux decay
-    INTEGER(i_std)                                :: icls                          !! v2 age-class index of a PFT
+    !! AED_REGROWTH Trecruit(PFT) loop indices
+    INTEGER(i_std)                                :: ji, jv, kk
+    !! per-point forest veget sum and recovery-weighted sum
+    REAL(r_std)                                   :: w_for, w_rec
+    !! AED_REGROWTH v2 (A_open from young age class)
+    REAL(r_std), DIMENSION(npts)                  :: A_open, alpha_eff, flux_tot
+    !! AED_STORM: area still in the class-0 conveyor (m2)
+    REAL(r_std), DIMENSION(npts)                  :: A_fresh
+    !! Age-class-1 cover fraction, openness-weighted if asked (-)
+    REAL(r_std), DIMENSION(npts)                  :: f_class1
+    !! ROTATION_REF_MAP diagnostic: reference rotation used (yr)
+    REAL(r_std), DIMENSION(npts,nvm)              :: rref_out
+    !! MAT_TARGET_TERM diagnostic: effective terminal setpoint (-)
+    REAL(r_std), DIMENSION(npts,nvm)              :: mtt_out
+    !! MAT_AGE_ENTRY / ROTATION_GROWTH diagnostics (yr)
+    REAL(r_std), DIMENSION(npts,nvm)              :: mae_out
+    !! FRAG_3TERMS: meso edge (m) and per-cell grain (m)
+    REAL(r_std), DIMENSION(npts)                  :: edge_meso, grain_eff
+    !! FRAG_3TERMS: macro edge from roads (m)
+    REAL(r_std), DIMENSION(npts)                  :: edge_macro
+    !! FRAG_3TERMS: permanent edge from lakes, coast and rivers (m)
+    REAL(r_std), DIMENSION(npts)                  :: edge_hydro
+    !! EDGE_SCENARIO=max: circular-patch alpha 2*sqrt(pi/a) (m/m2)
+    REAL(r_std)                                   :: alpha_circ
+    !! FRAG_3TERMS: micro edge, what the dynamics add above the prescribed base (m)
+    REAL(r_std), DIMENSION(npts)                  :: edge_micro
+    !! FRAG_3TERMS: veget_max-weighted grain accumulator
+    REAL(r_std)                                   :: w_grain
+    !! v2 piste B: climatological background alpha per cell
+    REAL(r_std), DIMENSION(npts)                  :: alpha_bg
+    !! v2 agent-flux decay
+    REAL(r_std)                                   :: decay_mix
+    !! v2 age-class index of a PFT
+    INTEGER(i_std)                                :: icls
+    REAL(r_std), DIMENSION(npts,nagent) :: c0ag  !! class-0 share by agent, then weight (-, m/m2)
+    REAL(r_std), DIMENSION(npts,nagent) :: wag   !! alpha by agent, then edge weight (m/m2, m)
     !! Guillaume M. -- Climatological agent mix used for the background edge of young or
     !! open forest carrying no current disturbance flux (weights from EFDA attribution).
-    REAL(r_std), PARAMETER :: bgw_fire=0.045_r_std, bgw_storm=0.07_r_std, bgw_pest=0.02_r_std, bgw_harvest=0.86_r_std
+    REAL(r_std), PARAMETER :: bgw_fire=0.045_r_std, bgw_storm=0.07_r_std, bgw_pest=0.02_r_std, &
+         bgw_harvest=0.86_r_std
 
     IF (.NOT. ok_aed_feedback) RETURN
     IF (.NOT. (ALLOCATED(edge_length_dyn) .AND. ALLOCATED(edge_length_ref))) RETURN
@@ -1068,7 +1167,7 @@ CONTAINS
     !! 0.3 Guillaume M. -- Feedback baseline. edge_length_ref is the OBSERVED EFDA edge and
     !!     already integrates the historical perturbations, so using it as additive floor or
     !!     relaxation target double-counts that history. The anchor is instead a continuous
-    !!     forest baseline = aed_edge_ref_frac·edge_length_ref: frac=0 builds EL_dyn purely
+    !!     forest baseline = aed_edge_ref_frac*edge_length_ref: frac=0 builds EL_dyn purely
     !!     from the simulated source, frac=1 restores the EFDA-anchored behaviour.
     edge_length_base(:) = aed_edge_ref_frac * edge_length_ref(:)
 
@@ -1121,7 +1220,7 @@ CONTAINS
     ENDIF
     edge_length_base(:) = edge_length_base(:) + edge_macro(:)
 
-    !! 0quater. Guillaume M. -- PERMANENT term, water. Lakes, coastline and rivers cut the
+    !! 0quater. Guillaume M. (AI gen) -- PERMANENT term, water. Lakes, coastline and rivers cut the
     !!   forest exactly as roads do, and the meso term cannot see them: it is built from
     !!   veget_max on area_land, whose non-forest side is TERRESTRIAL only.
     !!   /!\ Added AS IS. The map already carries its geometric factors -- the two banks of a
@@ -1149,7 +1248,7 @@ CONTAINS
     alpha_storm_use(:) = alpha_storm_edge
     alpha_pest_use(:)  = alpha_pest_edge
 
-    !! 1.5 Guillaume M. -- EDGE_SCENARIO=max (MODULE_DESIGN_EDGE_SCENARIO.md): every disturbed
+    !! 1.5 Guillaume M. (AI gen) -- EDGE_SCENARIO=max (MODULE_DESIGN_EDGE_SCENARIO.md): every disturbed
     !!     patch is an isolated disc of area edge_min_patch_area in continuous forest, so its
     !!     whole perimeter is new edge: alpha = 2*sqrt(pi/a) for the four agents. An upper
     !!     bound by absence of coalescence, NOT by shape -- a disc has the smallest perimeter
@@ -1161,9 +1260,9 @@ CONTAINS
        alpha_pest_use(:)    = alpha_circ
        alpha_harvest_use(:) = alpha_circ
     ENDIF
-    !! Guillaume M. -- EDGE_SCENARIO=min (MODULE_DESIGN_EDGE_SCENARIO.md section 8): log mirror
+    !! Guillaume M. (AI gen) -- EDGE_SCENARIO=min (MODULE_DESIGN_EDGE_SCENARIO.md section 8): log mirror
     !!     of max, alpha_real**2/alpha_circ, so min sits as far below real as max above it.
-    !!     Read as disturbances aggregated in compact discs (12-17 ha for fire, storm, harvest).
+    !!     Read as disturbances aggregated in compact discs larger than the real patches.
     IF (edge_scenario == edge_scen_min) THEN
        alpha_circ = deux * SQRT(pi / MAX(edge_min_patch_area, min_stomate))
        alpha_fire_use(:)    = alpha_fire_use(:)**2    / alpha_circ
@@ -1172,7 +1271,7 @@ CONTAINS
        alpha_harvest_use(:) = alpha_harvest_use(:)**2 / alpha_circ
     ENDIF
 
-    IF (ok_edge_from_age_class .AND. ALLOCATED(class0_area)) THEN
+    IF (ok_edge_from_age_class) THEN
        !! 1a-3a. Guillaume M. -- AED_REGROWTH path, class-0 conveyor. Ingest this step's
        !!        stand-replaced area into the youngest cohort, advance the conveyor once a
        !!        year, then DERIVE edge_length_dyn from the live stock (mechanistic
@@ -1200,7 +1299,7 @@ CONTAINS
              IF (.NOT. is_tree(jv)) CYCLE
              icls = jv - start_index(agec_group(jv)) + 1   ! age class 1..nagec
              IF (icls /= 1) CYCLE
-             IF (ok_aed_edge_rdi_weight .AND. ALLOCATED(rdi_stand)) THEN
+             IF (ALLOCATED(rdi_stand)) THEN
                 !! Guillaume M. -- Weight the class-1 area by the actual openness of the
                 !! stand: without it a closing stand still counts as fully open. The weight
                 !! (1-RDI) is high just after a cut and decays as the stand stocks up, so
@@ -1212,9 +1311,9 @@ CONTAINS
                 f_class1(:) = f_class1(:) + veget_max(:,jv)
              ENDIF
           ENDDO
-          A_open(:) = aed_alpha_reg * f_class1(:) * area(:) * contfrac(:)   ! fraction -> m²
+          A_open(:) = aed_alpha_reg * f_class1(:) * area(:) * contfrac(:)   ! fraction -> m2
 
-          ! agent-weighted α (per cell) from the flux mix: Σ_a α_a·flux_a / Σ flux
+          ! agent-weighted alpha (per cell) from the flux mix: Sum_a alpha_a*flux_a / Sum flux
           flux_tot(:) = SUM(agent_flux, DIM=2)
           alpha_eff(:) =   alpha_fire_use(:)    * agent_flux(:,IDX_FIRE)    &
                          + alpha_storm_use(:)   * agent_flux(:,IDX_STORM)   &
@@ -1232,7 +1331,8 @@ CONTAINS
           WHERE (flux_tot(:) > min_stomate)
              edge_src(:) = A_open(:) * alpha_eff(:) / flux_tot(:)
           ELSEWHERE
-             edge_src(:) = aed_bg_frac * A_open(:) * alpha_bg(:)   ! piste B: standing-fragmentation background edge
+             ! piste B: standing-fragmentation background edge
+             edge_src(:) = aed_bg_frac * A_open(:) * alpha_bg(:)
           ENDWHERE
           class0_tot(:) = A_open(:)   ! FRAC_CLASS0 diagnostic = A_open/forest (<= 1)
           !! Guillaume M. -- Fresh openings for the windthrow channel: the area the class-0
@@ -1246,23 +1346,15 @@ CONTAINS
              ELSEWHERE
                 edge_fresh(:) = aed_bg_frac * A_fresh(:) * alpha_bg(:)
              ENDWHERE
-             IF (ALLOCATED(edge_open_conv)) THEN
-                WHERE (flux_tot(:) > min_stomate)
-                   edge_open_conv(:) = alpha_eff(:) / flux_tot(:)
-                ELSEWHERE
-                   edge_open_conv(:) = aed_bg_frac * alpha_bg(:)
-                ENDWHERE
-             ENDIF
           ELSEIF (ALLOCATED(edge_fresh)) THEN
              edge_fresh(:) = zero
-             IF (ALLOCATED(edge_open_conv)) edge_open_conv(:) = zero
           ENDIF
 
        ENDIF   ! agent_flux allocated
        edge_length_dyn(:) = edge_length_base(:) + edge_src(:)
 
     ELSE
-       !! 1b-3b. Legacy AED_FEEDBACK path — additive source + tau_rec relaxation.
+       !! 1b-3b. Legacy AED_FEEDBACK path -- additive source + tau_rec relaxation.
        dEL_source(:) =   alpha_fire_use(:)    * dA_fire(:)    &
                        + alpha_storm_use(:)   * dA_storm(:)   &
                        + alpha_pest_use(:)    * dA_pest(:)    &
@@ -1278,9 +1370,9 @@ CONTAINS
     ENDIF
 
     !! 4. Guillaume M. -- Physical bound: maximum edge of a cell fully tiled by square
-    !!    patches of area edge_min_patch_area, 4·(area·contfrac)/sqrt(A_min). A single-patch
-    !!    cap 4·sqrt(area) under-bounds a fragmented landscape by 2-3 orders of magnitude,
-    !!    a 1° cell holding of the order of 1e6 sub-hectare patches.
+    !!    patches of area edge_min_patch_area, 4*(area*contfrac)/sqrt(A_min). A single-patch
+    !!    cap 4*sqrt(area) under-bounds a fragmented landscape by 2-3 orders of magnitude,
+    !!    a 1deg cell holding of the order of 1e6 sub-hectare patches.
     max_edge_phys(:) = 4.0_r_std * MAX(zero, area(:) * contfrac(:)) &
                        / SQRT(MAX(patch_area_eff(:), min_stomate))
     edge_length_dyn(:) = MIN(max_edge_phys(:), MAX(zero, edge_length_dyn(:)))
@@ -1289,7 +1381,7 @@ CONTAINS
     !!     triggered. Convergence is judged on the age-structure and edge figures
     !!     (scripts/plot_spinup_ageclass_edge.py).
 
-    !! 4.7 Guillaume M. -- MICRO term as a diagnostic. Computed HERE, after the cap, as the
+    !! 4.7 Guillaume M. (AI gen) -- MICRO term as a diagnostic. Computed HERE, after the cap, as the
     !!     excess over the prescribed base: that definition holds on BOTH paths, whereas
     !!     edge_src exists only on the regrowth one and is undefined on the legacy tau_rec
     !!     path. On the regrowth path and away from the cap it equals edge_src exactly.
@@ -1297,7 +1389,7 @@ CONTAINS
     !!     that subtraction silently breaks as soon as another base term is switched on.
     edge_micro(:) = MAX(zero, edge_length_dyn(:) - edge_length_base(:))
 
-    !! 4.8 Guillaume M. -- EDGE_SCENARIO=off: the whole edge is removed from what light and
+    !! 4.8 Guillaume M. (AI gen) -- EDGE_SCENARIO=off: the whole edge is removed from what light and
     !!     fire see, meso, permanent and micro alike; calculate_aed then returns the trunk
     !!     value AED = 50 km. Placed after the cap so the restart carries zero too. The
     !!     conveyor, age classes, harvest and dA_* keep running exactly as under real.
@@ -1308,7 +1400,6 @@ CONTAINS
        edge_hydro(:) = zero
        edge_micro(:) = zero
        IF (ALLOCATED(edge_fresh)) edge_fresh(:) = zero
-       IF (ALLOCATED(edge_open_conv)) edge_open_conv(:) = zero
     ENDIF
 
     !! 5. Diagnostics XIOS
@@ -1331,7 +1422,7 @@ CONTAINS
     ! (scripts/plot_realised_rotation.py).
     IF (ALLOCATED(target_rotation_age)) THEN
        CALL xios_orchidee_send_field("TARGET_ROTATION_AGE", target_rotation_age)
-       ! Guillaume M. -- Reference rotation actually used, BEFORE the intensity factor: the
+       ! Guillaume M. (AI gen) -- Reference rotation actually used, BEFORE the intensity factor: the
        ! regional map where ROTATION_REF_FILE covers the cell, the namelist scalar elsewhere.
        ! Lets one check that the map was read without going through the harvest cadence.
        rref_out(:,:) = SPREAD(rotation_ref(:), 1, npts)
@@ -1339,7 +1430,7 @@ CONTAINS
           WHERE (rotation_ref_map(:,:) > zero) rref_out(:,:) = rotation_ref_map(:,:)
        ENDIF
        CALL xios_orchidee_send_field("ROTATION_REF_MAP", rref_out)
-       ! Guillaume M. -- Effective terminal-class setpoint seen by the regulators, on every
+       ! Guillaume M. (AI gen) -- Effective terminal-class setpoint seen by the regulators, on every
        ! slot of the group: 1 - a3/R where MAT_A3_ENTRY is active, MAT_TARGET_FRAC(n) elsewhere.
        mtt_out(:,:) = zero
        DO jv = 1, nvm
@@ -1350,7 +1441,7 @@ CONTAINS
           ENDDO
        ENDDO
        CALL xios_orchidee_send_field("MAT_TARGET_TERM", mtt_out)
-       ! Guillaume M. -- Online entry ages and the age-based growth rotation; -1 where the
+       ! Guillaume M. (AI gen) -- Online entry ages and the age-based growth rotation; -1 where the
        ! machinery is off or has no sample yet, so the field is always sent.
        mae_out(:,:) = -un
        IF (ALLOCATED(mat_age_entry)) mae_out(:,:) = mat_age_entry(:,:)
@@ -1371,7 +1462,7 @@ CONTAINS
     !! 5b. Guillaume M. -- AED_REGROWTH diagnostics: class-0 stock, graduation flux and the
     !!     management-intensity fraction f_class0 = A_class0 / area_forest. Gated by
     !!     ok_edge_from_age_class, so a flag-off run never references those XIOS fields.
-    IF (ok_edge_from_age_class .AND. ALLOCATED(class0_area)) THEN
+    IF (ok_edge_from_age_class) THEN
        ! v2: class0_tot already holds A_open (set in the update step above) -> FRAC_CLASS0 <= 1
        CALL xios_orchidee_send_field("CLASS0_AREA",      class0_tot)
        CALL xios_orchidee_send_field("CLASS0_RECOVERED", class0_recovered)
@@ -1385,14 +1476,36 @@ CONTAINS
        ENDIF
     ENDIF
 
-    !! 5c. Guillaume M. -- MATURITY_CONVEYOR stock class0_veg, summed over groups and bins:
-    !!     the grid-cell fraction under regeneration. Gate is n_class0, NOT
-    !!     ok_edge_from_age_class -- two distinct conveyors. /!\ While the feed is not
-    !!     written the entry bin is zeroed every year in stomate_lpj, so this field is
-    !!     IDENTICALLY ZERO by construction; a non-zero value means the feed is connected.
+    !! 5c. Guillaume M. (AI gen) -- MATURITY_CONVEYOR stock class0_veg, summed over groups and
+    !!     bins: the grid-cell fraction under regeneration. Gate is n_class0, NOT
+    !!     ok_edge_from_age_class -- two distinct conveyors. The entry bin is fed each year
+    !!     in stomate_lpj, so the field is non-zero wherever stand-replacing area was fed.
     IF (n_class0 > 0 .AND. ALLOCATED(class0_veg)) THEN
        CALL xios_orchidee_send_field("CLASS0_VEG", &
             SUM(SUM(class0_veg, DIM=3), DIM=2))
+    ENDIF
+
+    !! 5d. Guillaume M. (AI gen) -- Per-agent split of the class-0 register and of the fresh
+    !!     and micro edges, weighted by alpha_a times the agent area (class-0 tags for the fresh
+    !!     edge, the mix of edge_src for the micro edge). Each sums to its total, zero alphas
+    !!     give zero shares. Columns follow IDX_FIRE..IDX_HARVEST = 1..4. Diagnostic only.
+    wag(:,IDX_FIRE)    = alpha_fire_use(:)
+    wag(:,IDX_STORM)   = alpha_storm_use(:)
+    wag(:,IDX_PEST)    = alpha_pest_use(:)
+    wag(:,IDX_HARVEST) = alpha_harvest_use(:)
+    IF (n_class0 > 0 .AND. ALLOCATED(class0_agent)) THEN
+       c0ag(:,:) = SUM(class0_agent, DIM=2)
+       CALL xios_orchidee_send_field("CLASS0_VEG_AGENT", c0ag)
+       c0ag(:,:) = wag(:,:) * c0ag(:,:)
+       IF (ALLOCATED(edge_fresh)) CALL xios_orchidee_send_field("EDGE_FRESH_AGENT", &
+            c0ag * SPREAD(edge_fresh / MAX(SUM(c0ag, DIM=2), min_stomate), 2, nagent))
+    ENDIF
+    IF (ok_edge_from_age_class .AND. ALLOCATED(agent_flux)) THEN
+       wag(:,:) = wag(:,:) * MERGE(agent_flux(:,:), &
+            SPREAD((/ bgw_fire, bgw_storm, bgw_pest, bgw_harvest /), 1, npts), &
+            SPREAD(flux_tot(:) > min_stomate, 2, nagent))
+       CALL xios_orchidee_send_field("EDGE_MICRO_AGENT", &
+            wag * SPREAD(edge_micro / MAX(SUM(wag, DIM=2), min_stomate), 2, nagent))
     ENDIF
 
     !! 6. Reset accumulators for next timestep
@@ -1408,11 +1521,12 @@ CONTAINS
 !! ================================================================================================
 !! FUNCTION   : mat_target_frac_eff
 !!
-!>\BRIEF        Effective target area share of age class ic within the group of PFT jv, on point ipts.
+!>\BRIEF Effective target area share of age class ic within the group of PFT jv, on point ipts.
 !!
-!! DESCRIPTION: Guillaume M. -- The terminal age class is entered by DIAMETER, so its entry age a3
+!! DESCRIPTION: Guillaume M. (AI gen) -- The terminal age class is entered by DIAMETER, so its entry age a3
 !!              does not follow the rotation: at equilibrium its share is 1 - a3/R. With
-!!              MAT_A3_ENTRY > 0 the terminal setpoint becomes MIN(MAT_A3_FRAC_MAX, MAX(MAT_TARGET_FRAC(n),
+!!              MAT_A3_ENTRY > 0 the terminal setpoint becomes MIN(MAT_A3_FRAC_MAX,
+!! MAX(MAT_TARGET_FRAC(n),
 !!              1 - a3/target_rotation_age)) and the lower classes are rescaled so the shares sum to
 !!              one. Inactive (a3 <= 0, no rotation) = MAT_TARGET_FRAC(ic) untouched, bit-neutral.
 !!              See design/MODULE_DESIGN_MAT_TARGET_A3.md.
@@ -1423,7 +1537,8 @@ CONTAINS
 
     INTEGER(i_std), INTENT(in) :: ipts                !! Grid point (local index)
     INTEGER(i_std), INTENT(in) :: jv                  !! Any PFT of the age-class group
-    INTEGER(i_std), INTENT(in) :: ic                  !! Age class rank within the group (1..nagec_pft)
+    !! Age class rank within the group (1..nagec_pft)
+    INTEGER(i_std), INTENT(in) :: ic
     REAL(r_std)                :: mat_target_frac_eff !! Target share of class ic (-)
 
     INTEGER(i_std) :: jterm, nlast   !! terminal PFT of the group, its class rank
@@ -1434,7 +1549,7 @@ CONTAINS
     nlast = nagec_pft(agec_group(jv))
     IF (nlast <= 1) RETURN
     jterm = start_index(agec_group(jv)) + nlast - 1
-    ! Guillaume M. -- a3 measured by the model itself where MAT_A3_ONLINE has a sample
+    ! Guillaume M. (AI gen) -- a3 measured by the model itself where MAT_A3_ONLINE has a sample
     ! (age of the area that entered the terminal slot), the namelist parameter otherwise
     ! (seed and fallback). See design/MODULE_DESIGN_MAT_AGE_ENTRY.md.
     a3 = mat_a3_entry(jterm)
@@ -1480,7 +1595,6 @@ CONTAINS
     INTEGER(i_std), INTENT(in) :: jv                 !! PFT index
     REAL(r_std)                :: edge_grain_mtc_of  !! grain (m)
 
-    edge_grain_mtc_of = edge_grain_default
     SELECT CASE (pft_to_mtc(jv))
     CASE (4)  ; edge_grain_mtc_of = 365._r_std   ! temperate needleleaf evergreen
     CASE (5)  ; edge_grain_mtc_of = 349._r_std   ! temperate broadleaf evergreen
@@ -1488,8 +1602,9 @@ CONTAINS
     CASE (7)  ; edge_grain_mtc_of = 427._r_std   ! boreal needleleaf evergreen
     CASE (8)  ; edge_grain_mtc_of = 416._r_std   ! boreal broadleaf summergreen
     CASE (9)  ; edge_grain_mtc_of = 350._r_std   ! boreal needleleaf summergreen (larch)
-    ! MTC 2 and 3 (tropical) fall back to edge_grain_default: the EFDA map is pan-EU
-    ! only, so they are NOT calibrated. Do not read them as a tropical estimate.
+    ! Guillaume M. (AI gen) -- MTC 2 and 3 (tropical), grasses and crops take
+    ! edge_grain_default: the EFDA map is pan-EU only, so they are NOT calibrated.
+    CASE DEFAULT ; edge_grain_mtc_of = edge_grain_default
     END SELECT
 
   END FUNCTION edge_grain_mtc_of

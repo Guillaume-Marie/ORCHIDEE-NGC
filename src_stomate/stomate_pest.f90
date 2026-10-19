@@ -138,15 +138,19 @@ CONTAINS
     !! (gC.m-2) left on the PFT 
     !! during previous timestep
     REAL(r_std), DIMENSION(:, :), INTENT(inout)        :: P_beetles_attacked_legacy!! risk index stored every year, n time 
-    REAL(r_std), DIMENSION(:, :), INTENT(inout)        :: host_wood_ref            !! Running mean of the attackable host wood
-                                                                                   !! of the group (gC m-2 of grid cell)
+    !! Running mean of the attackable host wood
+    REAL(r_std), DIMENSION(:, :), INTENT(inout)        :: host_wood_ref
+                                                                                   !! of the group
+                                                                                   !! (gC m-2 of
+                                                                                   !! grid cell)
 
 
     !! 0.2 Output variables
 
     REAL(r_std), DIMENSION(npts, nvm)     :: beetle_damage_wood_vol   !! Wood volume loss from bark beetle @tex $(m^3 m^{-2})$ @endtex
     REAL(r_std), DIMENSION(npts, nvm)     :: DR_beetles               !! rate of biomass loss from bark beetle per pft
-    REAL(r_std), DIMENSION(npts, nvm)     :: area_damaged_pest        !! Forest area killed by bark beetle, cc-kill basal-area route (m2)
+    !! Forest area killed by bark beetle, cc-kill basal-area route (m2)
+    REAL(r_std), DIMENSION(npts, nvm)     :: area_damaged_pest
 
     !! 0.3 Modified variables
 
@@ -180,9 +184,12 @@ CONTAINS
     REAL(r_std), DIMENSION(npts, nvm)                 :: PWS                       !! average drought index on this PFT 
     !! during previous time steps.
     REAL(r_std), DIMENSION(npts, nvm)                 :: N_wood                    !! average biomass (gC m-2)
-    REAL(r_std)                                       :: host_wood                 !! Attackable host wood, age classes >= 2 (gC m-2 of grid cell)
-    REAL(r_std)                                       :: host_brake                !! Pressure factor from host depletion (unitless)
-    REAL(r_std)                                       :: alive_brood               !! Living-host survival channel weighted by brood success (unitless)
+    !! Attackable host wood, age classes >= 2 (gC m-2 of grid cell)
+    REAL(r_std)                                       :: host_wood
+    !! Pressure factor from host depletion (unitless)
+    REAL(r_std)                                       :: host_brake
+    !! Living-host survival channel weighted by brood success (unitless)
+    REAL(r_std)                                       :: alive_brood
     !! of dead wood left on this PFT
     !! during previous time steps.
     REAL(r_std), DIMENSION(npts, nvmap)               :: i_hosts_dead_gp           !! Species group-level susceptibility 
@@ -211,24 +218,30 @@ CONTAINS
     REAL(r_std), DIMENSION(npts, nvmap)               :: P_beetles_attacked_gp     !! risk index averaged for all
     !! age classes of the same PFT
     REAL(r_std), DIMENSION(npts, nvm)                 :: i_beetles_pressure_monitor!! variable used to monitor beetle pressure index (unitles)
-    ! Guillaume M. -- The risk index was declared in the XML and requested by the output
+    ! Guillaume M. (AI gen) -- The risk index was declared in the XML and requested by the output
     ! file, but no send_field ever filled it: the field came out entirely empty. Same
     ! monitor pattern as the ten indices around it, species group copied onto each PFT.
-    REAL(r_std), DIMENSION(npts, nvm)                 :: P_beetles_attacked_monitor!! variable used to monitor the upstream risk index (unitless)
+    !! variable used to monitor the upstream risk index (unitless)
+    REAL(r_std), DIMENSION(npts, nvm)                 :: P_beetles_attacked_monitor
 
     REAL(r_std), DIMENSION(npts, nvmap)               :: B_beetles_attacked_gp     !! Total biomass of a species group 
     !! that is infected by bark
     !! beetles (gC or gN m-2). 
     REAL(r_std), DIMENSION(npts, nvmap)               :: vegetmax_gp               !! share of all PFTs of the same species 
     !! (called species group) within
-    REAL(r_std), DIMENSION(npts)                      :: vegetmax_deciduous        !! share of non-beetle trees ("smoke screen")
+    !! share of non-beetle trees ("smoke screen")
+    REAL(r_std), DIMENSION(npts)                      :: vegetmax_deciduous
     !! within a pixel (0-1, unitless)
-    REAL(r_std), DIMENSION(npts)                      :: vegetmax_beetle           !! share of bark beetle-host PFTs within
+    !! share of bark beetle-host PFTs within
+    REAL(r_std), DIMENSION(npts)                      :: vegetmax_beetle
     !! a pixel (0-1, unitless)
     REAL(r_std), DIMENSION(npts, nvm)                 :: i_hosts_defence           !! Pft-level susceptibility
-    REAL(r_std)                                       :: dry_anom                  !! Relative drop of the yearly moisture low (-)
-    REAL(r_std)                                       :: moist_ref                 !! Mean moisture low of previous years (-)
-    INTEGER(i_std)                                    :: n_moist_ref               !! Number of previous years available
+    !! Relative drop of the yearly moisture low (-)
+    REAL(r_std)                                       :: dry_anom
+    !! Mean moisture low of previous years (-)
+    REAL(r_std)                                       :: moist_ref
+    !! Number of previous years available
+    INTEGER(i_std)                                    :: n_moist_ref
     !! due to weakening from droughts 
     !! (0-1, unitless)
     REAL(r_std), DIMENSION(npts, nvm)                 :: i_hosts_competition
@@ -251,17 +264,23 @@ CONTAINS
     REAL(r_std), DIMENSION(npts, nvmap)               :: B_wood                    !! Actual aboveground woody biomass of the PFT 
     !! (gC or gN m-2)
     REAL(r_std)                                       :: share                     !! Deciduous/coniferous share in a pixel
-    ! Guillaume M. -- Stand biomass the beetle loss rate is divided by, kept in a named
+    ! Guillaume M. (AI gen) -- Stand biomass the beetle loss rate is divided by, kept in a named
     ! variable so the guard below reads it once instead of recomputing the sum.
-    ! Guillaume M. -- OK_AED_PEST: share of the host area sitting inside the edge band,
+    ! Guillaume M. (AI gen) -- OK_AED_PEST: share of the host area sitting inside the edge band,
     ! same AED geometry as the storm channel. Published as PEST_EDGE_FRAC so the channel can
     ! be read rather than assumed.
-    REAL(r_std), DIMENSION(npts)                      :: pest_edge_frac            !! Share of forest area within the edge band (unitless)
-    REAL(r_std)                                       :: bm_stand                  !! Living biomass of the slot (gC m-2)
-    REAL(r_std)                                       :: kill_gp, bm_gp            !! Beetle kill demand and living biomass of the species group (gC m-2)
-    REAL(r_std)                                       :: dr_gp, act_gp             !! Group beetle mortality rate and activity index (-)
-    REAL(r_std)                                       :: gen_w, gen_n              !! Area weighting and bounded group generation index (-)
-    REAL(r_std)                                       :: drought_surv              !! Drought channel of beetle survival (-)
+    !! Share of forest area within the edge band (unitless)
+    REAL(r_std), DIMENSION(npts)                      :: pest_edge_frac
+    !! Living biomass of the slot (gC m-2)
+    REAL(r_std)                                       :: bm_stand
+    !! Beetle kill demand and living biomass of the species group (gC m-2)
+    REAL(r_std)                                       :: kill_gp, bm_gp
+    !! Group beetle mortality rate and activity index (-)
+    REAL(r_std)                                       :: dr_gp, act_gp
+    !! Area weighting and bounded group generation index (-)
+    REAL(r_std)                                       :: gen_w, gen_n
+    !! Drought channel of beetle survival (-)
+    REAL(r_std)                                       :: drought_surv
     REAL(r_std), DIMENSION(npts, nvm, beetle_legacy)  :: beetle_temp2
     LOGICAL, DIMENSION(npts, nvmap)                   :: beetle_gp                 !! Flag that indicates whether or not 
     !! bark beetle damage should
@@ -399,7 +418,8 @@ CONTAINS
                 ! Update the average biomass (gC or gN m-2)
                 ! of dead wood left on this PFT during previous time steps.
                 ! Only biomass added during the legacy period is accounted for.
-                ! Guillaume M. -- Windfall stays breeding material for LEGACY_YEARS_WOOD years, so the
+                ! Guillaume M. (AI gen) -- Windfall stays breeding material for LEGACY_YEARS_WOOD years, so
+                ! the
                 ! years are summed; an average would halve a single storm.
                 N_wood(ipts, ivmap) = N_wood(ipts,ivmap) + SUM(wood_leftover_legacy(ipts, ivm, :))
 
@@ -566,7 +586,8 @@ CONTAINS
                 ivm = start_index(ivmap) + (iagec - 1)
 
                 ! 3.2 Calculate susceptibility index
-                ! Guillaume M. -- The group generation index is the area-weighted mean of its classes.
+                ! Guillaume M. (AI gen) -- The group generation index is the area-weighted mean of its
+                ! classes.
                 i_beetles_generation_gp(ipts, ivmap) = i_beetles_generation_gp(ipts, ivmap) + &
                      i_beetles_generation(ipts, ivm, 1) * veget_max(ipts,ivm)
                 gen_w = gen_w + veget_max(ipts,ivm)
@@ -599,19 +620,21 @@ CONTAINS
                    ! tree defence to beetle colonisation. Multiple drought events
                    ! will decrease the amount of repelent produced by the trees.
                    IF (ok_beetle_acute_drought) THEN
-                      ! Guillaume M. -- Acute drought: relative drop of this year's moisture low
+                      ! Guillaume M. (AI gen) -- Acute drought: relative drop of this year's moisture low
                       ! against the mean low of previous years, added to the chronic stress.
                       ! No anomaly until half the reference years exist: a two-year mean is noise.
                       n_moist_ref = COUNT(moist_min_legacy(ipts, ivm, 2:beetle_drought_nref) > zero)
                       IF (n_moist_ref >= MAX(1, (beetle_drought_nref - 1) / 2)) THEN
                          moist_ref = SUM(moist_min_legacy(ipts, ivm, 2:beetle_drought_nref), &
-                              MASK=moist_min_legacy(ipts, ivm, 2:beetle_drought_nref) > zero) / REAL(n_moist_ref, r_std)
+                              MASK=moist_min_legacy(ipts, ivm, 2:beetle_drought_nref) > zero) &
+                                   / REAL(n_moist_ref, r_std)
                          dry_anom = MAX(zero, un - moist_min_legacy(ipts, ivm, 1) / moist_ref)
                       ELSE
                          dry_anom = zero
                       ENDIF
                       i_hosts_defence(ipts,ivm) = un / (un + exp(S_defence(ivm) * &
-                           ((un - season_drought_legacy(ipts, ivm, 1)) + beetle_drought_gain * dry_anom &
+                           ((un - season_drought_legacy(ipts, ivm, 1)) + beetle_drought_gain &
+                                * dry_anom &
                            - PWS_limit(ivm))))
                    ELSE
                       i_hosts_defence(ipts,ivm) = un / (un + exp(S_defence(ivm) * &
@@ -622,7 +645,7 @@ CONTAINS
 
                    i_hosts_health(ipts, ivm) =  (i_hosts_defence(ipts, ivm) + &
                         i_hosts_competition(ipts, ivm))/deux
-                   ! Guillaume M. -- OK_AED_PEST: an edge tree stands in a warmer, drier
+                   ! Guillaume M. (AI gen) -- OK_AED_PEST: an edge tree stands in a warmer, drier
                    ! microclimate, so its susceptibility is raised inside a band of
                    ! edge_pest_depth. Bounded convex mix of the edge zone and the interior,
                    ! capped at one because the index is a probability. A gain of one leaves
@@ -686,15 +709,18 @@ CONTAINS
              ! Guillaume M. -- Third survival channel: drought-weakened host defence scaled
              ! by voltinism (i_beetles_generation). Without it survival only follows the
              ! alive/dead wood channels, so acute drought alone cannot start an epidemic.
-             ! Guillaume M. -- The index is a sigmoid of thermal sum over one generation, so
+             ! Guillaume M. (AI gen) -- The index is a sigmoid of thermal sum over one generation, so
              ! generations = 1 + logit(index); the drought factor uses that count.
              ! OK_BEETLE_SURVIVAL_UNION: the channels combine as independent chances.
              gen_n = MIN(MAX(i_beetles_generation_gp(ipts,ivmap), min_stomate), un - min_stomate)
              drought_surv = MIN(un, i_hosts_defence_gp(ipts,ivmap) * &
                   MAX(zero, un + 0.4 * LOG(gen_n / (un - gen_n))))
-             ! Guillaume M. -- OK_BEETLE_LIVE_BROOD: a living spruce yields about 2 offspring per gallery
-             ! against a tenfold increase in windfall, so the living-host channel is scaled by its relative
-             ! brood success; windfall and drought stay at full weight. Diagnostics keep the raw value.
+             ! Guillaume M. (AI gen) -- OK_BEETLE_LIVE_BROOD: a living spruce yields about 2 offspring per
+             ! gallery
+             ! against a tenfold increase in windfall, so the living-host channel is scaled by its
+             ! relative
+             ! brood success; windfall and drought stay at full weight. Diagnostics keep the raw
+             ! value.
              IF (ok_beetle_live_brood) THEN
                 alive_brood = beetle_live_brood * i_hosts_alive_gp(ipts, ivmap)
              ELSE
@@ -754,9 +780,12 @@ CONTAINS
                   (i_beetles_generation_gp(ipts, ivmap) + &
                   i_beetles_activity_legacy(ipts, xvm, 1)) / deux
 
-             ! Guillaume M. -- OK_BEETLE_HOST_DEPLETION: patch-killing beetles stop when the attackable
-             ! host runs out at the landscape scale. d = wood of the classes counted by nc (>= 2) per m2
-             ! of cell over its running mean; the sigmoid, normalised to 1 at d >= 1, scales the pressure
+             ! Guillaume M. (AI gen) -- OK_BEETLE_HOST_DEPLETION: patch-killing beetles stop when the
+             ! attackable
+             ! host runs out at the landscape scale. d = wood of the classes counted by nc (>= 2)
+             ! per m2
+             ! of cell over its running mean; the sigmoid, normalised to 1 at d >= 1, scales the
+             ! pressure
              ! that becomes next year's mass attack. The reference is updated after use.
              IF (ok_beetle_host_depletion) THEN
                 host_wood = zero
@@ -765,7 +794,8 @@ CONTAINS
                    ivm = start_index(ivmap) + (iagec - 1)
                    host_wood = host_wood + veget_max(ipts, ivm) * &
                         SUM((circ_class_biomass(ipts, ivm, :, isapabove, icarbon) + &
-                        circ_class_biomass(ipts, ivm, :, iheartabove, icarbon)) * circ_class_n(ipts, ivm, :))
+                        circ_class_biomass(ipts, ivm, :, iheartabove, icarbon)) &
+                             * circ_class_n(ipts, ivm, :))
                 ENDDO
                 IF (host_wood_ref(ipts, xvm) .GT. min_stomate) THEN
                    host_brake = MIN(un, (un / (un + EXP(-s_host_depl * &
@@ -795,9 +825,12 @@ CONTAINS
                 P_beetles_attacked_monitor(ipts, ivm) = P_beetles_attacked_gp(ipts, ivmap)
                 P_beetles_attacked_legacy(ipts, ivm) = i_beetles_pressure(ipts, ivmap)
              END DO
-             ! Guillaume M. -- The mass-attack index reads last year's pressure in the first age-class
-             ! slot (xvm); the group value goes to every class, occupied or not, so that slot holds it.
-             P_beetles_attacked_legacy(ipts, xvm:xvm+nagec_pft(ivmap)-1) = i_beetles_pressure(ipts, ivmap)
+             ! Guillaume M. (AI gen) -- The mass-attack index reads last year's pressure in the first
+             ! age-class
+             ! slot (xvm); the group value goes to every class, occupied or not, so that slot holds
+             ! it.
+             P_beetles_attacked_legacy(ipts, &
+                  xvm:xvm+nagec_pft(ivmap)-1) = i_beetles_pressure(ipts, ivmap)
 
              !Debug
              IF(printlev_loc >= 4) THEN
@@ -915,7 +948,7 @@ CONTAINS
 
                 ENDDO ! End loop ncirc
                 beetle_damage_wood_vol(ipts, ivm) = wood_damage_all(ipts, ivm) / (pipe_density(ivm))
-                ! Guillaume M. -- The divided biomass can be vanishingly small on a residual
+                ! Guillaume M. (AI gen) -- The divided biomass can be vanishingly small on a residual
                 ! slot and the rate then reached 1.6e6, which is not a rate and saturates the
                 ! activity sigmoid below. A slot with no measurable biomass cannot be attacked,
                 ! and a rate of biomass loss cannot exceed one.
@@ -940,19 +973,21 @@ CONTAINS
 
              ENDDO   ! End loop nagec
 
-             ! Guillaume M. -- The pressure reads the activity of the first age-class slot (xvm), where
+             ! Guillaume M. (AI gen) -- The pressure reads the activity of the first age-class slot (xvm),
+             ! where
              ! beetles never kill. Activity is a state of the group: one mortality rate over the
              ! occupied classes, written to every class.
              dr_gp = zero
              IF (bm_gp .GT. min_stomate) dr_gp = MIN(kill_gp / bm_gp, un)
-             ! Guillaume M. -- OK_BEETLE_LIVE_BROOD: trees killed by beetles feed the next
+             ! Guillaume M. (AI gen) -- OK_BEETLE_LIVE_BROOD: trees killed by beetles feed the next
              ! generation only as far as their brood success relative to windfall.
              IF (ok_beetle_live_brood) dr_gp = beetle_live_brood * dr_gp
              act_gp = un / (un + exp(S_activity(xvm) * (dr_gp - act_limit(xvm))))
              DO iagec = 1, nagec_pft(ivmap)
                 ivm = start_index(ivmap) + (iagec - 1)
                 DO iyear = legacy_years, 2, -1
-                   i_beetles_activity_legacy(ipts, ivm, iyear) = i_beetles_activity_legacy(ipts, ivm, iyear - 1)
+                   i_beetles_activity_legacy(ipts, ivm, iyear) = i_beetles_activity_legacy(ipts, &
+                        ivm, iyear - 1)
                 ENDDO
                 i_beetles_activity_legacy(ipts, ivm, 1) = act_gp
              ENDDO
@@ -1056,7 +1091,8 @@ CONTAINS
     !! 0.4 Local variables
     REAL(r_std), DIMENSION(npts, nvm)          :: beetle_damage_wood_vol      !! Wood volume loss from bark beetle @tex $(m^3 m^{-2})$ @endtex
     REAL(r_std), DIMENSION(npts, nvm)          :: DR_beetles                  !! rate of biomass loss from bark beetle per pft
-    REAL(r_std), DIMENSION(npts, nvm)          :: area_damaged_pest           !! Forest area killed by bark beetle, cc-kill basal-area route (m2)
+    !! Forest area killed by bark beetle, cc-kill basal-area route (m2)
+    REAL(r_std), DIMENSION(npts, nvm)          :: area_damaged_pest
 
     !! infected during the previous timestep  
     REAL(r_std), DIMENSION(npts, nvm)          :: i_hosts_dead_monitor        !! variable used to monitor windthrow susceptibility (unitless)
@@ -1064,8 +1100,10 @@ CONTAINS
     REAL(r_std), DIMENSION(npts, nvm)          :: i_hosts_competition_monitor !! variable used to monitor rdi susceptibility (unitless)
     REAL(r_std), DIMENSION(npts, nvm)          :: i_hosts_alive_monitor
     REAL(r_std), DIMENSION(npts, nvm)          :: i_beetles_pressure_monitor  !! variable used to monitor beetle pressure index (unitles)
-    REAL(r_std), DIMENSION(npts, nvm)          :: P_beetles_attacked_monitor !! variable used to monitor the upstream risk index (unitless)
-    REAL(r_std), DIMENSION(npts)               :: pest_edge_frac             !! Share of forest area within the edge band (unitless)
+    !! variable used to monitor the upstream risk index (unitless)
+    REAL(r_std), DIMENSION(npts, nvm)          :: P_beetles_attacked_monitor
+    !! Share of forest area within the edge band (unitless)
+    REAL(r_std), DIMENSION(npts)               :: pest_edge_frac
     !! variable used to monitor rdi susceptibility (unitless)
     REAL(r_std), DIMENSION(npts, nvm)          :: i_beetles_massattack_monitor
     REAL(r_std), DIMENSION(npts, nvm)          :: i_beetles_survival_monitor

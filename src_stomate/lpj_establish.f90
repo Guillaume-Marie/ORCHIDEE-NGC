@@ -390,7 +390,9 @@ CONTAINS
        d_ind(:,:) = zero
 
        IF ( NbNeighb /= 8 ) THEN
-          CALL ipslerr_p(3, "establish", "This routine needs to be adapted to non rectengular grids", "Talk to Jan Polcher", " ")
+          CALL ipslerr_p(3, "establish", &
+               "This routine needs to be adapted to non rectengular grids", "Talk to Jan Polcher", &
+                    " ")
        ENDIF
 
        DO j = 2,nvm ! Loop over # PFTs

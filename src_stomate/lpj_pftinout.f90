@@ -321,7 +321,8 @@ CONTAINS
           can_introduce(:) = .FALSE.
           
           IF ( NbNeighb /= 8 ) THEN
-             CALL ipslerr_p(3, "pftinout", "This routine needs to be adapted to non rectengular grids", &
+             CALL ipslerr_p(3, "pftinout", &
+                  "This routine needs to be adapted to non rectengular grids", &
                   &           "Talk to Jan Polcher", " ")
           ENDIF
 

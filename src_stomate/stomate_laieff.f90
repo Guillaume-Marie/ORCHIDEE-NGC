@@ -1015,8 +1015,11 @@ CONTAINS
                                                                                   !! and the level immediately above.
                                                                                   !! (unitless, between 0-1)
     REAL(r_std),DIMENSION(npts,nvm,nlevels_tot)            :: temp                !! temporary variable for history files
-    REAL(r_std), DIMENSION(npts)                           :: fedge_pgap          !! Edge effect weight on canopy porosity (0-1)
-                                                                                  !! See MODULE_DESIGN_AED_LIGHT.md §4.2
+    !! Edge effect weight on canopy porosity (0-1)
+    REAL(r_std), DIMENSION(npts)                           :: fedge_pgap
+                                                                                  !! See
+                                                                       !! MODULE_DESIGN_AED_LIGHT.md
+                                                                                  !! sec.4.2
 
 !_ ================================================================================================================================
 
@@ -1083,7 +1086,8 @@ CONTAINS
 
     ENDDO
 
-    !! 2bis. Non-directional canopy edge light effect (Marie 2026 / MODULE_DESIGN_AED_LIGHT.md §4.2)
+    !! 2bis. Non-directional canopy edge light effect (Marie 2026 / MODULE_DESIGN_AED_LIGHT.md
+    !! sec.4.2)
     ! Apply post-effective_lai modulation of Pgap_cumul / Pgap_perlevel / laieff
     ! by fedge_pgap(AED_light). Cascades downstream through laieff_fit -> Diffuco -> GPP.
     ! The companion site that drives the albedo cascade is slowproc_veget (slowproc.f90:3770).

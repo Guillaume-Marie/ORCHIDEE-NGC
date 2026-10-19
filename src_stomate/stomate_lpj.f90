@@ -90,9 +90,12 @@ MODULE stomate_lpj
 
   LOGICAL, SAVE              :: firstcall_stomate_lpj = .TRUE.   !! First call flag
 !$OMP THREADPRIVATE(firstcall_stomate_lpj)
-  LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:,:) :: dia_desync_pending  !! Cold-start age-class desync (OK_DIA_STAGGER):
-                                                                    !! TRUE until the staggered initial qmd has been applied
-                                                                    !! once per (point,PFT) at first establishment.
+  !! Cold-start age-class desync (OK_DIA_STAGGER):
+  LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:,:) :: dia_desync_pending
+                                                                    !! TRUE until the staggered
+                                                                    !! initial qmd has been applied
+                                                                    !! once per (point,PFT) at first
+                                                                    !! establishment.
 !$OMP THREADPRIVATE(dia_desync_pending)
 
 
@@ -209,8 +212,10 @@ CONTAINS
        wstress_month, wstress_season, &
        light_tran_to_floor_season, p_O2, bact, &
        CN_som_litter_longterm, &
-       max_wind_speed_storm, max_wind_ratio_storm, count_storm, is_storm, & ! JJ 2026: threaded companions, removed wind_max_daily & wind_longterm
-       wind_ratio_max_save, wind_ratio_sum_save, wind_speed_max_save, soil_temp_daily, gap_area_save, &
+       ! JJ 2026: threaded companions, removed wind_max_daily & wind_longterm
+       max_wind_speed_storm, max_wind_ratio_storm, count_storm, is_storm, &
+       wind_ratio_max_save, wind_ratio_sum_save, wind_speed_max_save, soil_temp_daily, &
+            gap_area_save, &
        woodharvestpft, & 
        fDeforestToProduct, fLulccResidue,fHarvestToProduct, &
        cn_leaf_min_2D, cn_leaf_max_2D, cn_leaf_init_2D,bm_sapl_2D, &
@@ -288,9 +293,11 @@ CONTAINS
     REAL(r_std), DIMENSION(:,:), INTENT(in)                    :: wind_ratio_sum_save  !! Sum of wind speed ratio to longterm wind speed when this ratio exceeded
                                                                                        !! certain threshold, stored for wind days
     REAL(r_std), DIMENSION(:,:), INTENT(in)                    :: wind_speed_max_save  !! Daily maximum wind speed, stored for wind_days (default 3) (m s-1)
-    REAL(r_std), DIMENSION(:,:), INTENT(in)                    :: wind_ratio_max_save  !! JJ 2026: Daily maximum wind ratio, stored for wind_days (default 3)
+    !! JJ 2026: Daily maximum wind ratio, stored for wind_days (default 3)
+    REAL(r_std), DIMENSION(:,:), INTENT(in)                    :: wind_ratio_max_save
     REAL(r_std), DIMENSION(:), INTENT(inout)                   :: max_wind_speed_storm !! Daily maximum wind speed at 2 meter (ms-1) during a storm event
-    REAL(r_std), DIMENSION(:), INTENT(inout)                   :: max_wind_ratio_storm !! JJ 2026: Daily maximum wind ratio during a storm event
+    !! JJ 2026: Daily maximum wind ratio during a storm event
+    REAL(r_std), DIMENSION(:), INTENT(inout)                   :: max_wind_ratio_storm
     INTEGER(i_std), DIMENSION(:), INTENT(inout)                :: count_storm          !! number of day after a storm 
     LOGICAL, DIMENSION(:), INTENT(inout)                       :: is_storm             !! are we in a storm event ? 
     REAL(r_std), DIMENSION(:), INTENT(inout)                   :: soil_temp_daily      !! Soil temperature at 80 cm below ground
@@ -537,7 +544,8 @@ CONTAINS
     INTEGER(i_std), DIMENSION (:,:), INTENT(inout)             :: forest_managed       !! forest management flag (is the forest 
                                                                                        !! being managed?)
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)              :: age_stand            !! Age of stand (years)
-    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: age_stand_area       !! AREA-weighted conserved mean stand age (years) - STAND_AGE
+    !! AREA-weighted conserved mean stand age (years) - STAND_AGE
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)                 :: age_stand_area
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)              :: rotation_n           !! Rotation number (number of rotation since pft is managed)
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)              :: last_cut             !! Years since last thinning (years)
     LOGICAL, DIMENSION(:,:), INTENT(inout)                     :: lpft_replant         !! Set to true if a PFT has been clearcut
@@ -597,7 +605,8 @@ CONTAINS
                                                                                        !! infected during the previous timestep
     REAL(r_std), DIMENSION(:,:,:),INTENT(inout)                :: B_beetles_kill_legacy !! for historical output
     REAL(r_std), DIMENSION(:,:),INTENT(inout)                  :: P_beetles_attacked_legacy
-    REAL(r_std), DIMENSION(:,:),INTENT(inout)                  :: host_wood_ref        !! Running mean of the attackable host wood (gC m-2)
+    !! Running mean of the attackable host wood (gC m-2)
+    REAL(r_std), DIMENSION(:,:),INTENT(inout)                  :: host_wood_ref
     LOGICAL, DIMENSION(:,:,:), INTENT(inout)                   :: kill_vessels         !! Flag to kill vessels at the end of the day following embolism.
     REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: vessel_mortality_daily !! Proportion of daily vessel mortality due to cavitation in the xylem (unitless). 
     REAL(r_std), DIMENSION(:,:,:), INTENT(inout)               :: vessel_loss_previous !! Proportion of conductivity lost due to cavitation, accumulated
@@ -645,9 +654,13 @@ CONTAINS
   !! 0.4 Local variables
     REAL(r_std), DIMENSION(npts,nvm)                          :: var_real       !! temporary variable used to convert an integer
                                                                                 !! when writing to a history file
-    REAL(r_std), DIMENSION(npts)                              :: damaged_area_harvest !! Forestry-harvest forest area for the AED
-                                                                                !! edge budget (basal-area route, m2)
-    REAL(r_std), DIMENSION(npts,nelements,nlanduse,nlctypes)  :: prod_s_total   !! Total products remaining in the short-lived
+    !! Forestry-harvest forest area for the AED
+    REAL(r_std), DIMENSION(npts)                              :: damaged_area_harvest
+                                                                                !! edge budget
+                                                                                !! (basal-area
+                                                                                !! route, m2)
+    !! Total products remaining in the short-lived
+    REAL(r_std), DIMENSION(npts,nelements,nlanduse,nlctypes)  :: prod_s_total
                                                                                 !! pool after the annual decomposition 
                                                                                 !! @tex $(gC)$ @endtex 
     REAL(r_std), DIMENSION(npts,nelements,nlanduse,nlctypes)  :: prod_m_total   !! Total products remaining in the medium-lived
@@ -766,47 +779,60 @@ CONTAINS
     REAL(r_std), DIMENSION(npts,nvm,nelements)                  :: pool_end            !! End pool of this routine
     REAL(r_std), DIMENSION(npts,nvm)                            :: temp                !! Temporary variable for writing to history files
     REAL(r_std), DIMENSION(ncirc,nparts)                        :: temp3               !! Temporary variable for writing to history files
-    REAL(r_std), DIMENSION(ncirc)                               :: temp_n              !! Temporary N per circ class (dominant-class diag fix)
+    !! Temporary N per circ class (dominant-class diag fix)
+    REAL(r_std), DIMENSION(ncirc)                               :: temp_n
     REAL(r_std), DIMENSION(npts,nlctypes,nelements,nlanduse)    :: temp4               !! Temporary variable for writing to history files
     REAL(r_std), DIMENSION(npts,nlctypes) :: nbp_lct  !! NBP per land cover type (gC m-2 d-1)
     REAL(r_std), DIMENSION(npts,ndia_harvest+1,nelements,nlanduse):: temp5             !! Temporary variable to simplify compilation
     REAL(r_std), DIMENSION(npts,nvm,noutdiaclass)               :: temp6, temp7        !! Temporary variable for writing to history files
     REAL(r_std)                                                 :: dummy               !! dummy variable for prescribe
-    REAL(r_std)                                                 :: qmd_override        !! Cold-start desync: staggered initial qmd (m), val_exp = none
-    REAL(r_std)                                                 :: lo_bin, hi_bin !! Cold-start desync: age-class diameter bin bounds (m)
-    REAL(r_std)                                                 :: dfac_dv  !! Modulation des bornes par l'intensite de gestion (-)
-    REAL(r_std)                                                 :: phantom_qmd  !! PHANTOM PURGE: QMD of a floor-area slot (m)
-    INTEGER(i_std)                                              :: iage_loc, ng_loc    !! Cold-start desync: age-class index (1..ng) and nb of classes
-    INTEGER(i_std)                                              :: ac0_k               !! MATURITY_CONVEYOR: indice de vieillissement du convoyeur
+    !! Cold-start desync: staggered initial qmd (m), val_exp = none
+    REAL(r_std)                                                 :: qmd_override
+    !! Cold-start desync: age-class diameter bin bounds (m)
+    REAL(r_std)                                                 :: lo_bin, hi_bin
+    !! Modulation des bornes par l'intensite de gestion (-)
+    REAL(r_std)                                                 :: dfac_dv
+    !! PHANTOM PURGE: QMD of a floor-area slot (m)
+    REAL(r_std)                                                 :: phantom_qmd
+    !! Cold-start desync: age-class index (1..ng) and nb of classes
+    INTEGER(i_std)                                              :: iage_loc, ng_loc
+    !! MATURITY_CONVEYOR: indice de vieillissement du convoyeur
+    INTEGER(i_std)                                              :: ac0_k
     ! Guillaume M. -- Class 0 conveyor locals, expressed as a land-cover change.
-    INTEGER(i_std)                                              :: c0_g                !! CLASSE 0: PFT herbace receveur de la maille (0 = aucun)
-    INTEGER(i_std)                                              :: c0_k                !! CLASSE 0: indice de balayage / de case
-    INTEGER(i_std)                                              :: c0_ivma             !! CLASSE 0: groupe forestier
-    INTEGER(i_std)                                              :: c0_p1               !! CLASSE 0: creneau de classe 1 du groupe
-    INTEGER(i_std)                                              :: c0_i                !! CLASSE 0: indice de maille
-    REAL(r_std)                                                 :: c0_best             !! CLASSE 0: veget_max de l'herbacee dominante
-    REAL(r_std)                                                 :: c0_due              !! CLASSE 0: aire sortant du convoyeur (-)
-    REAL(r_std)                                                 :: c0_new              !! CLASSE 0: aire coupee entrant dans le convoyeur (-)
-    REAL(r_std)                                                 :: c0_sum              !! CLASSE 0: total du registre (garde de coherence)
-    LOGICAL                                                     :: c0_work             !! CLASSE 0: un transfert a-t-il ete demande cette annee ?
-    INTEGER(i_std)                                              :: c0_nfeed            !! CLASSE 0: alimentations acceptees
-    INTEGER(i_std)                                              :: c0_nfeed_rej        !! CLASSE 0: alimentations REFUSEES (invariant min_vegfrac)
-    INTEGER(i_std)                                              :: c0_ndrain           !! CLASSE 0: restitutions acceptees
-    INTEGER(i_std)                                              :: c0_ndrain_rej       !! CLASSE 0: restitutions REFUSEES
-    INTEGER(i_std)                                              :: c0_nclip            !! CLASSE 0: cells whose register was clipped to the herbaceous area
-    REAL(r_std)                                                 :: c0_s_clip           !! CLASSE 0: register area dropped by the clip (-)
-    REAL(r_std)                                                 :: c0_dbg_in           !! ALIM scaffolding: c0_new before the guard (-)
-    LOGICAL                                                     :: c0_dbg_fired        !! ALIM scaffolding: did the guard fire?
-    REAL(r_std)                                                 :: c0_net              !! CLASSE 0: net area change of the class-1 slot (-)
-    ! Guillaume M. -- scaffolding [C0FLUX]: yearly sums of what the register CLAIMS was
-    ! parked (c0_new), what it returns (c0_due), and what physically crosses (c0_net).
-    ! Only the net is applied, so a dominant restitution nets the feed leg out while the
-    ! register still books it. Exit criterion: the gap is explained and closed.
-    REAL(r_std)                                                 :: c0_s_new, c0_s_due, c0_s_net
-    REAL(r_std)                                                 :: c0_s_cap, c0_raw
-    LOGICAL                                                     :: c0_ok               !! CLASSE 0: is the net move admissible ?
-    LOGICAL                                                     :: c0_wipe             !! CLASSE 0: the whole slot is carried away, land both maps on exact zero
-    LOGICAL                                                     :: did_establish       !! Cold-start desync: TRUE if prescribe established a stand
+    !! CLASSE 0: PFT herbace receveur de la maille (0 = aucun)
+    INTEGER(i_std)                                              :: c0_g
+    !! CLASSE 0: indice de balayage / de case
+    INTEGER(i_std)                                              :: c0_k
+    !! CLASSE 0: groupe forestier
+    INTEGER(i_std)                                              :: c0_ivma
+    !! CLASSE 0: creneau de classe 1 du groupe
+    INTEGER(i_std)                                              :: c0_p1
+    !! CLASSE 0: indice de maille
+    INTEGER(i_std)                                              :: c0_i
+    !! CLASSE 0: veget_max de l'herbacee dominante
+    REAL(r_std)                                                 :: c0_best
+    !! CLASSE 0: aire sortant du convoyeur (-)
+    REAL(r_std)                                                 :: c0_due
+    !! CLASSE 0: aire coupee entrant dans le convoyeur (-)
+    REAL(r_std)                                                 :: c0_new
+    !! CLASSE 0: total du registre (garde de coherence)
+    REAL(r_std)                                                 :: c0_sum
+    !! CLASSE 0: un transfert a-t-il ete demande cette annee ?
+    LOGICAL                                                     :: c0_work
+    !! CLASSE 0: cells whose register was clipped to the herbaceous area
+    INTEGER(i_std)                                              :: c0_nclip
+    !! CLASSE 0: register area dropped by the clip (-)
+    REAL(r_std)                                                 :: c0_s_clip
+    !! CLASSE 0: net area change of the class-1 slot (-)
+    REAL(r_std)                                                 :: c0_net
+    REAL(r_std)                                                 :: c0_s_cap  !! CLASSE 0: area dropped by the feeding cap (-)
+    REAL(r_std)                                                 :: c0_raw    !! CLASSE 0: area booked before the cap (-)
+    !! CLASSE 0: is the net move admissible ?
+    LOGICAL                                                     :: c0_ok
+    !! CLASSE 0: the whole slot is carried away, land both maps on exact zero
+    LOGICAL                                                     :: c0_wipe
+    !! Cold-start desync: TRUE if prescribe established a stand
+    LOGICAL                                                     :: did_establish
     REAL(r_std), DIMENSION(npts,nvm)                            :: n_reserve_balance   !! Actual to potential N reserve pool (unitless)
     LOGICAL, DIMENSION(npts,nvm)                                :: valid_start_gs      !! Doy was calculated by ORCHIDEE. It is therefore valid 
                                                                                        !! and should be used to update mean_start_gs
@@ -868,7 +894,8 @@ CONTAINS
                                                                                           !! @tex $(gC m^{-2})$ @endtex 
     REAL(r_std), DIMENSION(npts,nvm,nlanduse)                    :: harvest_area          !! Harvested area (m^{2})
     REAL(r_std), DIMENSION(npts,nvm)                             :: veget_max_disturb     !! New cover fraction of a PFT after stand replacing
-    REAL(r_std), DIMENSION(npts,nvm)                             :: wind_share_disturb    !! Storm share of the stand-replacing damage (unitless, 0-1)
+    !! Storm share of the stand-replacing damage (unitless, 0-1)
+    REAL(r_std), DIMENSION(npts,nvm)                             :: wind_share_disturb
                                                                                           !! disturbances (unitless, 0-1)
     REAL(r_std), DIMENSION(npts,nvm,ncirc)                       :: circ_height           !! Height of trees per diameter class
     REAL(r_std), DIMENSION(npts,nvm)                             :: new_ind               !! Number of recruits grown (trees m-2 day-2)
@@ -922,7 +949,7 @@ CONTAINS
       ! inside the compute loop under a local firstcall, it hangs the run as soon as the
       ! ranks stop reaching it together. Use printlev, read once at startup by every rank.
        printlev_loc=printlev
-       ! Guillaume M. -- Cold-start age-class desync: the staggered initial qmd is applied
+       ! Guillaume M. (AI gen) -- Cold-start age-class desync: the staggered initial qmd is applied
        ! once per (point,PFT) at the first tree establishment (= cold start). It is not in
        ! the restart, so a genuine cold start begins all-pending (.TRUE.).
        IF (ok_dia_stagger .AND. .NOT. ALLOCATED(dia_desync_pending)) THEN
@@ -1269,7 +1296,7 @@ CONTAINS
                 ! clearcutting.
                 last_cut(ipts,ivm) = last_cut(ipts,ivm) + 1
 
-                ! Guillaume M. -- STAND_AGE: conserved area-weighted mean stand age,
+                ! Guillaume M. (AI gen) -- STAND_AGE: conserved area-weighted mean stand age,
                 ! ageing +1/yr with the standing biomass. The age_stand_estab floor is
                 ! needed because `prescribe` does not install seeds but saplings of a
                 ! prescribed non-zero DIAMETER: the stand is born already aged. The floor
@@ -1441,7 +1468,7 @@ CONTAINS
              WRITE(numout,*) 'Calling prescribe from stomate_lpj 1, ', ipts, ivm
           END IF
 
-          ! Guillaume M. -- Cold-start age-class desync: when OK_DIA_STAGGER and this
+          ! Guillaume M. (AI gen) -- Cold-start age-class desync: when OK_DIA_STAGGER and this
           ! (point,PFT) is not yet initialised, compute the staggered initial qmd for the
           ! age class this forest PFT represents, anchored on its age_class_bound diameter
           ! bin, so age_class_distr does not merge classes.
@@ -1456,7 +1483,7 @@ CONTAINS
                    ! factor.
                    dfac_dv = un
                    IF (ALLOCATED(dia_factor)) dfac_dv = dia_factor(ipts)
-                   ! Guillaume M. -- Class 1 gets no stagger: it is the youngest class, so
+                   ! Guillaume M. (AI gen) -- Class 1 gets no stagger: it is the youngest class, so
                    ! qmd_override stays unset and prescribe uses its own qmd_init. Classes
                    ! 2..n-1 start in the middle of their diameter bin. The last class has no
                    ! upper bound, so it starts ON its lower bound, i.e. the cut threshold.
@@ -1488,7 +1515,7 @@ CONTAINS
                gpp_week(ipts,ivm), t2m_week(ipts), &
                qmd_init_override=qmd_override, established_out=did_establish)
 
-          ! Guillaume M. -- Cold-start age-class desync: mark this (point,PFT) done after
+          ! Guillaume M. (AI gen) -- Cold-start age-class desync: mark this (point,PFT) done after
           ! its first establishment, so later replants regrow young (no stagger).
           IF (ok_dia_stagger .AND. ALLOCATED(dia_desync_pending)) THEN
              IF (did_establish) dia_desync_pending(ipts,ivm) = .FALSE.
@@ -1784,7 +1811,6 @@ CONTAINS
        ! free the entry) and the restitution transfer needs the reservoirs, which only
        ! `age_class_distr` holds.
 
-       CALL bmnan_probe(bm_to_litter, 'entree_jour')
        CALL age_class_distr(npts, circ_class_n, circ_class_biomass, &
             veget_max, veget_max_new, wstress_season, &
             lm_lastyearmax, lm_thisyearmax, age, leaf_frac, atm_to_bm, &
@@ -1819,7 +1845,6 @@ CONTAINS
             grow_season_len, us, leaf_age_crit, leaf_classes, &
             co2_fire, litterfuel, count_daylight, zf_soil, &
             gap_area_save, total_ba_init)
-       CALL bmnan_probe(bm_to_litter, 'age_class_distr')
 
        ! Guillaume M. -- MATURITY_CONVEYOR diagnostics, sent HERE and not from stomate_main:
        ! age_class_distr fills them on the last time step of 31 December, which is also when
@@ -1883,8 +1908,7 @@ CONTAINS
     ! slot 1 is credited and consumed in one call.
     IF (ts_annual_proc .AND. n_class0 > 0 .AND. ALLOCATED(class0_veg)) THEN
        c0_work = .FALSE.
-       c0_nfeed = 0 ; c0_nfeed_rej = 0 ; c0_ndrain = 0 ; c0_ndrain_rej = 0
-       c0_s_new = zero ; c0_s_due = zero ; c0_s_net = zero ; c0_s_cap = zero
+       c0_s_cap = zero
        ! Guillaume M. -- class0_recovered holds the restituted area as a FRACTION of the
        ! grid cell, like the class0_veg it comes from. /!\ The ALLOCATED guard is required:
        ! class0_recovered is allocated only under ok_edge_from_age_class while this block is
@@ -1922,7 +1946,7 @@ CONTAINS
                 c0_g = c0_k
              ENDIF
           ENDDO
-          IF (c0_g <= 0) CYCLE      ! mesure 2026-08-03 : 0 maille sur 1146 dans ce cas
+          IF (c0_g <= 0) CYCLE      ! 0 maille sur 1146 dans ce cas
 
           DO c0_ivma = 1,nvmap
              IF (.NOT. is_tree(start_index(c0_ivma))) CYCLE
@@ -1953,7 +1977,6 @@ CONTAINS
              ! nothing, at the expense of the herbaceous. Reconcile the register here.
              IF (c0_new .LE. zero .AND. class0_veg(c0_i,c0_ivma,1) .GT. zero) THEN
                 class0_veg(c0_i,c0_ivma,1) = zero
-                c0_nfeed_rej = c0_nfeed_rej + 1
              ENDIF
 
              IF (c0_new .GT. zero .OR. c0_due .GT. zero) THEN
@@ -1999,7 +2022,8 @@ CONTAINS
                      MIN(veget_max(c0_i,c0_p1), veget_max_new(c0_i,c0_p1)) + c0_net &
                      .LT. min_stomate) THEN
                    c0_new = veget_max(c0_i,c0_p1)
-                   c0_due = zero                    ! restitution postponed, the exit slot accumulates
+                   ! restitution postponed, the exit slot accumulates
+                   c0_due = zero
                    c0_net = -c0_new
                    c0_wipe = .TRUE.
                    c0_ok = (veget_max_new(c0_i,c0_g) - c0_net .GE. min_vegfrac) .AND. &
@@ -2008,9 +2032,6 @@ CONTAINS
                 IF (.NOT. c0_ok) c0_wipe = .FALSE.
 
                 IF (c0_ok) THEN
-                   c0_s_new = c0_s_new + c0_new
-                   c0_s_due = c0_s_due + c0_due
-                   c0_s_net = c0_s_net + c0_net
                    ! Guillaume M. -- c0_due AFTER arbitration: attempt 2 may have zeroed it,
                    ! so this is "what was restituted", not "what was due".
                    IF (ALLOCATED(class0_recovered)) &
@@ -2042,38 +2063,48 @@ CONTAINS
                 IF (c0_new .GT. zero) THEN
                    IF (c0_ok) THEN
                       class0_veg(c0_i,c0_ivma,1) = c0_new
-                      c0_nfeed = c0_nfeed + 1
                    ELSE
                       class0_veg(c0_i,c0_ivma,1) = zero
-                      c0_nfeed_rej = c0_nfeed_rej + 1
                    ENDIF
                 ENDIF
-                IF (c0_ok .AND. c0_due .GT. zero) THEN
-                   class0_veg(c0_i,c0_ivma,n_class0) = zero
-                   c0_ndrain = c0_ndrain + 1
-                ELSEIF (class0_veg(c0_i,c0_ivma,n_class0) .GT. min_stomate) THEN
-                   c0_ndrain_rej = c0_ndrain_rej + 1
-                ENDIF
+                IF (c0_ok .AND. c0_due .GT. zero) class0_veg(c0_i,c0_ivma,n_class0) = zero
              ENDIF
 
           ENDDO
        ENDDO
 
-       ! Guillaume M. -- (3) Ageing. The EXIT slot ACCUMULATES: a refused restitution leaves
+       ! Guillaume M. (AI gen) -- Agent tags follow the register: each slot is rescaled to
+       ! what feeding caps, refusals and restitution left in class0_veg. Diagnostic only.
+       DO c0_k = 1, n_class0
+          DO c0_i = 1, npts
+             c0_sum = SUM(class0_agent(c0_i,c0_k,:))
+             IF (c0_sum > min_stomate) THEN
+                class0_agent(c0_i,c0_k,:) = class0_agent(c0_i,c0_k,:) &
+                     * SUM(class0_veg(c0_i,:,c0_k)) / c0_sum
+             ELSE
+                class0_agent(c0_i,c0_k,:) = zero
+             ENDIF
+          ENDDO
+       ENDDO
+
+       ! Guillaume M. (AI gen) -- (3) Ageing. The EXIT slot ACCUMULATES: a refused restitution leaves
        ! area there, which a shift by plain assignment would overwrite -- a silent leak.
        IF (n_class0 >= 2) THEN
           class0_veg(:,:,n_class0) = class0_veg(:,:,n_class0) + class0_veg(:,:,n_class0-1)
+          class0_agent(:,n_class0,:) = class0_agent(:,n_class0,:) + class0_agent(:,n_class0-1,:)
           DO c0_k = n_class0-1, 2, -1
              class0_veg(:,:,c0_k) = class0_veg(:,:,c0_k-1)
+             class0_agent(:,c0_k,:) = class0_agent(:,c0_k-1,:)
           ENDDO
        ENDIF
        class0_veg(:,:,1) = zero
+       class0_agent(:,1,:) = zero
 
        ! Guillaume M. -- (4) Register/physics consistency guard. The register is bookkeeping:
        ! nothing guarantees the booked area is still in the herbaceous PFT. Without this
        ! guard the drift would be SILENT and the restitution would hand back, N_CLASS0 years
        ! later, an area that no longer exists.
-       ! Guillaume M. -- Clip, do not stop: a register above the herbaceous area is scaled
+       ! Guillaume M. (AI gen) -- Clip, do not stop: a register above the herbaceous area is scaled
        ! down to it, so the restitution never returns area that no longer exists. Seen on
        ! tiny coastal cells with no natural herbaceous PFT. Logged per cell and counted, so
        ! the drift stays visible; the register is bookkeeping, no carbon or area moves here.
@@ -2090,12 +2121,14 @@ CONTAINS
              WRITE(numout,*) 'CLASSE 0 : registre > aire herbacee, ecrete, ipts', c0_i, &
                   ' registre', c0_sum, ' herbacee', c0_best
              class0_veg(c0_i,:,:) = class0_veg(c0_i,:,:) * (c0_best / c0_sum)
+             class0_agent(c0_i,:,:) = class0_agent(c0_i,:,:) * (c0_best / c0_sum)
              c0_nclip = c0_nclip + 1
              c0_s_clip = c0_s_clip + (c0_sum - c0_best)
           ENDIF
        ENDDO
        IF (c0_nclip > 0) THEN
-          WRITE(numout,*) '[C0CLIP] mailles ecretees', c0_nclip, ' aire retiree du registre', c0_s_clip
+          WRITE(numout,*) '[C0CLIP] mailles ecretees', c0_nclip, ' aire retiree du registre', &
+               c0_s_clip
           CALL ipslerr_p(2,'stomate_lpj', &
                'class 0: register above the herbaceous area, clipped', &
                'see [C0CLIP] and CLASSE 0 lines in out_orchidee', '')
@@ -2107,64 +2140,12 @@ CONTAINS
        ! any area moving. Downstream, done_stomate_lcchange replays slowproc_veget AND
        ! check_veget on the updated veget_max, realigning the sechiba side.
        !
-       ! Guillaume M. -- Scaffolding: `fin_mass_balance` weights the reservoirs by
-       ! (veget_max + loss_gain) while the transfer is driven by veget_max_new. The two
-       ! coincide only if veget_max_new == veget_max on entry, so the residual gap and the
-       ! litter on both sides of the transfer are printed here. Exit criterion: gap is zero.
-       IF (c0_work) THEN
-          DO c0_i = 1,npts
-             DO c0_k = 1,nvm
-                c0_sum = veget_max_new(c0_i,c0_k) - (veget_max(c0_i,c0_k) + loss_gain(c0_i,c0_k))
-                IF (ABS(c0_sum) .GT. min_stomate) THEN
-                   WRITE(numout,*) '[CLASSE0-CARTES] ipts', c0_i, ' pft', c0_k, &
-                        ' vmax', veget_max(c0_i,c0_k), ' vmax_new', veget_max_new(c0_i,c0_k), &
-                        ' loss_gain', loss_gain(c0_i,c0_k), ' ECART', c0_sum, &
-                        ' litiere', SUM(SUM(litter(c0_i,:,c0_k,:,icarbon),1))
-                ENDIF
-             ENDDO
-          ENDDO
-          CALL flush(numout)
+       IF (c0_s_cap .GT. min_vegfrac) THEN
+          CALL ipslerr_p(2,'stomate_lpj', &
+               'class 0: the feeding cap dropped booked area', &
+               'the outgoing slot will return more than was ever taken in', &
+               'check the 1->2 transfer and the progressive harvest on class 1')
        ENDIF
-
-       ! Guillaume M. -- Refusal counters. Without them, a conveyor massively refused by the
-       ! min_vegfrac invariant would read as ACTIVE: that is the trap the 1->2 conveyor fell
-       ! into, correct yet acting on a tiny share of the transfers only.
-       IF (c0_nfeed + c0_nfeed_rej + c0_ndrain + c0_ndrain_rej .GT. 0) THEN
-          WRITE(numout,*) '[C0CAP] aire rabotee par le plafond :', c0_s_cap
-          IF (c0_s_cap .GT. min_vegfrac) THEN
-             CALL ipslerr_p(2,'stomate_lpj', &
-                  'class 0: the feeding cap dropped booked area', &
-                  'the outgoing slot will return more than was ever taken in', &
-                  'check the 1->2 transfer and the progressive harvest on class 1')
-          ENDIF
-          WRITE(numout,*) '[C0FLUX] somme c0_new', c0_s_new, ' c0_due', c0_s_due, &
-               ' c0_net', c0_s_net, ' (net>0 = herbacee -> foret)'
-          WRITE(numout,*) '[CLASSE0] alimentation acceptee/refusee :', c0_nfeed, c0_nfeed_rej, &
-               ' | restitution acceptee/refusee :', c0_ndrain, c0_ndrain_rej
-          CALL flush(numout)
-       ENDIF
-
-       ! Guillaume M. -- scaffolding [CARTES2]: the conveyor guards veget_max_new BEFORE
-       ! the LCC while check_veget judges veget_max AFTER it. Print both maps on every
-       ! class-1 slot that sits strictly between zero and min_vegfrac, here and again
-       ! past land_cover_change_main, to see which map slips and at which step.
-       DO c0_i = 1,npts
-          DO c0_ivma = 1,nvmap
-             IF (.NOT. is_tree(start_index(c0_ivma))) CYCLE
-             c0_p1 = start_index(c0_ivma)
-             IF ((veget_max_new(c0_i,c0_p1) .GT. zero .AND. &
-                  veget_max_new(c0_i,c0_p1) .LT. min_vegfrac) .OR. &
-                  (veget_max(c0_i,c0_p1) .GT. zero .AND. &
-                  veget_max(c0_i,c0_p1) .LT. min_vegfrac)) THEN
-                WRITE(numout,*) '[CARTES2-AVANT] ipts', c0_i, ' pft', c0_p1, &
-                     ' vmax', veget_max(c0_i,c0_p1), &
-                     ' vmax_new', veget_max_new(c0_i,c0_p1), &
-                     ' sortie', class0_veg(c0_i,c0_ivma,n_class0)
-             ENDIF
-          ENDDO
-       ENDDO
-       CALL flush(numout)
-
        IF (c0_work) do_now_stomate_lcchange = .TRUE.
 
     ENDIF
@@ -2234,26 +2215,7 @@ CONTAINS
             burried_som,          burried_deepSOM_a,    burried_deepSOM_s,          burried_deepSOM_p, &
             burried,              kill_vessels,         vessel_loss_previous,       biomass_init_drought, &
             mean_start_gs,        woody_litter_by_cut,  lignin_snag)
-       CALL bmnan_probe(bm_to_litter, 'lcc_1')
  
-       ! Guillaume M. -- scaffolding [CARTES2], twin of the one in the conveyor block.
-       ! Same slots read after the LCC realised the move: a slot clean before and
-       ! sub-threshold here means the realisation created it, not the conveyor.
-       IF (n_class0 > 0 .AND. ALLOCATED(class0_veg)) THEN
-          DO ipts = 1,npts
-             DO ivm = 1,nvm
-                IF (veget_max(ipts,ivm) .GT. zero .AND. &
-                     veget_max(ipts,ivm) .LT. min_vegfrac) THEN
-                   WRITE(numout,*) '[CARTES2-APRES] ipts', ipts, ' pft', ivm, &
-                        ' vmax', veget_max(ipts,ivm), &
-                        ' vmax_new', veget_max_new(ipts,ivm), &
-                        ' loss_gain', loss_gain(ipts,ivm)
-                ENDIF
-             ENDDO
-          ENDDO
-          CALL flush(numout)
-       ENDIF
-
        ! Set the flag done_stomate_lcchange to be used in the end of sechiba_main
        ! to update the fractions.
        do_now_stomate_lcchange=.FALSE.
@@ -2316,7 +2278,6 @@ CONTAINS
             circ_class_biomass, mai, pai, previous_wood_volume, &
             mai_count, coppice_dens, veget_max, fm_change_map, &
             species_change_map, whychange, tot_trees)   
-       CALL bmnan_probe(bm_to_litter, 'forestry_main')
 
 
 
@@ -2404,7 +2365,6 @@ CONTAINS
        CALL drought_mortality (npts, kill_vessels, vessel_mortality_daily, &
             veget_max, biomass_init_drought, bm_to_litter, circ_class_biomass, &
             circ_class_n)   
-       CALL bmnan_probe(bm_to_litter, 'drought_mortality')
     ENDIF
 
     !! 6.2 Call the fire module
@@ -2415,7 +2375,6 @@ CONTAINS
                   pop_dens, a_nd, road_length, lightning, circ_class_biomass, circ_class_n, &
                   circ_class_kill, bm_to_litter, litter, litterfuel,        &
                   emissions_fire)
-       CALL bmnan_probe(bm_to_litter, 'spitfire')
     ENDIF
     
     !! 6.2 Calculate wind throw
@@ -2431,13 +2390,13 @@ CONTAINS
        !  critical windspeeds are calculated every half-hour in stomate. A
        !  cummulated critical windspeed is then passed to stomate_lpj
        !  to calculate the actual stand damage and mortality
-       CALL wind_damage(npts, nlevels_tot, circ_class_biomass, & ! JJ 2026: new signature, removed wind_max_daily & wind_longterm
+       ! JJ 2026: new signature, removed wind_max_daily & wind_longterm
+       CALL wind_damage(npts, nlevels_tot, circ_class_biomass, &
             veget_max, circ_class_n, plant_status, &
             circ_class_kill, gap_area_save, forest_managed, &
             soil_temp_daily, root_profile, max_wind_speed_storm, max_wind_ratio_storm, &
             count_storm, is_storm, wind_ratio_max_save, wind_ratio_sum_save, &
             wind_speed_max_save, age_stand_area)
-       CALL bmnan_probe(bm_to_litter, 'wind_damage')
 
     ENDIF
 
@@ -2459,7 +2418,6 @@ CONTAINS
                resolution, circ_class_kill, forest_managed, wood_leftover_legacy, &
                i_beetles_activity_legacy, P_beetles_attacked_legacy, &
                B_beetles_kill_legacy, host_wood_ref)
-      CALL bmnan_probe(bm_to_litter, 'bark_beetle')
 
     ELSE
       ! Write to XIOS with default values for all other days
@@ -2492,7 +2450,6 @@ CONTAINS
 
     CALL disturbance_kill(npts, circ_class_biomass, circ_class_n, veget_max, loss_gain, &
          veget_max_disturb, circ_class_kill, wind_share_disturb)
-    CALL bmnan_probe(bm_to_litter, 'disturbance_kill')
 
 
 
@@ -2522,7 +2479,6 @@ CONTAINS
             burried_deepSOM_p,    burried,            kill_vessels,      vessel_loss_previous, & 
             biomass_init_drought, mean_start_gs,      woody_litter_by_cut, &
             lignin_snag,          wind_share=wind_share_disturb)
-    CALL bmnan_probe(bm_to_litter, 'lcc_2')
 
     ! Store intermediate veget_max and atm_to_bm in order to calculate
     ! the mass balance closure at the end odf the subroutine. atm_to_bm
@@ -2680,7 +2636,6 @@ CONTAINS
          harvest_cut, harvest_area, &
          veget_max, age_stand, last_cut, mai_count, &
          coppice_dens, plant_status, biomass_cut)
-    CALL bmnan_probe(bm_to_litter, 'anthropogenic_mort')
 
 
 
@@ -2714,7 +2669,6 @@ CONTAINS
          circ_class_biomass, circ_class_kill, circ_class_n, emissions_fire, &
          veget_max, biomass_cut, plant_status, tot_res_target, &
          tot_lab_target, forest_managed)
-    CALL bmnan_probe(bm_to_litter, 'natural_mort')
 
 
 
@@ -2826,7 +2780,6 @@ CONTAINS
          count_daylight, &
          CN_som_litter_longterm, zf_soil, &
          MatrixV, MatrixA, VectorU, VectorB, gap_area_save, total_ba_init)
-    CALL bmnan_probe(bm_to_litter, 'mortality_clean')
 
 
    
@@ -2887,7 +2840,6 @@ CONTAINS
          when_growthinit, longevity_eff_leaf, longevity_eff_sap, longevity_eff_root, &
          harvest_pool, harvest_type, harvest_cut, harvest_area, &
          wstress_month, leaf_age_crit, doy_end_gs)
-    CALL bmnan_probe(bm_to_litter, 'turn_over')
 
 
 
@@ -3113,7 +3065,6 @@ CONTAINS
             burried_deepSOM_p,    burried,            kill_vessels,      vessel_loss_previous, & 
             biomass_init_drought, mean_start_gs,      woody_litter_by_cut, &
             lignin_snag)
-          CALL bmnan_probe(bm_to_litter, 'lcc_3')
 
        ENDIF ! checking for species change
 
@@ -4440,7 +4391,7 @@ CONTAINS
     CALL xios_orchidee_send_field("LAI_MEAN",lai)
     CALL xios_orchidee_send_field("LAI_MEAN_GS",lai_diag)
     CALL xios_orchidee_send_field("AGE",age)
-    ! Guillaume M. -- STAND_AGE: conserved biomass-weighted mean stand age (per PFT slot)
+    ! Guillaume M. (AI gen) -- STAND_AGE: conserved biomass-weighted mean stand age (per PFT slot)
     CALL xios_orchidee_send_field("AGE_STAND_AREA", age_stand_area)
     CALL xios_orchidee_send_field("HEIGHT",qm_height)
     CALL xios_orchidee_send_field("PIPE_TUNE2",pipe_tune2)
@@ -5825,16 +5776,6 @@ CONTAINS
                               resp_growth_hist, resp_maint_hist, resp_hetero_hist, co2_fire_hist, &
                               n_input_daily_hist, emission_daily_hist, leaching_daily_hist, &
                               veget_max_hist, 'nep check 1')
-                         ! Guillaume M. -- scaffolding: history_write alone does not name the
-                         ! consistency case, and the class-0 conveyor restitution is a
-                         ! re-establishment that may be misclassified (case 7 exists for that).
-                         ! Drop once the case is identified.
-                         WRITE(numout,*) '[NEPCHK1] ipts', ipts, ' ivm', ivm, ' iage', iage, &
-                              ' case', consistency_check(ipts,ivm), &
-                              ' nep_daily', nep_daily(ipts,ivm,iele), &
-                              ' vmh(iage)', veget_max_hist(ipts,ivm,iage), &
-                              ' vmh_sum', SUM(veget_max_hist(ipts,ivm,:))
-                         CALL flush(numout)
                          CALL ipslerr_p(3,'conflict between nep_temp and veget_max_hist','nep check 1',&
                               '','')
                       END IF ! NEP test
@@ -5854,14 +5795,6 @@ CONTAINS
                               resp_growth_hist, resp_maint_hist, resp_hetero_hist, co2_fire_hist, &
                               n_input_daily_hist, emission_daily_hist, leaching_daily_hist, &
                               veget_max_hist, 'nep check 2')
-                         ! Guillaume M. -- Scaffolding: confirm the split of nep_daily.
-                         ! Drop once verified.
-                         WRITE(numout,*) '[NEPCHK2] ipts', ipts, ' ivm', ivm, &
-                              ' case', consistency_check(ipts,ivm), &
-                              ' nep_temp', nep_temp(ipts,ivm,iele), &
-                              ' nep_daily', nep_daily(ipts,ivm,iele), &
-                              ' atm_to_bm', SUM(atm_to_bm_hist(ipts,ivm,:,iele))
-                         CALL flush(numout)
                          CALL ipslerr_p(3,'conflict between nep_temp and veget_max_hist','nep check 1',&
                               '','')
                       END IF ! NEP test
@@ -5881,7 +5814,8 @@ CONTAINS
                       CALL atm_bm_write(ipts, ivm, iele, atm_to_bm_hist, &
                            veget_max_hist, 'atm_to_bm check 2')
                    CASE(13)
-                      IF (ABS(nep_daily(ipts,ivm,iele)-resp_hetero_hist(ipts,ivm,iluc)) .GT. min_stomate .AND. &
+                      IF (ABS(nep_daily(ipts,ivm,iele)-resp_hetero_hist(ipts,ivm, &
+                           iluc)) .GT. min_stomate .AND. &
                            veget_max_hist(ipts,ivm,iluc) .EQ. zero) THEN
                          CALL history_write(ipts, ivm, iele, atm_to_bm_hist, gpp_daily_hist, &
                               resp_growth_hist, resp_maint_hist, resp_hetero_hist, co2_fire_hist, &
@@ -5903,7 +5837,8 @@ CONTAINS
                       CALL atm_bm_write(ipts, ivm, iele, atm_to_bm_hist, &
                            veget_max_hist, 'atm_to_bm check 3')
                    CASE(15)
-                      IF (ABS(nep_daily(ipts,ivm,iele)-resp_hetero_hist(ipts,ivm,ispc)) .GT. min_stomate .AND. &
+                      IF (ABS(nep_daily(ipts,ivm,iele)-resp_hetero_hist(ipts,ivm, &
+                           ispc)) .GT. min_stomate .AND. &
                            veget_max_hist(ipts,ivm,ispc) .EQ. zero) THEN
                          CALL history_write(ipts, ivm, iele, atm_to_bm_hist, gpp_daily_hist, &
                               resp_growth_hist, resp_maint_hist, resp_hetero_hist, co2_fire_hist, &
@@ -6487,23 +6422,5 @@ CONTAINS
 
 
 
-  ! Guillaume M. -- Temporary tripwire: name the first step of the day that leaves a
-  ! non-finite value in bm_to_litter. isnan misses +-Inf, so test finiteness. The FIRST
-  ! tag printed in the journal is the culprit; every later step trips on the same slot.
-  SUBROUTINE bmnan_probe(bm_to_litter, tag)
-    REAL(r_std), DIMENSION(:,:,:,:), INTENT(in) :: bm_to_litter
-    CHARACTER(LEN=*), INTENT(in)                :: tag
-    INTEGER(i_std)                              :: ip, iv
-    DO iv = 1,SIZE(bm_to_litter,2)
-       DO ip = 1,SIZE(bm_to_litter,1)
-          IF ( ANY( .NOT. (bm_to_litter(ip,iv,:,:) .GT. -HUGE(un) .AND. &
-                           bm_to_litter(ip,iv,:,:) .LT. HUGE(un)) ) ) THEN
-             WRITE(numout,*) '[BMNAN] apres ',tag,' ipts',ip,' ipft',iv
-             CALL flush(numout)
-             RETURN
-          ENDIF
-       ENDDO
-    ENDDO
-  END SUBROUTINE bmnan_probe
 
 END MODULE stomate_lpj

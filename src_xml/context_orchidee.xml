@@ -89,6 +89,8 @@
     <axis id="nmedium1" standard_name="model_level_number" long_name="medium-lived product pool" unit="yr"/>
     <axis id="nlong1" standard_name="model_level_number" long_name="long-lived product pool" unit="yr"/>
     <axis id="ncirc" standard_name="model_level_number" long_name="circumference classes" unit="1"/>
+    <!-- AI gen: disturbance agents, size and order = nagent, IDX_* of stomate_data -->
+    <axis id="nagent" standard_name="model_level_number" long_name="agents: 1 fire, 2 storm, 3 pest, 4 harvest" unit="1" n_glo="4" value="(0,3)[1 2 3 4]"/>
     <axis id="ncut" standard_name="model_level_number" long_name="types of cuttings" unit="1"/>
     <axis id="nparts" standard_name="model_level_number" long_name="biomass components" unit="1"/>
     <axis id="nlctypes" standard_name="model_level_number" long_name="land cover types" unit="1"/>
@@ -127,6 +129,15 @@
     <grid id="grid_nvm_out">
       <domain domain_ref="domain_landpoints_out" />
       <axis axis_ref="nvm" />
+    </grid>
+
+    <grid id="grid_nagent">
+      <domain domain_ref="domain_landpoints" />
+      <axis axis_ref="nagent" />
+    </grid>
+    <grid id="grid_nagent_out">
+      <domain domain_ref="domain_landpoints_out" />
+      <axis axis_ref="nagent" />
     </grid>
 
     <grid id="grid_nvmap">

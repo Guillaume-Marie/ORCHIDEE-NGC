@@ -141,14 +141,28 @@ SUBROUTINE prescribe (&
     REAL(r_std), INTENT(in)                                :: alpha_self_thin_loc    !! alpha_self_thinning for this ipts and ivm
     REAL(r_std), INTENT(in)                                :: gpp_week               !! PFT gross primary productivity
     REAL(r_std), INTENT(in)                                :: t2m                    !! Temperature at 2 meter (K)
-    REAL(r_std), INTENT(in), OPTIONAL                      :: qmd_init_override      !! Cold-start desync: per-(point,class) initial qmd (m)
-                                                                                     !! to use instead of qmd_init(ivm) at tree establish.
-                                                                                     !! >= val_exp/2 or absent => use qmd_init(ivm) (neutral).
+    !! Cold-start desync: per-(point,class) initial qmd (m)
+    REAL(r_std), INTENT(in), OPTIONAL                      :: qmd_init_override
+                                                                                     !! to use
+                                                                                     !! instead of
+                                                                                    !! qmd_init(ivm)
+                                                                                     !! at tree
+                                                                                     !! establish.
+                                                                                     !! >= val_exp/2
+                                                                                     !! or absent =>
+                                                                                     !! use
+                                                                                    !! qmd_init(ivm)
+                                                                                     !! (neutral).
 
   !! 0.2 Output variables
-    REAL(r_std), INTENT(out)                               :: new_ind_loc            !! density of new individuals (trees m-2 day-1)
-    LOGICAL, INTENT(out), OPTIONAL                         :: established_out        !! Cold-start desync: TRUE if a tree stand was
-                                                                                     !! established (establish branch) on this call.
+    !! density of new individuals (trees m-2 day-1)
+    REAL(r_std), INTENT(out)                               :: new_ind_loc
+    !! Cold-start desync: TRUE if a tree stand was
+    LOGICAL, INTENT(out), OPTIONAL                         :: established_out
+                                                                                     !! established
+                                                                                     !! (establish
+                                                                                     !! branch) on
+                                                                                     !! this call.
     REAL(r_std), DIMENSION(nelements), INTENT(out)         :: tot_res_target_loc     !! Target for reserve carbon pool (only for grassland) 
                                                                                      !! @tex $(gC m^{-2})$ @endtex
     REAL(r_std), DIMENSION(nelements), INTENT(out)         :: tot_lab_target_loc     !! Target for labile carbon pool (only for grassland) 
@@ -252,14 +266,18 @@ SUBROUTINE prescribe (&
     REAL(r_std)                                       :: n_init             !! Initial number of individuals calculated (ind m^(-2))
     REAL(r_std)                                       :: tmp                !! Temporary variable to prepare information for xios
     REAL(r_std)                                       :: qmd, mod_qmd, max_x !! use to estimate the diameter of the tree circuference class before using make samplin 
-    REAL(r_std), DIMENSION(ncirc)                     :: mod_qmd_arr        !! Multiplicateurs de diametre par classe, NORMALISES pour que le moment d ordre 2 vaille 1
-    REAL(r_std)                                       :: qmd_norm           !! Facteur de normalisation du moment d ordre 2
+    !! Multiplicateurs de diametre par classe, NORMALISES pour que le moment d ordre 2 vaille 1
+    REAL(r_std), DIMENSION(ncirc)                     :: mod_qmd_arr
+    !! Facteur de normalisation du moment d ordre 2
+    REAL(r_std)                                       :: qmd_norm
     REAL(r_std)                                       :: weibull_resolution !! idem
     REAL(r_std), DIMENSION(ncirc)                     :: exp_circ_class_n   !! Temporary variable for expected circ class n
                                                                             !! @tex $(ind m^{-2})$ @endtex
     REAL(r_std)                                       :: real_qmd           !! Quick fix for mismatch between qmd_init and qmd from new sapplings
-    INTEGER(i_std)                                    :: iage_pr            !! Age class index of this PFT slot (1..nagec), establishment RDI
-    REAL(r_std)                                       :: rdi_use            !! RDI used at establishment (rdi_start, or rdi_max for cold-start desync)
+    !! Age class index of this PFT slot (1..nagec), establishment RDI
+    INTEGER(i_std)                                    :: iage_pr
+    !! RDI used at establishment (rdi_start, or rdi_max for cold-start desync)
+    REAL(r_std)                                       :: rdi_use
     REAL(r_std), DIMENSION(ncirc)                     :: circ_class_n_grass !! temporary grass density in case of lcchange
                                                                             !! @tex $(ind m^{-2})$ @endtex
     REAL(r_std)                                       :: Cother             !! The sum of carbon from all compartments except for fruit, 
@@ -917,7 +935,7 @@ SUBROUTINE prescribe (&
              ! the weibull circumference class distribution.
              qmd = qmd_init(ivm)
 
-             ! Guillaume M. -- Cold-start age-class desync: when the caller supplies a
+             ! Guillaume M. (AI gen) -- Cold-start age-class desync: when the caller supplies a
              ! per-(point,age-class) initial diameter (OK_DIA_STAGGER), use it instead of
              ! the uniform qmd_init(ivm). A value >= val_exp/2, or an absent argument,
              ! means "no override" and keeps trunk behaviour bit-for-bit.
@@ -941,7 +959,7 @@ SUBROUTINE prescribe (&
 
              weibull_resolution = max_x / ncirc
 
-             ! Guillaume M. -- Second-moment normalisation: the class multipliers are
+             ! Guillaume M. (AI gen) -- Second-moment normalisation: the class multipliers are
              ! rescaled so that SUM(w_i * mod_qmd_i**2) = 1, hence the constructed stand
              ! has quadratic mean diameter qmd by construction. Without it n_init was
              ! computed on a diameter the stand did not have. The distribution shape is
@@ -990,7 +1008,7 @@ SUBROUTINE prescribe (&
                 ! calculation)
                 real_qmd = wood_to_qmdia(bm_sapl_2D_loc(:,:,icarbon), &
                  exp_circ_class_n(:), ivm, pipe_tune2_loc)
-                ! Guillaume M. -- A staggered older age class is a mid-rotation managed
+                ! Guillaume M. (AI gen) -- A staggered older age class is a mid-rotation managed
                 ! stand, not a freshly-planted one. At rdi_start a large qmd yields so few
                 ! stems that density falls under dens_target and the stand is wiped by the
                 ! density-collapse clearcut of sapiens_forestry. Desync classes therefore
@@ -998,9 +1016,10 @@ SUBROUTINE prescribe (&
                 iage_pr = -1     ! sentinelle : le bloc PRESCRIBE_RDI_FRAC n'a pas tourne
                 rdi_use = rdi_start(ivm)
                 IF (PRESENT(qmd_init_override)) THEN
-                   IF (qmd_init_override < val_exp/2._r_std) rdi_use = rdi_max(ivm, forest_managed_loc)
+                   IF (qmd_init_override < val_exp/2._r_std) rdi_use = rdi_max(ivm, &
+                        forest_managed_loc)
                 ENDIF
-                ! Guillaume M. -- Establishment RDI is a fraction of rdi_max, set per age
+                ! Guillaume M. (AI gen) -- Establishment RDI is a fraction of rdi_max, set per age
                 ! class: class 1 stays far below the self-thinning ceiling (a true gap),
                 ! later classes stay close to it. This subsumes the desync case above,
                 ! which is the fraction 1.0 special case. A fraction <= 0 leaves the value
@@ -1764,10 +1783,14 @@ SUBROUTINE prescribe (&
     REAL(r_std)                                       :: cn_leaf,cn_root     !! CN ratio of leaves and roots (gC/gN)
     REAL(r_std)                                       :: cn_wood             !! CN ratio of wood pool (gC/gN)        
     REAL(r_std)                                       :: tree_height         !! Tree height (m)
-    REAL(r_std)                                       :: wood_above_loc      !! Total aboveground woody mass to be split sap/heart (gC tree-1)
-    REAL(r_std)                                       :: f_heart_loc         !! Heartwood mass fraction of the woody cross-section (-)
-    REAL(r_std), PARAMETER                            :: sap_depth = 0.05_r_std         !! Sapwood radial depth (m), ~5 cm temperate average
-    REAL(r_std), PARAMETER                            :: dia_heartwood_min = 0.05_r_std !! Diameter (m) above which heartwood is partitioned explicitly (cold-start desync)
+    !! Total aboveground woody mass to be split sap/heart (gC tree-1)
+    REAL(r_std)                                       :: wood_above_loc
+    !! Heartwood mass fraction of the woody cross-section (-)
+    REAL(r_std)                                       :: f_heart_loc
+    !! Sapwood radial depth (m), ~5 cm temperate average
+    REAL(r_std), PARAMETER                            :: sap_depth = 0.05_r_std
+    !! Diameter (m) above which heartwood is partitioned explicitly (cold-start desync)
+    REAL(r_std), PARAMETER                            :: dia_heartwood_min = 0.05_r_std
 
 !_ ================================================================================================================================
 
@@ -1801,7 +1824,7 @@ SUBROUTINE prescribe (&
             bm_sapl_2D_loc(iheartabove,icarbon)
          bm_sapl_2D_loc(isapbelow,icarbon) = bm_sapl_2D_loc(isapabove,icarbon)
 
-         ! Guillaume M. -- Re-partition sap/heartwood. The split above leaves a fixed 1%
+         ! Guillaume M. (AI gen) -- Re-partition sap/heartwood. The split above leaves a fixed 1%
          ! heartwood, unphysical at the large establishment diameters: a 40 cm tree would
          ! be 99% sapwood. Sapwood is taken as the outer ring of radial depth sap_depth
          ! and heartwood as the inner core, f_heart = ((D - 2*sap_depth)/D)**2, floored at

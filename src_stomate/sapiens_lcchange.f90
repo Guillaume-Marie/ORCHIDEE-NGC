@@ -50,13 +50,6 @@ MODULE sapiens_lcchange
 !$OMP THREADPRIVATE(printlev_loc)
   LOGICAL, SAVE              :: firstcall_sapiens_lcchange = .TRUE.   !! first call flag
 !$OMP THREADPRIVATE(firstcall_sapiens_lcchange)
-  ! Guillaume M. -- Counters for the sub-threshold classes routed to litter by
-  ! merge_biomass_pfts. Reported and reset once a year by age_class_distr: without them
-  ! a clean year cannot tell "the path works" from "the path was never taken".
-  INTEGER(i_std), SAVE       :: orphan_litter_hits = 0                !! sub-threshold classes routed since last report
-!$OMP THREADPRIVATE(orphan_litter_hits)
-  REAL(r_std), SAVE          :: orphan_litter_mass = zero             !! carbon routed that way @tex $(g C m^{-2})$ @endtex
-!$OMP THREADPRIVATE(orphan_litter_mass)
 
 CONTAINS
 
@@ -192,8 +185,13 @@ CONTAINS
                                                                                     !! above and below ground
     REAL(r_std), DIMENSION(npts,nvm,nlevs), INTENT(inout)  :: lignin_snag           !! ratio Lignine/Carbon in snag litter,
                                                                                     !! above and below ground
-    REAL(r_std), DIMENSION(npts,nvm), INTENT(in), OPTIONAL :: wind_share         !! Storm share of the stand-replacing damage,
-                                                                                    !! only passed for losses = 'disturbance' (unitless, 0-1)
+    !! Storm share of the stand-replacing damage,
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(in), OPTIONAL :: wind_share
+                                                                                    !! only passed
+                                                                                    !! for losses =
+                                                                                    !! 'disturbance'
+                                                                                    !! (unitless,
+                                                                                    !! 0-1)
     REAL(r_std), DIMENSION(npts,ncarb,nvm,nelements), INTENT(inout) :: som          !! carbon pool: active, slow, or passive 
                                                                                     !! @tex ($gC m^{-2}$) @endtex 
     REAL(r_std), DIMENSION(npts,nlitt,nvm,nlevs,nelements), INTENT(inout)  :: litter!! metabolic and structural litter, above and 
@@ -218,8 +216,10 @@ CONTAINS
     REAL(r_std), DIMENSION(:,:), INTENT(inout)        :: harvest_cut           !! Type of cutting that was used for the harvest
                                                                                !! (unitless)
     REAL(r_std), DIMENSION(:,:,:), INTENT(inout)      :: harvest_area          !! Harvested area (m^{2})
-    INTEGER(i_std), DIMENSION(:,:), INTENT(inout)     :: age_stand             !! Age of the forest stand (years)
-    REAL(r_std), DIMENSION(:,:), INTENT(inout)        :: age_stand_area        !! AREA-weighted conserved mean stand age (years) - STAND_AGE
+    !! Age of the forest stand (years)
+    INTEGER(i_std), DIMENSION(:,:), INTENT(inout)     :: age_stand
+    !! AREA-weighted conserved mean stand age (years) - STAND_AGE
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)        :: age_stand_area
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)     :: last_cut              !! Years since last thinning (years)
     REAL(r_std),DIMENSION(:,:), INTENT(in)            :: cn_leaf_init_2D       !! initial leaf C/N ratio 
     REAL(r_std),DIMENSION(:,:,:,:,:), INTENT(inout)   :: bm_sapl_2D            !! biomass of sapling
@@ -376,10 +376,14 @@ CONTAINS
     INTEGER(i_std)                                   :: ncount                 !! The number of PFTs with significant changes
                                                                                !! in vegetation.
     INTEGER(i_std)                                   :: nagec_local            !! The number of age classes in this map PFT.
-    INTEGER(i_std)                                   :: sv_i, sv_k             !! Sliver guard loop indices
-    INTEGER(i_std)                                   :: sv_kmax                !! Slot receiving the snapped area residue
-    REAL(r_std)                                      :: sv_res                 !! Area residue snapped to zero (-)
-    REAL(r_std)                                      :: sv_n                   !! Trees still standing on a snapped slot
+    !! Sliver guard loop indices
+    INTEGER(i_std)                                   :: sv_i, sv_k
+    !! Slot receiving the snapped area residue
+    INTEGER(i_std)                                   :: sv_kmax
+    !! Area residue snapped to zero (-)
+    REAL(r_std)                                      :: sv_res
+    !! Trees still standing on a snapped slot
+    REAL(r_std)                                      :: sv_n
     REAL(r_std)                                      :: difference             !! How much leftover veget_max we have
     REAL(r_std), DIMENSION(npts,nvm)                 :: veget_max_begin        !! Temporary variable to check area conservation 
     REAL(r_std), DIMENSION(npts,nvm,ndia_harvest+1,nelements,nlanduse) :: harvest_pool_old  !! Temporary variable to check mass conservation
@@ -391,15 +395,20 @@ CONTAINS
     REAL(r_std), DIMENSION(nelements)                :: test_mass_bank         !! Temporary variable to check mass conservation
     REAL(r_std), DIMENSION(3,nelements,2)            :: test_bank              !! Temporary variable to check mass conservation
     REAL(r_std)                                      :: plant_status_init      !! Initial plant_status of a PFT
-    INTEGER(i_std)                                   :: c0r_ivm, c0r_icir      !! CLASS0_REPLANT: indices creneau / classe de circonference
-    REAL(r_std)                                      :: salv_lcc               !! Salvaged share of a stand-replacing disturbance (-)
-    REAL(r_std)                                      :: ws_lcc                 !! Storm share of the killed wood kept as breeding material (-)
-    REAL(r_std), DIMENSION(ncirc)                    :: cc_n_harv              !! Trees per circ class sent to harvest (ind m-2)
-    REAL(r_std)                                      :: c0r_phi                !! CLASS0_REPLANT: fraction du creneau replantee (-)
-    REAL(r_std)                                      :: c0r_share              !! CLASS0_REPLANT: poids du peuplement en place, = 1 - phi (-)
-    REAL(r_std)                                      :: c0r_nmix               !! CLASS0_REPLANT: densite melangee d'une classe (ind m-2)
-    LOGICAL                                          :: c0r_bad_in             !! SONDE C0NAN: une entree de l'accumulation est non finie
-    LOGICAL                                          :: c0r_bad_out            !! SONDE C0NAN: bm_to_litter est non finie apres accumulation
+    !! CLASS0_REPLANT: indices creneau / classe de circonference
+    INTEGER(i_std)                                   :: c0r_ivm, c0r_icir
+    !! Salvaged share of a stand-replacing disturbance (-)
+    REAL(r_std)                                      :: salv_lcc
+    !! Storm share of the killed wood kept as breeding material (-)
+    REAL(r_std)                                      :: ws_lcc
+    !! Trees per circ class sent to harvest (ind m-2)
+    REAL(r_std), DIMENSION(ncirc)                    :: cc_n_harv
+    !! CLASS0_REPLANT: fraction du creneau replantee (-)
+    REAL(r_std)                                      :: c0r_phi
+    !! CLASS0_REPLANT: poids du peuplement en place, = 1 - phi (-)
+    REAL(r_std)                                      :: c0r_share
+    !! CLASS0_REPLANT: densite melangee d'une classe (ind m-2)
+    REAL(r_std)                                      :: c0r_nmix
     REAL(r_std), DIMENSION(npts,nvm,nelements)       :: check_fresh_litter
     REAL(r_std), DIMENSION(npts,nvm,nelements)       :: check_biomass
     REAL(r_std), DIMENSION(npts,nvm,nelements)       :: init_biomass
@@ -732,7 +741,7 @@ CONTAINS
                 ! Store the management stategy of the pixel and PFT
                 ifm = forest_managed(ipts,ivm)                
 
-                ! Guillaume M. -- Only windfall is bark beetle breeding material; trees killed by
+                ! Guillaume M. (AI gen) -- Only windfall is bark beetle breeding material; trees killed by
                 ! beetles or fire still go to litter but are not counted in fresh_litter_wood.
                 ws_lcc = un
                 IF (losses .EQ. 'disturbance' .AND. PRESENT(wind_share)) &
@@ -763,8 +772,10 @@ CONTAINS
                             (un - branch_ratio(ivm))
                 ELSE
 
-                    ! Guillaume M. -- A stand-replacing disturbance in a managed forest exports only the
-                    ! salvaged share, as the partial kill in sapiens_kill does; the rest is deposited as
+                    ! Guillaume M. (AI gen) -- A stand-replacing disturbance in a managed forest exports only
+                    ! the
+                    ! salvaged share, as the partial kill in sapiens_kill does; the rest is
+                    ! deposited as
                     ! in an unmanaged forest. Harvest terms below use cc_n_harv.
                     salv_lcc = un
                     IF (losses .EQ. 'disturbance') THEN
@@ -777,12 +788,14 @@ CONTAINS
                                 circ_class_n(ipts,ivm,:))
                           ENDDO
                        ENDDO
-                       ! Guillaume M. -- Salvage takes stems first and leaves the branches, which do not
+                       ! Guillaume M. (AI gen) -- Salvage takes stems first and leaves the branches, which do
+                       ! not
                        ! breed beetles: count the stems left only.
                        fresh_litter_wood(ipts,ivm) = fresh_litter_wood(ipts,ivm) + &
                             ws_lcc * MAX(zero, un - salv_lcc - branch_ratio(ivm)) * &
                             SUM((circ_class_biomass(ipts,ivm,:,isapabove,icarbon) + &
-                            circ_class_biomass(ipts,ivm,:,iheartabove,icarbon)) * circ_class_n(ipts,ivm,:))
+                            circ_class_biomass(ipts,ivm,:,iheartabove,icarbon)) &
+                                 * circ_class_n(ipts,ivm,:))
                     ENDIF
                     cc_n_harv(:) = circ_class_n(ipts,ivm,:) * salv_lcc
 
@@ -1508,7 +1521,8 @@ CONTAINS
                 turnover_daily(ipts,ivm,:,:) = fresh_som_bank(:,:)
                 soil_n_min(ipts,ivm,:) = soil_n_min_bank(:)
                 bact(ipts,ivm) = bact_bank
-                ! Guillaume M. -- On the disturbance path the breeding material is the dedicated windfall
+                ! Guillaume M. (AI gen) -- On the disturbance path the breeding material is the dedicated
+                ! windfall
                 ! bank, not all fresh aboveground wood (beetle- or fire-killed included).
                 IF (losses .EQ. 'disturbance') THEN
                    woody_litter_by_cut(ipts,ivm,icut_lcc_wood) = fresh_woody_ltr_bank
@@ -1959,32 +1973,6 @@ CONTAINS
 
              plant_status(ipts,c0r_ivm) = plant_status_init
 
-             ! Guillaume M. -- Probe: does this block CREATE the litter NaN or PROPAGATE it?
-             ! isnan is blind to +-Inf, yet 0 * Inf is the only product that turns a finite
-             ! per-tree biomass into a NaN in bm_to_litter below. So test NON-FINITENESS on
-             ! both sides of the accumulation, per circumference class, and report density
-             ! next to it: a non-finite biomass on zero density is wiped by the ELSE branch.
-             c0r_bad_in = .NOT. (c0r_phi .GT. -HUGE(un) .AND. c0r_phi .LT. HUGE(un))
-             DO c0r_icir = 1,ncirc
-                IF ( .NOT. (circ_class_n(ipts,c0r_ivm,c0r_icir) .GT. -HUGE(un) .AND. &
-                            circ_class_n(ipts,c0r_ivm,c0r_icir) .LT. HUGE(un)) .OR. &
-                     ANY( .NOT. (circ_class_biomass(ipts,c0r_ivm,c0r_icir,:,:) .GT. -HUGE(un) .AND. &
-                                 circ_class_biomass(ipts,c0r_ivm,c0r_icir,:,:) .LT. HUGE(un)) ) .OR. &
-                     .NOT. (new_circ_class_n(ipts,c0r_ivm,c0r_icir) .GT. -HUGE(un) .AND. &
-                            new_circ_class_n(ipts,c0r_ivm,c0r_icir) .LT. HUGE(un)) .OR. &
-                     ANY( .NOT. (new_circ_class_biomass(ipts,c0r_ivm,c0r_icir,:,:) .GT. -HUGE(un) .AND. &
-                                 new_circ_class_biomass(ipts,c0r_ivm,c0r_icir,:,:) .LT. HUGE(un)) ) ) THEN
-                   c0r_bad_in = .TRUE.
-                   WRITE(numout,*) '[C0NAN] ENTREE ipts',ipts,' ipft',c0r_ivm,' icir',c0r_icir, &
-                        ' phi',c0r_phi,' vmax',veget_max(ipts,c0r_ivm), &
-                        ' | n_old',circ_class_n(ipts,c0r_ivm,c0r_icir), &
-                        ' bm_old_max',MAXVAL(circ_class_biomass(ipts,c0r_ivm,c0r_icir,:,:)), &
-                        ' | n_new',new_circ_class_n(ipts,c0r_ivm,c0r_icir), &
-                        ' bm_new_max',MAXVAL(new_circ_class_biomass(ipts,c0r_ivm,c0r_icir,:,:))
-                ENDIF
-             ENDDO
-             IF (c0r_bad_in) CALL flush(numout)
-
              ! Guillaume M. -- /!\ THE REPLACED FRACTION MUST GO SOMEWHERE. The blend below
              ! gives the standing stand the weight (1 - phi) only, so the phi share of the
              ! old stand vanishes unless it is routed; destroying it breaks the mass balance.
@@ -1995,18 +1983,6 @@ CONTAINS
                      c0r_phi * circ_class_n(ipts,c0r_ivm,c0r_icir) * &
                      circ_class_biomass(ipts,c0r_ivm,c0r_icir,:,:)
              ENDDO
-
-             ! Guillaume M. -- Verdict of the probe above. A non-finite litter reached with
-             ! every input finite means THIS accumulation created it; otherwise it only
-             ! carried in what it was handed. The distinction decides where the fix goes.
-             c0r_bad_out = ANY( .NOT. (bm_to_litter(ipts,c0r_ivm,:,:) .GT. -HUGE(un) .AND. &
-                                       bm_to_litter(ipts,c0r_ivm,:,:) .LT. HUGE(un)) )
-             IF (c0r_bad_out) THEN
-                WRITE(numout,*) '[C0NAN] SORTIE ipts',ipts,' ipft',c0r_ivm, &
-                     ' entree_non_finie',c0r_bad_in,' verdict ', &
-                     MERGE('CREE   ','PROPAGE',.NOT. c0r_bad_in)
-                CALL flush(numout)
-             ENDIF
 
              ! Guillaume M. -- Blend per circumference class. Biomass is PER TREE, so n and
              ! n*b are blended separately: n_mix*b_mix = share*n_old*b_old +
@@ -2513,8 +2489,10 @@ CONTAINS
                                                                               !! @tex $(gC m^{-2})$ @endtex
     REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)     :: MatrixV             !!
     REAL(r_std), DIMENSION(:,:,:), INTENT(inout)       :: VectorU             !!
-    INTEGER(i_std), DIMENSION(:,:), INTENT(inout)      :: age_stand           !! Age of the forest stand (years)
-    REAL(r_std), DIMENSION(:,:), INTENT(inout)         :: age_stand_area      !! AREA-weighted conserved mean stand age (years) - STAND_AGE
+    !! Age of the forest stand (years)
+    INTEGER(i_std), DIMENSION(:,:), INTENT(inout)      :: age_stand
+    !! AREA-weighted conserved mean stand age (years) - STAND_AGE
+    REAL(r_std), DIMENSION(:,:), INTENT(inout)         :: age_stand_area
     INTEGER(i_std), DIMENSION(:,:), INTENT(inout)      :: last_cut            !! Years since last thinning (years)
     REAL(r_std), DIMENSION(:,:), INTENT(inout)         :: cn_leaf_min_season  !! Seasonal min CN ratio of leaves 
     REAL(r_std), DIMENSION(:,:), INTENT(inout)         :: nstress_season      !! N-related seasonal stress (used for allocation) 
@@ -2593,63 +2571,109 @@ CONTAINS
     INTEGER(i_std)                                     :: ivma,ispec,igrn     !! Indeces(unitless)
     INTEGER(i_std)                                     :: old_pft             !! pft number before merge
     INTEGER(i_std)                                     :: new_pft             !! pft number to merge with
-    INTEGER(i_std)                                     :: ph_new_pft          !! PROGRESSIVE_HARVEST: age-class-1 slot receiving the cut area
-    REAL(r_std)                                        :: ph_f                !! PROGRESSIVE_HARVEST: slot area fraction clearcut last year (-)
-    REAL(r_std)                                        :: ac12_frac           !! MATURITY_CONVEYOR: fraction de la classe 1 transferee (-)
+    !! PROGRESSIVE_HARVEST: age-class-1 slot receiving the cut area
+    INTEGER(i_std)                                     :: ph_new_pft
+    !! PROGRESSIVE_HARVEST: slot area fraction clearcut last year (-)
+    REAL(r_std)                                        :: ph_f
+    !! MATURITY_CONVEYOR: fraction de la classe 1 transferee (-)
+    REAL(r_std)                                        :: ac12_frac
     ! Guillaume M. -- MATURITY_CONVEYOR: the "partial transfer?" test used to be replayed six
     ! times on ac12_frac, which was reset to zero in the MIDDLE of the sequence. The last
     ! reads then saw 0 and concluded "whole transfer": veget_max_new went all-or-nothing,
     ! the donor age was erased and keep_source=.FALSE. emptied the soil, litter and bact of
     ! a donor that kept most of its area. The state is now computed ONCE.
-    LOGICAL                                            :: ac12_partial        !! MATURITY_CONVEYOR: transfert partiel en cours (donneur survivant)
-    REAL(r_std)                                        :: ac12_r              !! MATURITY_CONVEYOR: rapport de hauteur h1/h_ref (-)
-    REAL(r_std)                                        :: ac12_dref           !! MATURITY_CONVEYOR: diametre de la classe de reference (m)
-    REAL(r_std)                                        :: ac12_don0           !! AC12_F_REAL: veget_max du donneur AVANT le mouvement (-)
-    REAL(r_std)                                        :: mat_a_grp           !! MATURITY_TRANSFER: total area of the age-class group (-)
-    REAL(r_std)                                        :: mat_r_don           !! MATURITY_TRANSFER: donor filling ratio A/(target*A_grp) (-)
-    REAL(r_std)                                        :: mat_r_rec           !! MATURITY_TRANSFER: receiver filling ratio (-)
-    INTEGER(i_std)                                     :: ipft_grp            !! MATURITY_TRANSFER: loop index over the group slots
-    INTEGER(i_std)                                     :: iagec_rec           !! MATURITY_TRANSFER: age-class rank of the receiver
-    REAL(r_std)                                        :: mat_mov_n           !! MAT_SHIFT: stem factor of the moving stand (1+s)**(1/beta) (-)
-    REAL(r_std)                                        :: mat_mov_b           !! MAT_SHIFT: per-tree mass factor of the moving stand (1+s)**(2+k3) (-)
-    REAL(r_std)                                        :: mat_rem_n           !! MAT_SHIFT: stem factor of the donor, from the stem identity (-)
-    REAL(r_std)                                        :: mat_rem_b           !! MAT_SHIFT: per-tree mass factor of the donor, from the mass identity (-)
-    REAL(r_std)                                        :: ac12_thr            !! MATURITY_CONVEYOR: seuil applique a ac12_r (-)
-    REAL(r_std)                                        :: ac12_v_mov          !! MATURITY_CONVEYOR: aire reellement deplacee (-)
-    REAL(r_std)                                        :: ac12_v_mov_new      !! MATURITY_CONVEYOR: idem sur veget_max_new (-)
-    REAL(r_std)                                        :: ac12_v_rec, ac12_v_rem !! MATURITY_CONVEYOR: aires APRES deplacement, receveur et donneur (-)
-    LOGICAL                                            :: cop_2class          !! COPPICE_2CLASS: ce creneau est conduit en taillis a deux classes
-    INTEGER(i_std)                                     :: ac12_rec            !! COPPICE_2CLASS: indice du creneau receveur d'une montee
-    REAL(r_std)                                        :: ac0_sum             !! INSTRUMENTATION: ecart de fermeture somme sur les classes d'age
+    !! MATURITY_CONVEYOR: transfert partiel en cours (donneur survivant)
+    LOGICAL                                            :: ac12_partial
+    !! MATURITY_CONVEYOR: rapport de hauteur h1/h_ref (-)
+    REAL(r_std)                                        :: ac12_r
+    !! MATURITY_CONVEYOR: diametre de la classe de reference (m)
+    REAL(r_std)                                        :: ac12_dref
+    !! AC12_F_REAL: veget_max du donneur AVANT le mouvement (-)
+    REAL(r_std)                                        :: ac12_don0
+    !! MATURITY_TRANSFER: total area of the age-class group (-)
+    REAL(r_std)                                        :: mat_a_grp
+    !! MATURITY_TRANSFER: donor filling ratio A/(target*A_grp) (-)
+    REAL(r_std)                                        :: mat_r_don
+    !! MATURITY_TRANSFER: receiver filling ratio (-)
+    REAL(r_std)                                        :: mat_r_rec
+    !! MATURITY_TRANSFER: loop index over the group slots
+    INTEGER(i_std)                                     :: ipft_grp
+    !! MATURITY_TRANSFER: age-class rank of the receiver
+    INTEGER(i_std)                                     :: iagec_rec
+    !! MAT_SHIFT: stem factor of the moving stand (1+s)**(1/beta) (-)
+    REAL(r_std)                                        :: mat_mov_n
+    !! MAT_SHIFT: per-tree mass factor of the moving stand (1+s)**(2+k3) (-)
+    REAL(r_std)                                        :: mat_mov_b
+    !! MAT_SHIFT: stem factor of the donor, from the stem identity (-)
+    REAL(r_std)                                        :: mat_rem_n
+    !! MAT_SHIFT: per-tree mass factor of the donor, from the mass identity (-)
+    REAL(r_std)                                        :: mat_rem_b
+    !! MATURITY_CONVEYOR: seuil applique a ac12_r (-)
+    REAL(r_std)                                        :: ac12_thr
+    !! MATURITY_CONVEYOR: aire reellement deplacee (-)
+    REAL(r_std)                                        :: ac12_v_mov
+    !! MATURITY_CONVEYOR: idem sur veget_max_new (-)
+    REAL(r_std)                                        :: ac12_v_mov_new
+    !! MATURITY_CONVEYOR: aires APRES deplacement, receveur et donneur (-)
+    REAL(r_std)                                        :: ac12_v_rec, ac12_v_rem
+    !! COPPICE_2CLASS: ce creneau est conduit en taillis a deux classes
+    LOGICAL                                            :: cop_2class
+    !! COPPICE_2CLASS: indice du creneau receveur d'une montee
+    INTEGER(i_std)                                     :: ac12_rec
+    !! INSTRUMENTATION: ecart de fermeture somme sur les classes d'age
+    REAL(r_std)                                        :: ac0_sum
     ! Guillaume M. -- CLASS 0. The conveyor intercepts the clearcut: instead of handing the
     ! area back to class 1 the same day, it spends N_CLASS0 years on the dominant HERBACEOUS
     ! PFT of the grid cell. The register class0_veg(ipts,group,slot) remembers the crediting
     ! group -- traceability is carried by the register, not by the PFT dimension.
-    INTEGER(i_std)                                     :: c0_g                !! CLASSE 0: PFT herbace receveur de la maille (0 = aucun)
-    INTEGER(i_std)                                     :: c0_k                !! CLASSE 0: indice de balayage
-    REAL(r_std)                                        :: c0_best             !! CLASSE 0: veget_max du candidat herbace dominant
-    LOGICAL                                            :: c0_on               !! CLASSE 0: convoyeur actif ET alloue
-    REAL(r_std)                                        :: c0_due              !! CLASSE 0: aire sortant du convoyeur cette annee (-)
-    REAL(r_std)                                        :: c0_sum              !! CLASSE 0: total du registre, pour la garde de coherence
-    REAL(r_std)                                        :: ph_v_mov            !! PROGRESSIVE_HARVEST: veget_max moved to age class 1 (-)
-    REAL(r_std)                                        :: mae_age             !! MAT_AGE_ENTRY: age of the parcel moved upward (yr)
-    REAL(r_std)                                        :: mae_decay           !! MAT_AGE_ENTRY: leak of the integrator (-)
-    REAL(r_std)                                        :: ph_v_mov_new        !! PROGRESSIVE_HARVEST: same for veget_max_new (-)
-    REAL(r_std)                                        :: ph_v_rec            !! PROGRESSIVE_HARVEST: receiver veget_max AFTER the move (-)
-    REAL(r_std)                                        :: ph_v_rem            !! PROGRESSIVE_HARVEST: donor veget_max AFTER the move (-)
-    INTEGER(i_std)                                     :: ph_nskip            !! PROGRESSIVE_HARVEST: splits refused this call (min_vegfrac invariant)
+    !! CLASSE 0: PFT herbace receveur de la maille (0 = aucun)
+    INTEGER(i_std)                                     :: c0_g
+    !! CLASSE 0: indice de balayage
+    INTEGER(i_std)                                     :: c0_k
+    !! CLASSE 0: veget_max du candidat herbace dominant
+    REAL(r_std)                                        :: c0_best
+    !! CLASSE 0: convoyeur actif ET alloue
+    LOGICAL                                            :: c0_on
+    !! CLASSE 0: aire sortant du convoyeur cette annee (-)
+    REAL(r_std)                                        :: c0_due
+    !! CLASSE 0: total du registre, pour la garde de coherence
+    REAL(r_std)                                        :: c0_sum
+    !! PROGRESSIVE_HARVEST: veget_max moved to age class 1 (-)
+    REAL(r_std)                                        :: ph_v_mov
+    !! MAT_AGE_ENTRY: age of the parcel moved upward (yr)
+    REAL(r_std)                                        :: mae_age
+    !! MAT_AGE_ENTRY: leak of the integrator (-)
+    REAL(r_std)                                        :: mae_decay
+    !! PROGRESSIVE_HARVEST: same for veget_max_new (-)
+    REAL(r_std)                                        :: ph_v_mov_new
+    !! PROGRESSIVE_HARVEST: receiver veget_max AFTER the move (-)
+    REAL(r_std)                                        :: ph_v_rec
+    !! PROGRESSIVE_HARVEST: donor veget_max AFTER the move (-)
+    REAL(r_std)                                        :: ph_v_rem
     REAL(r_std)                                        :: share_rec           !! Share of the veget_max of the existing vegetation
-                                                                              !! within a PFT over the total veget_max following
+                                                                              !! within a PFT over
+                                                                              !! the total veget_max
+                                                                              !! following
                                                                               !! expansion of that PFT (unitless, 0-1)
-    REAL(r_std)                                        :: aw_new, aw_old      !! STAND_AGE : poids d'AIRE du receveur et de la
-                                                                              !! parcelle deplacee, pour le miroir age_stand_area (-)
-    REAL(r_std)                                        :: bm_w_new, bm_w_old  !! STAND_AGE : carbone SUR PIED des deux classes,
-                                                                              !! capture AVANT la fusion ; sert de test de parcelle
-                                                                              !! NUE (bm_w_old) dans le melange de age_stand_area
-                                                                              !! (gC, aire de maille incluse)
+    !! STAND_AGE : poids d'AIRE du receveur et de la
+    REAL(r_std)                                        :: aw_new, aw_old
+                                                                              !! parcelle deplacee,
+                                                                              !! pour le miroir
+                                                                              !! age_stand_area (-)
+    !! STAND_AGE : carbone SUR PIED des deux classes,
+    REAL(r_std)                                        :: bm_w_new, bm_w_old
+                                                                              !! capture AVANT la
+                                                                              !! fusion ; sert de
+                                                                              !! test de parcelle
+                                                                              !! NUE (bm_w_old) dans
+                                                                              !! le melange de
+                                                                              !! age_stand_area
+                                                                              !! (gC, aire de maille
+                                                                              !! incluse)
     REAL(r_std), DIMENSION(ncirc)                      :: circ_class_ba       !! basal area of the model tree in each
                                                                               !! circ class @tex $(m^{2} m^{-2})$ @endtex 
-    REAL(r_std)                                        :: dfac_ac             !! Modulation des bornes de classe par l'intensite de gestion (-)
+    !! Modulation des bornes de classe par l'intensite de gestion (-)
+    REAL(r_std)                                        :: dfac_ac
     REAL(r_std), DIMENSION(npts,nvm)                   :: max_dia             !! Largest diamater within circ_class (m)
     REAL(r_std), DIMENSION(ncirc)                      :: est_circ_class_n    !! Temporary variable for circ_class_n of the 
                                                                               !! established vegetation 
@@ -2685,19 +2709,7 @@ CONTAINS
     REAL(r_std), DIMENSION(npts,nvm)                   :: veget_max_begin     !! Temporairy variable to check area conservation
     REAL(r_std),DIMENSION(npts,nparts,nelements)       :: tree_biomass_loss   !! tree biomass loss @tex ($gC m^{-2}$) @endtex
 
-    ! Guillaume M. -- scaffolding [C0IN]: yearly sum of the area registered into class 0
-    ! (ph_v_mov). Compared with the capped c0_new in stomate_lpj, it says how much booked
-    ! area the cap silently drops. Exit criterion: the gap is explained and closed.
-    REAL(r_std) :: c0in_sum
-    ! Guillaume M. -- scaffolding [C0BACK]: at the EXIT of this routine, compare what class 0
-    ! has booked with what the class-1 slot actually carries, per point and per group. The
-    ! excess is booked area with no backing, i.e. what the feeding cap will drop later.
-    REAL(r_std) :: c0b_book, c0b_carry, c0b_excess
-    INTEGER(i_std) :: c0b_i, c0b_k
-
 !_ ================================================================================================================================
-
-    c0in_sum = zero
 
     ! Guillaume M. -- c0_on is loop-invariant, but it used to be assigned inside the progressive
     ! harvest block, which is conditional. A slot reaching the class-0 reservation without that
@@ -2810,7 +2822,6 @@ CONTAINS
     !  Following growth, the trees from an age class may have become too big to
     !  belong to this age class. The biomass, litter, soilcarbon and soil
     !  water then need to be moved from one age class to the next age class.
-    ph_nskip = 0
     DO ipts = 1,npts
 
        ! The agec_group lets us know which PFTs belong in which age class groups.
@@ -2950,8 +2961,13 @@ CONTAINS
                       ! invariant, and booking area that did not move would silently
                       ! desynchronise the register from the physics. `ivma` is the crediting
                       ! GROUP: it is the one that gets the area back in N_CLASS0 years.
-                      IF (c0_on) class0_veg(ipts,ivma,1) = class0_veg(ipts,ivma,1) + ph_v_mov
-                      IF (c0_on) c0in_sum = c0in_sum + ph_v_mov
+                      ! Guillaume M. (AI gen) -- A coppice resprouts from its stools: no class 0.
+                      IF (c0_on .AND. forest_managed(ipts,ipft) .NE. ifm_cop) THEN
+                         class0_veg(ipts,ivma,1) = class0_veg(ipts,ivma,1) + ph_v_mov
+                         ! Guillaume M. (AI gen) -- Same credit tagged as harvest (diagnostic).
+                         class0_agent(ipts,1,IDX_HARVEST) = &
+                              class0_agent(ipts,1,IDX_HARVEST) + ph_v_mov
+                      ENDIF
                       ph_v_mov_new = ph_f * veget_max_new(ipts,ipft)
                       veget_max_new(ipts,ph_new_pft) = veget_max_new(ipts,ph_new_pft) + ph_v_mov_new
                       veget_max_new(ipts,ipft)       = veget_max_new(ipts,ipft) - ph_v_mov_new
@@ -2978,7 +2994,8 @@ CONTAINS
                           litter_weight_rec, circ_class_biomass, fm_change_map, &
                           wstress_season(ipts,ph_new_pft), wstress_season(ipts,ipft), &
                           wstress_month(ipts,ph_new_pft), wstress_month(ipts,ipft), &
-                          season_drought_legacy(ipts,ph_new_pft,:), season_drought_legacy(ipts,ipft,:), &
+                          season_drought_legacy(ipts,ph_new_pft,:), season_drought_legacy(ipts, &
+                               ipft,:), &
                           nstress_season(ipts,ph_new_pft), nstress_season(ipts,ipft), &
                           n_input(ipts,ph_new_pft,:,:), n_input(ipts,ipft,:,:), &
                           n_input_daily(ipts,ph_new_pft,:), n_input_daily(ipts,ipft,:), & 
@@ -3013,17 +3030,22 @@ CONTAINS
                           ncd_dormance(ipts,ph_new_pft), ncd_dormance(ipts,ipft), & 
                           ngd_minus5(ipts,ph_new_pft), ngd_minus5(ipts,ipft), &
                           mean_start_gs(ipts,ph_new_pft), mean_start_gs(ipts,ipft), &
-                          maxvegstress_lastyear(ipts,ph_new_pft), maxvegstress_lastyear(ipts,ipft), &
-                          maxvegstress_thisyear(ipts,ph_new_pft), maxvegstress_thisyear(ipts,ipft), &
-                          minvegstress_lastyear(ipts,ph_new_pft), minvegstress_lastyear(ipts,ipft), &
-                          minvegstress_thisyear(ipts,ph_new_pft), minvegstress_thisyear(ipts,ipft), &
+                          maxvegstress_lastyear(ipts,ph_new_pft), maxvegstress_lastyear(ipts, &
+                               ipft), &
+                          maxvegstress_thisyear(ipts,ph_new_pft), maxvegstress_thisyear(ipts, &
+                               ipft), &
+                          minvegstress_lastyear(ipts,ph_new_pft), minvegstress_lastyear(ipts, &
+                               ipft), &
+                          minvegstress_thisyear(ipts,ph_new_pft), minvegstress_thisyear(ipts, &
+                               ipft), &
                           maxgppweek_lastyear(ipts,ph_new_pft), maxgppweek_lastyear(ipts,ipft), & 
                           maxgppweek_thisyear(ipts,ph_new_pft), maxgppweek_thisyear(ipts,ipft), &
                           n_reserve_longterm(ipts,ph_new_pft), n_reserve_longterm(ipts,ipft), &
                           n_reserve_balance(ipts,ph_new_pft), n_reserve_balance(ipts,ipft), &
                           maxfpc_lastyear(ipts,ph_new_pft), maxfpc_lastyear(ipts,ipft), &
                           maxfpc_thisyear(ipts,ph_new_pft), maxfpc_thisyear(ipts,ipft), &
-                          turnover_longterm(ipts,ph_new_pft,:,:), turnover_longterm(ipts,ipft,:,:), &
+                          turnover_longterm(ipts,ph_new_pft,:,:), turnover_longterm(ipts,ipft,:, &
+                               :), &
                           dead_leaves(ipts,ph_new_pft,:), dead_leaves(ipts,ipft,:), &
                           grow_season_len(ipts,ph_new_pft), grow_season_len(ipts,ipft), &
                           KF(ipts,ph_new_pft), KF(ipts,ipft), &
@@ -3051,7 +3073,8 @@ CONTAINS
                           k_latosa_adapt(ipts,ph_new_pft), k_latosa_adapt(ipts,ipft), &
                           litter(ipts,:,ph_new_pft,:,:), litter(ipts,:,ipft,:,:), &
                           bm_to_litter(ipts,ph_new_pft,:,:), bm_to_litter(ipts,ipft,:,:), &
-                          tree_bm_to_litter(ipts,ph_new_pft,:,:), tree_bm_to_litter(ipts,ipft,:,:), &
+                          tree_bm_to_litter(ipts,ph_new_pft,:,:), tree_bm_to_litter(ipts,ipft,:, &
+                               :), &
                           leaf_age_crit(ipts,ph_new_pft), leaf_age_crit(ipts,ipft), &
                           leaf_classes(ipts,ph_new_pft), leaf_classes(ipts,ipft), &
                           co2_fire(ipts,ph_new_pft), co2_fire(ipts,ipft), &
@@ -3070,10 +3093,13 @@ CONTAINS
                           forest_managed(ipts,ph_new_pft), forest_managed(ipts,ipft), &
                           plant_status(ipts,ph_new_pft), plant_status(ipts,ipft), &
                           kill_vessels(ipts,ph_new_pft,:), kill_vessels(ipts,ipft,:), &
-                          vessel_loss_previous(ipts,ph_new_pft,:), vessel_loss_previous(ipts,ipft,:), &
-                          biomass_init_drought(ipts,ph_new_pft,:,:,:), biomass_init_drought(ipts,ipft,:,:,:), &
+                          vessel_loss_previous(ipts,ph_new_pft,:), vessel_loss_previous(ipts,ipft, &
+                               :), &
+                          biomass_init_drought(ipts,ph_new_pft,:,:,:), biomass_init_drought(ipts, &
+                               ipft,:,:,:), &
                           count_daylight(ipts,ph_new_pft), count_daylight(ipts,ipft), &
-                          CN_som_litter_longterm(ipts,ph_new_pft,:), CN_som_litter_longterm(ipts,ipft,:), &
+                          CN_som_litter_longterm(ipts,ph_new_pft,:), CN_som_litter_longterm(ipts, &
+                               ipft,:), &
                           matrixV(ipts,ph_new_pft,:,:), matrixV(ipts,ipft,:,:), &
                           matrixA(ipts,ph_new_pft,:,:), matrixA(ipts,ipft,:,:), &
                           vectorU(ipts,ph_new_pft,:), vectorU(ipts,ipft,:), &
@@ -3084,11 +3110,8 @@ CONTAINS
 
                    ELSE
 
-                      ! Guillaume M. -- Split refused: it would have left a fraction strictly
-                      ! between 0 and min_vegfrac, so the cut stays a THINNING. /!\ These
-                      ! refusals are COUNTED: a progressive harvest silently degrading into a
-                      ! thinning would look active while moving no area at all.
-                      IF (ph_v_mov .GT. min_stomate) ph_nskip = ph_nskip + 1
+                      ! Guillaume M. (AI gen) -- Split refused: it would have left a fraction strictly
+                      ! between 0 and min_vegfrac, so the cut stays a THINNING.
 
                    ENDIF
 
@@ -3310,12 +3333,14 @@ CONTAINS
                             ENDDO
                             IF (mat_gain > zero .AND. mat_a_grp > min_stomate) THEN
                                iagec_rec = ac12_rec - start_index(ivma) + 1
-                               ! Guillaume M. -- Same effective setpoints as the harvest-feed
+                               ! Guillaume M. (AI gen) -- Same effective setpoints as the harvest-feed
                                ! coupling (MAT_A3_ENTRY), so donor and receiver stay consistent.
                                mat_r_don = veget_max(ipts,ipft) / &
-                                    MAX(mat_target_frac_eff(ipts, ipft, iagec) * mat_a_grp, min_stomate)
+                                    MAX(mat_target_frac_eff(ipts, ipft, iagec) * mat_a_grp, &
+                                         min_stomate)
                                mat_r_rec = veget_max(ipts,ac12_rec) / &
-                                    MAX(mat_target_frac_eff(ipts, ipft, iagec_rec) * mat_a_grp, min_stomate)
+                                    MAX(mat_target_frac_eff(ipts, ipft, iagec_rec) * mat_a_grp, &
+                                         min_stomate)
                                IF (mat_r_rec < mat_band_low .OR. &
                                     mat_r_rec > mat_band_high) THEN
                                   ! Guillaume M. -- An empty receiver sends the raw ratio to
@@ -3572,7 +3597,8 @@ CONTAINS
                            new_pft, old_pft, forest_managed, bm_to_litter)
                       
                       !! 2.2.4 Empty the age class that was merged and update veget_max
-                      ! Guillaume M. -- /!\ WIPE THE DONOR ONLY ON A WHOLE TRANSFER. On a partial one
+                      ! Guillaume M. -- /!\ WIPE THE DONOR ONLY ON A WHOLE TRANSFER. On a partial
+                      ! one
                       ! it keeps trees with the SAME per-m2 values, which is exactly what conserves
                       ! mass -- only its area shrank. Wiping it would leave area with NO stand.
                       ! merge_biomass_pfts writes on new_pft only, the donor enters as INTENT(in)
@@ -3683,12 +3709,12 @@ CONTAINS
                    ! the caller level so as not to touch the signature of move_pft_properties
                    ! (three callers). Diagnostic only.
                    !
-                   ! Guillaume M. -- Weighted by AREA. A biomass-weighted twin was removed: it
+                   ! Guillaume M. (AI gen) -- Weighted by AREA. A biomass-weighted twin was removed: it
                    ! weighted a young entrant by its biomass, a fraction
                    ! of the resident's, so it hardly rejuvenated and drifted 44 % above the area
                    ! age in a century -- the age of the carbon, not of the ground.
                    !
-                   ! Guillaume M. -- A BARE parcel (no standing carbon, e.g. clearcut area sent
+                   ! Guillaume M. (AI gen) -- A BARE parcel (no standing carbon, e.g. clearcut area sent
                    ! back to class 1) must not carry the age of the stand that was cut: it takes
                    ! the class-0 conveyor residence, n_class0 - 1 years, the time it will have
                    ! sat there when it stands again. bm_w_old is the bare-parcel test.
@@ -3702,7 +3728,7 @@ CONTAINS
                    ELSE
                       age_stand_area(ipts,new_pft) = zero
                    ENDIF
-                   ! Guillaume M. -- MAT_AGE_ENTRY: on an UPWARD move the parcel's age is the age at
+                   ! Guillaume M. (AI gen) -- MAT_AGE_ENTRY: on an UPWARD move the parcel's age is the age at
                    ! which area reaches the bound of the receiving class, a cohort quantity. Leaky
                    ! mean per receiving slot; a bare parcel carries the class-0 residence, as above.
                    ! Downward moves (clearcut area back to class 1) are not entries into maturity.
@@ -3877,14 +3903,6 @@ CONTAINS
 
     ENDDO ! loop over #pixels - domain size
 
-    ! Guillaume M. -- PROGRESSIVE_HARVEST: make the degradation into a thinning visible.
-    ! Without this trace, a harvest refused on most slots (slot areas too small against
-    ! min_vegfrac) would look active while moving no area at all.
-    IF (ok_progressive_harvest .AND. ph_nskip .GT. 0) THEN
-       WRITE(numout,*) '[PROGRESSIVE_HARVEST] decoupages refuses (invariant min_vegfrac), ', &
-            'restes en eclaircie : ', ph_nskip
-    ENDIF
-
 
 !! 3. Check numerical consistency of this routine
 
@@ -4017,37 +4035,9 @@ CONTAINS
 
     IF(printlev.GE.4) WRITE(numout,*) 'Leaving age class distribution'
     
-    WRITE(numout,*) '[C0IN] aire inscrite en classe 0 cette annee :', c0in_sum
-    ! Guillaume M. -- [C0BACK]: is the booked area still carried by class 1 on exit?
-    ! class0_veg exists only when N_CLASS0 > 0: reading it otherwise crashes the run.
-    c0b_book = zero ; c0b_carry = zero ; c0b_excess = zero
-    IF (ALLOCATED(class0_veg)) THEN
-    DO c0b_i = 1,npts
-       DO c0b_k = 1,nvmap
-          IF (.NOT. is_tree(start_index(c0b_k))) CYCLE
-          c0b_book  = c0b_book  + class0_veg(c0b_i,c0b_k,1)
-          c0b_carry = c0b_carry + veget_max(c0b_i,start_index(c0b_k))
-          c0b_excess = c0b_excess + &
-               MAX(zero, class0_veg(c0b_i,c0b_k,1) - veget_max(c0b_i,start_index(c0b_k)))
-       ENDDO
-    ENDDO
-    ENDIF
-    WRITE(numout,*) '[C0BACK] inscrite', c0b_book, ' portee par classe 1', c0b_carry, &
-         ' excedent sans support', c0b_excess
-    CALL flush(numout)
-
-    ! Guillaume M. -- Annual report of the sub-threshold classes routed to litter by
-    ! merge_biomass_pfts, then reset. A silent zero here means the path was NOT taken,
-    ! which is what tells a working fix apart from an untested one.
-    WRITE(numout,*) '[ORPHLIT] classes sous seuil versees en litiere :', orphan_litter_hits, &
-         ' carbone (gC m-2 cumule sur les creneaux) :', orphan_litter_mass
-    CALL flush(numout)
-    orphan_litter_hits = 0
-    orphan_litter_mass = zero
-
     CALL check_area_invariant('exit age_class_distr', npts, veget_max, circ_class_n)
 
-    !! ROTATION_GROWTH — design/MODULE_DESIGN_ROTATION_GROWTH.md
+    !! ROTATION_GROWTH -- design/MODULE_DESIGN_ROTATION_GROWTH.md
     !! Guillaume M. -- Placed HERE, and not in set_management_intensity, for two reasons:
     !! max_dia is a local of this routine, and this block sits under ts_annual_proc while
     !! set_management_intensity runs at the daily cadence. Putting it there would have
@@ -4062,9 +4052,9 @@ CONTAINS
 ! ================================================================================================================================
 !! SUBROUTINE   : update_rotation_growth
 !!
-!>\BRIEF        Rotation that the STAND can deliver, from the ages at which its area entered the classes.
+!>\BRIEF Rotation that the STAND can deliver, from the ages at which its area entered the classes.
 !!
-!! DESCRIPTION  : Guillaume M. -- Annual. The class bounds are diameters; mat_age_entry holds the age
+!! DESCRIPTION : Guillaume M. (AI gen) -- Annual. The class bounds are diameters; mat_age_entry holds the age
 !!                at which area reached each of them, so the last measured leg gives a cohort growth
 !!                g = (D_{n-1} - D_{n-2}) / (a_n - a_{n-1}) and the rotation is the age at the cut
 !!                diameter, R = a_n + (D_cut - D_{n-1}) / g. No diameter velocity is read on a slot:
@@ -4072,7 +4062,8 @@ CONTAINS
 !!                failed because a slot is not a cohort. See design/MODULE_DESIGN_MAT_AGE_ENTRY.md.
 !!
 !! MAIN OUTPUT VARIABLE(S): rotation_growth
-!!_ ================================================================================================================================
+!!_
+!! ================================================================================================================================
 
   SUBROUTINE update_rotation_growth(npts)
 
@@ -4083,14 +4074,20 @@ CONTAINS
 
     !! 0.4 Local variables
     INTEGER(i_std)                                   :: ipts, ivma, iagec, ipft, n, kn, kn1
-    REAL(r_std)                                      :: dfac            !! Cut-diameter modulation of the cell (-)
-    REAL(r_std)                                      :: a_n, a_n1       !! Entry ages of the last two classes (yr)
-    REAL(r_std)                                      :: d_n1, d_n2      !! Diameter bounds entered at those ages (m)
+    !! Cut-diameter modulation of the cell (-)
+    REAL(r_std)                                      :: dfac
+    !! Entry ages of the last two classes (yr)
+    REAL(r_std)                                      :: a_n, a_n1
+    !! Diameter bounds entered at those ages (m)
+    REAL(r_std)                                      :: d_n1, d_n2
     REAL(r_std)                                      :: d_cut           !! Cut diameter (m)
-    REAL(r_std)                                      :: g               !! Cohort diameter growth on the last leg (m/yr)
-    REAL(r_std)                                      :: r_est           !! Growth-derived rotation (yr)
+    !! Cohort diameter growth on the last leg (m/yr)
+    REAL(r_std)                                      :: g
+    !! Growth-derived rotation (yr)
+    REAL(r_std)                                      :: r_est
 
-!_ ================================================================================================================================
+!_
+! ================================================================================================================================
 
     IF (nagec <= 1) RETURN
     IF (.NOT. ALLOCATED(mat_age_entry)) RETURN
@@ -4112,7 +4109,7 @@ CONTAINS
           IF (a_n <= zero) CYCLE                       ! nothing has reached the terminal class yet
           d_n1  = age_class_bound(n-1, kn) * dfac
           d_cut = largest_tree_dia(kn) * dfac * (un - dia_rotation_tol)
-          ! Guillaume M. -- Growth on the last measured leg (entry into class n-1 -> entry into
+          ! Guillaume M. (AI gen) -- Growth on the last measured leg (entry into class n-1 -> entry into
           ! class n). Fallback: mean growth from age 0 when class n-1 has no sample (n = 2 or
           ! not yet fed). Both are cohort quantities: ages of moved area, not slot velocities.
           g = zero
@@ -4190,8 +4187,10 @@ CONTAINS
                                                                               !! @tex $(g C ind^{-1})$ @endtex
     REAL(r_std), DIMENSION(:,:,:), INTENT(inout)     :: circ_class_n          !! circ_class_n of the merged vegetation
                                                                               !! @tex $(ind m^{-2})$ @endtex
-    REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)   :: bm_to_litter          !! Transfer of biomass to litter
-                                                                              !! @tex $(g C m^{-2})$ @endtex
+    !! Transfer of biomass to litter
+    REAL(r_std), DIMENSION(:,:,:,:), INTENT(inout)   :: bm_to_litter
+                                                                              !! @tex $(g C m^{-2})$
+                                                                              !! @endtex
 
     !! 0.4 Local variables
     INTEGER(i_std)                                   :: ipart                 !! Indices (unitless)
@@ -4201,8 +4200,11 @@ CONTAINS
                                                                               !! and newly established vegetation
                                                                               !! @tex $(ind m^{-2})$ @endtex 
     REAL(r_std)                                      :: tempa, tempb          !! Variable to store a temporary value (unit varies)
-    REAL(r_std), DIMENSION(nelements)                :: orphan_to_litter      !! Mass of the sub-threshold classes routed to litter
-                                                                              !! instead of being discarded @tex $(g C m^{-2})$ @endtex
+    !! Mass of the sub-threshold classes routed to litter
+    REAL(r_std), DIMENSION(nelements)                :: orphan_to_litter
+                                                                              !! instead of being
+                                                                              !! discarded @tex $(g
+                                                                              !! C m^{-2})$ @endtex
     REAL(r_std), DIMENSION(nparts,nelements)         :: tempc                 !! Variable to store a temporary value of
                                                                               !! circ_class_biomass  
     REAL(r_std), DIMENSION(2*ncirc)                  :: trees_left            !! Number of trees left in a circumference class when
@@ -4214,13 +4216,21 @@ CONTAINS
     REAL(r_std), DIMENSION(2*ncirc)                  :: temp_circ_class_n     !! Temporary variable for circ_class_n of the expanded
                                                                               !! PFT for sorting the availble and newly established
                                                                               !! circumference classes @tex $(ind m^{-2})$ @endtex
-    REAL(r_std), DIMENSION(2*ncirc)                  :: grp_n                 !! MATURITY_TRANSFER: stems per merge group (ind m-2)
-    REAL(r_std), DIMENSION(2*ncirc)                  :: grp_nd2               !! MATURITY_TRANSFER: sum of n*dia^2 per merge group
-                                                                              !! (ind m-2 m2), carries the group quadratic diameter
-    INTEGER(i_std)                                   :: nact                  !! MATURITY_TRANSFER: number of active merge groups
-    INTEGER(i_std)                                   :: kmin                  !! MATURITY_TRANSFER: index of the closest pair
-    REAL(r_std)                                      :: dmin, dist_qmd        !! MATURITY_TRANSFER: relative QMD gaps (unitless)
-    REAL(r_std)                                      :: qmd_a, qmd_b          !! MATURITY_TRANSFER: group quadratic diameters (m)
+    !! MATURITY_TRANSFER: stems per merge group (ind m-2)
+    REAL(r_std), DIMENSION(2*ncirc)                  :: grp_n
+    !! MATURITY_TRANSFER: sum of n*dia^2 per merge group
+    REAL(r_std), DIMENSION(2*ncirc)                  :: grp_nd2
+                                                                              !! (ind m-2 m2),
+                                                                              !! carries the group
+                                                                              !! quadratic diameter
+    !! MATURITY_TRANSFER: number of active merge groups
+    INTEGER(i_std)                                   :: nact
+    !! MATURITY_TRANSFER: index of the closest pair
+    INTEGER(i_std)                                   :: kmin
+    !! MATURITY_TRANSFER: relative QMD gaps (unitless)
+    REAL(r_std)                                      :: dmin, dist_qmd
+    !! MATURITY_TRANSFER: group quadratic diameters (m)
+    REAL(r_std)                                      :: qmd_a, qmd_b
     REAL(r_std), DIMENSION(2*ncirc,nparts,nelements) :: temp_circ_class_biomass !! Temporary variable for sorting circ_class_biomass
                                                                                 !! @tex $(g C ind^{-1})$ @endtex
     REAL(r_std), DIMENSION(nelements)                :: total_biomass_begin     !! total biomass at the beginning of the merge (gC or gN m-2)
@@ -4230,7 +4240,8 @@ CONTAINS
     REAL(r_std), DIMENSION(ncirc)                    :: est_ba                  !! temporary variable to calculate ba of established vegetation
     REAL(r_std), DIMENSION(ncirc)                    :: tmp_ba                  !! temporary variable to calculate ba of new vegetation
     REAL(r_std)                                      :: total_ba                !! Basal area of the merged stand
-    REAL(r_std)                                      :: total_n                 !! Stem number of the merged stand
+    !! Stem number of the merged stand
+    REAL(r_std)                                      :: total_n
     REAL(r_std)                                      :: qmd                     !! qmd of the merged stand
     REAL(r_std), DIMENSION(ncirc)                    :: est_circ_class_dia      !! Variable to store temporary values for circ_class (m)
     REAL(r_std), DIMENSION(ncirc)                    :: tmp_circ_class_dia      !! Variable to store temporary values for circ_class (m)
@@ -4577,13 +4588,11 @@ CONTAINS
                   circ_class_biomass(ipts,new_pft,icir,:,:)
              orphan_to_litter(:) = orphan_to_litter(:) + &
                   SUM(circ_class_biomass(ipts,new_pft,icir,:,:),1)
-             orphan_litter_hits = orphan_litter_hits + 1
              circ_class_biomass(ipts,new_pft,icir,:,:) = zero
           ENDIF
           circ_class_n(ipts,new_pft,icir) = exp_circ_class_n(icir)
 
        ENDDO
-       orphan_litter_mass = orphan_litter_mass + orphan_to_litter(icarbon)
 !!$    END IF
 !!$    !+++++++++++
 
@@ -6240,7 +6249,8 @@ CONTAINS
     ! A partial move needs the opposite on the source side: the source keeps its INTENSIVE
     ! values (per m2) while its area shrinks. keep_source=.TRUE. skips every source reset;
     ! absent or .FALSE. reproduces the historical behaviour, hence bit-neutral.
-    LOGICAL, OPTIONAL, INTENT(in)                      :: keep_source           !! .TRUE. = partial move, leave the source untouched
+    !! .TRUE. = partial move, leave the source untouched
+    LOGICAL, OPTIONAL, INTENT(in)                      :: keep_source
     INTEGER(i_std), INTENT(in)                         :: ipts                  !! pixel number
     INTEGER(i_std), INTENT(in)                         :: imov                  !! PFT number of the PFT that is moved to another PFT
     INTEGER(i_std), INTENT(in)                         :: irec                  !! PFT number of the PFT were biomass will be added
@@ -6472,7 +6482,8 @@ CONTAINS
 
     !! Local variables
     INTEGER(i_std)                                     :: ilev                     !! Indices
-    LOGICAL                                            :: wipe_src                 !! PROGRESSIVE_HARVEST: reset the source after the move?
+    !! PROGRESSIVE_HARVEST: reset the source after the move?
+    LOGICAL                                            :: wipe_src
 
 !================================================================================================================================
 

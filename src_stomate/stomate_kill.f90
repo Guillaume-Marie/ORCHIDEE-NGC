@@ -260,10 +260,7 @@ CONTAINS
           ! (days. Note that 15 is externalized as ndying_year) in order 
           ! to distribute the wood litter over multiple years. During this 
           ! state, trees recruitment is disabled.  
-          ! Guillaume M. -- Slow death of understocked stands, on a DEDICATED flag, distinct
-          ! from ok_min_density_reset: this block is not a reset but a progressive mortality
-          ! sink (circ_class_n -= ndying, below). Keeping the two flags separate is what makes
-          ! the class-1 RDI response attributable to this sink rather than to establishment.
+          ! Guillaume M. (AI gen) -- Trunk block, kept under OK_SLOW_DEATH_DENSITY (off in the D5.2 chain).
           IF(ok_slow_death_density .AND. &
              SUM(circ_class_n(ipts,ivm,:)) .LT. temp_dens_target*ha_to_m2) THEN
 
@@ -459,7 +456,8 @@ CONTAINS
                       ! Save woody litter by icut. This will be used in pest
                       ! module
                       ! (stomate_pest) for one of the susceptibility indice.
-                      ! Guillaume M. -- Bark beetles breed in stems, not in branches, so only the stem
+                      ! Guillaume M. (AI gen) -- Bark beetles breed in stems, not in branches, so only the
+                      ! stem
                       ! share of the killed wood counts as breeding material.
                       IF (icut .NE. icut_fire) THEN
                         woody_litter_by_cut(ipts,ivm,icut) = &
@@ -1222,12 +1220,18 @@ CONTAINS
     REAL(r_std), DIMENSION(npts,nvm)                   :: new_ind              !! Number of recruits grown (trees m-2 day-2). Not used in sapiens_lcchange.
                                                                                !! Added to avoid using OPTINAL arguments. 
     REAL(r_std)                                        :: qm_dia               !! Quadratic Diameter (m)
-    REAL(r_std)                                        :: ccn_before           !! Stand stem count before the daily
-                                                                               !! redistribution (ind m-2)
-    REAL(r_std)                                        :: ccn_after            !! Stand stem count after (ind m-2)
-    REAL(r_std)                                        :: cbm_before           !! Stand carbon before the daily
-                                                                               !! redistribution (gC m-2)
-    REAL(r_std)                                        :: cbm_after            !! Stand carbon after (gC m-2)
+    !! Stand stem count before the daily
+    REAL(r_std)                                        :: ccn_before
+                                                                               !! redistribution
+                                                                               !! (ind m-2)
+    !! Stand stem count after (ind m-2)
+    REAL(r_std)                                        :: ccn_after
+    !! Stand carbon before the daily
+    REAL(r_std)                                        :: cbm_before
+                                                                               !! redistribution (gC
+                                                                               !! m-2)
+    !! Stand carbon after (gC m-2)
+    REAL(r_std)                                        :: cbm_after
     REAL(r_std),DIMENSION(ncirc)                       :: exp_circ_class_n     !! temporary variable for expected circ class n
                                                                                !! @tex $(ind m^{-2}) @endtex
     LOGICAL                                            :: write_debug          !! Flag to write debug statements in prescribe
@@ -2353,8 +2357,10 @@ CONTAINS
                                                                             !! account (unitless, 0-1)
     REAL(r_std), DIMENSION(npts,nvm), INTENT(out)   :: veget_max_disturb    !! New cover fraction of a PFT after stand-replacing
                                                                             !! disturbances (unitless, 0-1)
-    REAL(r_std), DIMENSION(npts,nvm), INTENT(out)   :: wind_share_disturb   !! Storm share of the stand-replacing damage,
-                                                                            !! 1 where there is none (unitless, 0-1)
+    !! Storm share of the stand-replacing damage,
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(out)   :: wind_share_disturb
+                                                                            !! 1 where there is none
+                                                                            !! (unitless, 0-1)
 
     !! 0.3 Modified variables
     REAL(r_std), DIMENSION(:,:,:,:,:), INTENT(inout):: circ_class_kill      !! Number of trees within a circ that needs
@@ -2445,7 +2451,7 @@ CONTAINS
                  damage_rate_beetle .GE. replace_threshold_beetle .OR. &
                  damage_rate_fire .GE. replace_threshold_fire) THEN
                total_damage_disturb(ipts,ivm) = MIN(damage_rate_wind + damage_rate_beetle + damage_rate_fire, un)
-               ! Guillaume M. -- Storm share of the replaced stand: only windfall is bark beetle
+               ! Guillaume M. (AI gen) -- Storm share of the replaced stand: only windfall is bark beetle
                ! breeding material on the land cover change path.
                wind_share_disturb(ipts,ivm) = damage_rate_wind / &
                     MAX(damage_rate_wind + damage_rate_beetle + damage_rate_fire, min_stomate)
@@ -2458,6 +2464,12 @@ CONTAINS
                IF (ok_disturb_via_class0 .AND. n_class0 > 0 .AND. ALLOCATED(class0_veg)) THEN
                   class0_veg(ipts,agec_group(ivm),1) = class0_veg(ipts,agec_group(ivm),1) + &
                        total_damage_disturb(ipts,ivm) * veget_max(ipts,ivm)
+                  ! Guillaume M. (AI gen) -- Same credit split by agent pro rata of the rates
+                  ! (IDX_FIRE, IDX_STORM, IDX_PEST are 1, 2, 3).
+                  class0_agent(ipts,1,IDX_FIRE:IDX_PEST) = class0_agent(ipts,1,IDX_FIRE:IDX_PEST) &
+                       + (/ damage_rate_fire, damage_rate_wind, damage_rate_beetle /) &
+                       * total_damage_disturb(ipts,ivm) * veget_max(ipts,ivm) &
+                       / MAX(damage_rate_wind + damage_rate_beetle + damage_rate_fire, min_stomate)
                ENDIF
            ENDIF
 

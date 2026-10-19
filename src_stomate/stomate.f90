@@ -213,14 +213,16 @@ MODULE stomate
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:)       :: max_wind_speed_storm!! Daily maximum wind speed at 2 meter during a storm event (ms-1)
 !$OMP THREADPRIVATE(max_wind_speed_storm)
 ! Guillaume M. -- Companion of max_wind_speed_storm: storm state, kept in the restart file.
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:)       :: max_wind_ratio_storm!! Daily maximum wind ratio during a storm event
+  !! Daily maximum wind ratio during a storm event
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:)       :: max_wind_ratio_storm
 !$OMP THREADPRIVATE(max_wind_ratio_storm)
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)     :: wind_ratio_sum_save !! Saved values of wind_ratio_sum for wind_days
 !$OMP THREADPRIVATE(wind_ratio_sum_save)
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)     :: wind_speed_max_save !! Saved values of wind_max_daily for wind_days
 !$OMP THREADPRIVATE(wind_speed_max_save)
 ! Guillaume M. -- Companion of wind_ratio_sum_save: rolling buffer, kept in the restart file.
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)     :: wind_ratio_max_save !! Saved values of wind_ratio_max for wind_days
+  !! Saved values of wind_ratio_max for wind_days
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)     :: wind_ratio_max_save
 !$OMP THREADPRIVATE(wind_ratio_max_save)
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)     :: wind_mean_save !! Saved values of annual wind average for legacy years
 !$OMP THREADPRIVATE(wind_mean_save)
@@ -231,8 +233,10 @@ MODULE stomate
 
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:)       :: wind_max            !! Temporary daily maximum speed used to calculate wind_max_daily (ms-1)
 !$OMP THREADPRIVATE(wind_max)
-! Guillaume M. -- Transient daily accumulator, companion of wind_max, buffered into wind_ratio_max_save.
-  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:)       :: wind_ratio_max      !! Temporary daily maximum wind ratio used to calculate wind_ratio_max_save
+! Guillaume M. -- Transient daily accumulator, companion of wind_max, buffered into
+! wind_ratio_max_save.
+  !! Temporary daily maximum wind ratio used to calculate wind_ratio_max_save
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:)       :: wind_ratio_max
 !$OMP THREADPRIVATE(wind_ratio_max)
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:)       :: soil_temp_daily     !! Daily maximum soil temperature at 0.8 meter below ground(K)
 !$OMP THREADPRIVATE(soil_temp_daily)
@@ -749,7 +753,10 @@ MODULE stomate
 
   INTEGER(i_std), ALLOCATABLE, SAVE, DIMENSION(:,:)  :: age_stand        !! Age of stand (years)
 !$OMP THREADPRIVATE(age_stand)
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:)     :: age_stand_area   !! AREA-weighted mean stand age, conserved through the diameter age-class conveyor (years) - STAND_AGE, Marie 2026. The biomass-weighted twin was removed: it measured the age of the carbon, not of the ground.
+  !! AREA-weighted mean stand age, conserved through the diameter age-class conveyor (years) -
+  !! STAND_AGE, Marie 2026. The biomass-weighted twin was removed: it measured the age of the
+  !! carbon, not of the ground.
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:)     :: age_stand_area
 !$OMP THREADPRIVATE(age_stand_area)
   
   INTEGER(i_std), ALLOCATABLE, SAVE, DIMENSION(:,:)  :: rotation_n       !! Rotation number (number of rotation since pft is managed)
@@ -821,8 +828,11 @@ REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:,:)    :: i_beetles_generation     
 REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:)      :: P_beetles_attacked_legacy !! use to trigger the 
                                                                                  !! epidemic flag (unitless)
 !$OMP THREADPRIVATE(P_beetles_attacked_legacy)
-REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:)      :: host_wood_ref             !! Running mean of the attackable host wood 
-                                                                                 !! of the species group (gC m-2 of grid cell)
+!! Running mean of the attackable host wood 
+REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:)      :: host_wood_ref
+                                                                                 !! of the species
+                                                                                 !! group (gC m-2 of
+                                                                                 !! grid cell)
 !$OMP THREADPRIVATE(host_wood_ref)
 REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:,:)    :: B_beetles_kill_legacy      !! Stored beetle damage use 
                                                                                  !!in the estimation of the 
@@ -1081,8 +1091,10 @@ SUBROUTINE stomate_initialize &
     CHARACTER(LEN=200)                            :: temp_str 
     CHARACTER(LEN=255)                            :: filename
     CHARACTER(LEN=255)                            :: field_name
-    INTEGER(i_std)                                :: imi                  !! indice de classe d'intensite de gestion (1..nmiclass)
-     INTEGER(i_std)                                :: iage_st              !! Indice de classe d'age d'un creneau PFT (init STAND_AGE derive)
+    !! indice de classe d'intensite de gestion (1..nmiclass)
+    INTEGER(i_std)                                :: imi
+     !! Indice de classe d'age d'un creneau PFT (init STAND_AGE derive)
+     INTEGER(i_std)                                :: iage_st
  !================================================================================================================================
     
     !! 1. Initialize variable
@@ -1247,7 +1259,7 @@ SUBROUTINE stomate_initialize &
          ! Guillaume M. -- Seed from the observation ONLY off the v2 path. Under REGROWTH_V2
          ! the edge is fully recomputed each year from A_open and is seeded further down from
          ! the simulated structure: the EFDA observation stays the verification target only.
-         ! Guillaume M. -- Under EDGE_SCENARIO=off the edge must stay zero: this seed would
+         ! Guillaume M. (AI gen) -- Under EDGE_SCENARIO=off the edge must stay zero: this seed would
          ! otherwise re-import the observed edge every year and defeat the scenario.
          IF (ALLOCATED(edge_length_dyn) .AND. .NOT. ok_edge_from_age_class &
               .AND. edge_scenario /= edge_scen_off) THEN
@@ -1278,14 +1290,29 @@ SUBROUTINE stomate_initialize &
        ENDIF
     ENDIF
 
-    ! Guillaume M. -- Regional reference rotation (design/MODULE_DESIGN_ROTATION_REGION.md):
+    ! Guillaume M. (AI gen) -- Regional reference rotation (design/MODULE_DESIGN_ROTATION_REGION.md):
     ! static map, read ONCE here, before the first set_management_intensity below, which
     ! substitutes it to ROTATION_REF(pft) where it carries a value. NONE = never allocated.
     IF (ok_management_intensity .AND. TRIM(rotation_ref_file) /= 'NONE') THEN
        CALL rotation_ref_from_file(kjpindex, lalo, neighbours, resolution, contfrac)
     ENDIF
 
-    ! Guillaume M. -- MACRO edge term (design/MODULE_DESIGN_FRAGMENTATION_3TERMES.md 3.3):
+    ! Guillaume M. (AI gen) -- Yearly clear-cut demand multiplier (MODULE_DESIGN_HARVEST_DEMAND).
+    ! 1 without file; m <= 0 can only be a cell the file does not cover (the reader returns 0).
+    IF (.NOT. ALLOCATED(harvest_demand_mult)) ALLOCATE(harvest_demand_mult(kjpindex))
+    harvest_demand_mult(:) = un
+    IF (TRIM(harvest_demand_file) /= 'NONE') THEN
+       filename = harvest_demand_file
+       CALL spitfire_annual_input(kjpindex, lalo, neighbours, resolution, contfrac, &
+            harvest_demand_mult, filename, 'harvest_demand_mult')
+       IF (ANY(harvest_demand_mult(:) <= zero)) CALL ipslerr_p(3, 'stomate_initialize', &
+            'HARVEST_DEMAND_FILE: multiplier <= 0 (cell not covered)', &
+            TRIM(harvest_demand_file), '')
+       WRITE(numout,*) 'HARVEST_DEMAND_FILE min/max: ', &
+            MINVAL(harvest_demand_mult), MAXVAL(harvest_demand_mult)
+    ENDIF
+
+    ! Guillaume M. (AI gen) -- MACRO edge term (design/MODULE_DESIGN_FRAGMENTATION_3TERMES.md 3.3):
     ! road length per grid cell, read ONCE since the map is static. Two fields are available:
     ! road_length_forest, already restricted to forest and finer than the model fraction but
     ! frozen; road_length_total, raw, to which the model applies its own forest fraction,
@@ -1300,7 +1327,7 @@ SUBROUTINE stomate_initialize &
           ENDIF
           CALL spitfire_annual_input(kjpindex, lalo, neighbours, resolution, &
                contfrac, road_length_map(:), filename, field_name)
-          ! Guillaume M. -- A length cannot be negative; the interpolation can be.
+          ! Guillaume M. (AI gen) -- A length cannot be negative; the interpolation can be.
           road_length_map(:) = MAX(zero, road_length_map(:))
           IF (printlev >= 2) THEN
              WRITE(numout,*) 'AED macro : ', TRIM(field_name), ' lue depuis ', TRIM(filename)
@@ -1312,7 +1339,7 @@ SUBROUTINE stomate_initialize &
        ENDIF
     ENDIF
 
-    ! Guillaume M. -- FRAG_3TERMS permanent: lakes, coastline and rivers. The map already
+    ! Guillaume M. (AI gen) -- FRAG_3TERMS permanent: lakes, coastline and rivers. The map already
     ! carries its geometric factors (a river's two banks) and is already restricted to forest,
     ! so it is added AS IS in calculate_aed -- no factor 2, no forest weighting.
     IF (TRIM(edge_hydro_file) /= 'NONE') THEN
@@ -1321,7 +1348,7 @@ SUBROUTINE stomate_initialize &
           field_name = 'edge_hydro'
           CALL spitfire_annual_input(kjpindex, lalo, neighbours, resolution, &
                contfrac, edge_hydro_map(:), filename, field_name)
-          ! Guillaume M. -- A length cannot be negative; the interpolation can be.
+          ! Guillaume M. (AI gen) -- A length cannot be negative; the interpolation can be.
           edge_hydro_map(:) = MAX(zero, edge_hydro_map(:))
           IF (printlev >= 2) THEN
              WRITE(numout,*) 'AED permanent : ', TRIM(field_name), ' lue depuis ', TRIM(filename)
@@ -1390,7 +1417,8 @@ SUBROUTINE stomate_initialize &
          wood_leftover_legacy, i_beetles_activity_legacy, season_drought_legacy,&
          P_beetles_attacked_legacy, host_wood_ref, beetle_diapause, sumTeff, woody_litter_to_use, &
          i_beetles_generation, B_beetles_kill_legacy, &
-         max_wind_speed_storm, max_wind_ratio_storm, wind_ratio_max_save, & ! JJ 2026: added companions
+         ! JJ 2026: added companions
+         max_wind_speed_storm, max_wind_ratio_storm, wind_ratio_max_save, &
          wind_ratio_sum_save, wind_speed_max_save, wind_mean_save, wind_sum, &
          is_storm, count_storm, biomass_init_drought, kill_vessels, &
          ni_acc, litterfuel, &
@@ -1398,7 +1426,7 @@ SUBROUTINE stomate_initialize &
          mean_start_gs, total_ba_init, &
          carbon_acro, carbon_cato, height_acro, deepSOM_peat)
 
-    ! Guillaume M. -- Cold-start stand age is derived, not prescribed: age_stand_area(c) =
+    ! Guillaume M. (AI gen) -- Cold-start stand age is derived, not prescribed: age_stand_area(c) =
     ! age_class_age_frac(c) * target rotation, so one maturity scale governs area, diameter,
     ! RDI and age together. set_management_intensity is called here because
     ! target_rotation_age is filled only later in stomate_main; the call is idempotent.
@@ -1956,8 +1984,10 @@ SUBROUTINE stomate_initialize &
                                                                                    !! values u and v as given in the driver (ms-1)
     REAL(r_std), DIMENSION(kjpindex,wind_days)    :: tmp_wind                      !! Temporal variable to move window for wind_ratio_sum/max_save
     REAL(r_std), DIMENSION(kjpindex,legacy_years_wind) :: tmp_wind_yr              !! Temporal variable to move window for wind_mean
-    INTEGER(i_std)                                :: ipk, jpk                      !! Loop indices, daily peak ranking (OK_STORM_PEAK_TRIGGER)
-    REAL(r_std)                                   :: vpk, tpk                      !! Peak being inserted / swapped (m s-1)
+    !! Loop indices, daily peak ranking (OK_STORM_PEAK_TRIGGER)
+    INTEGER(i_std)                                :: ipk, jpk
+    !! Peak being inserted / swapped (m s-1)
+    REAL(r_std)                                   :: vpk, tpk
     REAL(r_std), DIMENSION(kjpindex)              :: u_raw, v_raw                  !! Retrieved wind speed before transformation (ms-1)
     REAL(r_std), DIMENSION(ngrnd)                 :: zi_soil                       !! depths of intermediate soil levels (m)
     REAL(r_std), DIMENSION(0:ngrnd)               :: zf_soil                       !! depths of full soil levels (m)
@@ -2464,14 +2494,15 @@ SUBROUTINE stomate_initialize &
     ENDIF ! (ok_hydrol_arch)
 
     IF (do_slow) THEN
-      ! Guillaume M. -- Ips enters reproductive diapause when days get SHORTER than the threshold
+      ! Guillaume M. (AI gen) -- Ips enters reproductive diapause when days get SHORTER than the threshold
       ! after the June solstice; tested on the whole day, before the count is reset. Northern
       ! hemisphere only (range of Ips typographus); reset with sumTeff at the end of the year.
       IF (julian_diff .GT. 172._r_std) THEN
         DO ipts = 1,kjpindex
           IF (lalo(ipts,1) .GE. zero) THEN
             DO ivm = 2,nvm
-              IF (daylight(ipts,ivm)*0.5 .LT. diapause_thres_daylength(ivm)) beetle_diapause(ipts,ivm) = 1
+              IF (daylight(ipts,ivm)*0.5 .LT. diapause_thres_daylength(ivm)) beetle_diapause(ipts, &
+                   ivm) = 1
             ENDDO
           ENDIF
         ENDDO
@@ -2630,8 +2661,10 @@ SUBROUTINE stomate_initialize &
        ! lasts several days, to calculate damage once, the module calculate
        ! start and the end of the storm. Maximum wind speed over that period
        ! will be used for damage calculation. 
-       ! Guillaume M. -- OK_STORM_GUST: the day's maximum gust of STORM_GUST_FILE replaces the forcing wind in the
-       ! storm module (buffer, peak reference, damage); julian_diff counts the day ending now (1 = 1 January).
+       ! Guillaume M. (AI gen) -- OK_STORM_GUST: the day's maximum gust of STORM_GUST_FILE replaces the
+       ! forcing wind in the
+       ! storm module (buffer, peak reference, damage); julian_diff counts the day ending now (1 = 1
+       ! January).
        IF (ok_storm_gust) THEN
           CALL storm_gust_read(kjpindex, lalo, year_start, NINT(julian_diff))
           wind_max(:) = gust_daily(:)
@@ -2659,7 +2692,7 @@ SUBROUTINE stomate_initialize &
           WRITE(numout,*) 'save_max', wind_speed_max_save(test_grid,:)
        ENDIF
 
-       ! Guillaume M. -- OK_STORM_PEAK_TRIGGER: rank today's raw peak among the largest of the year,
+       ! Guillaume M. (AI gen) -- OK_STORM_PEAK_TRIGGER: rank today's raw peak among the largest of the year,
        ! before the yearly push below so that the last day of the year counts for its own year.
        IF (ok_storm_peak_trigger) THEN
           DO ipk = 1, kjpindex
@@ -2686,7 +2719,7 @@ SUBROUTINE stomate_initialize &
           tmp_wind_yr(:,1) = wind_sum(:)/(one_year * one_day /dt_sechiba)
           wind_mean_save = tmp_wind_yr
           wind_sum(:) = zero
-          ! Guillaume M. -- OK_STORM_PEAK_TRIGGER: push this year's n-th largest daily peak.
+          ! Guillaume M. (AI gen) -- OK_STORM_PEAK_TRIGGER: push this year's n-th largest daily peak.
           IF (ok_storm_peak_trigger) THEN
              DO iyr = legacy_years_wind, 2, -1
                 peak_ref_save(:,iyr) = peak_ref_save(:,iyr-1)
@@ -2696,12 +2729,14 @@ SUBROUTINE stomate_initialize &
           ENDIF
        ENDIF ! ts_annual_proc
 
-       ! Guillaume M. -- OK_STORM_PEAK_TRIGGER: reference = mean over the available years (0 = none).
+       ! Guillaume M. (AI gen) -- OK_STORM_PEAK_TRIGGER: reference = mean over the available years (0 =
+       ! none).
        IF (ok_storm_peak_trigger) THEN
           DO ipk = 1, kjpindex
              jpk = COUNT(peak_ref_save(ipk,:) > zero)
              IF (jpk > 0) THEN
-                peak_ref(ipk) = SUM(peak_ref_save(ipk,:), MASK=peak_ref_save(ipk,:) > zero) / REAL(jpk, r_std)
+                peak_ref(ipk) = SUM(peak_ref_save(ipk,:), MASK=peak_ref_save(ipk,:) > zero) &
+                     / REAL(jpk, r_std)
              ELSE
                 peak_ref(ipk) = zero
              ENDIF
@@ -3490,7 +3525,8 @@ SUBROUTINE stomate_initialize &
             &             wstress_month, wstress_season, &
             &             light_tran_to_floor_season, p_O2, bact, &
             &             CN_som_litter_longterm, &
-            &             max_wind_speed_storm, max_wind_ratio_storm, count_storm, is_storm, & ! JJ 2026: threaded companions, removed wind_max_daily & wind_longterm
+            ! JJ 2026: threaded companions, removed wind_max_daily & wind_longterm
+            &             max_wind_speed_storm, max_wind_ratio_storm, count_storm, is_storm, &
             &             wind_ratio_max_save, wind_ratio_sum_save, wind_speed_max_save, &
             &             soil_temp_daily, gap_area_save, &
             &             woodharvestpft, &
@@ -4279,7 +4315,8 @@ SUBROUTINE stomate_initialize &
          wood_leftover_legacy, i_beetles_activity_legacy, season_drought_legacy,&
          P_beetles_attacked_legacy, host_wood_ref, beetle_diapause, sumTeff, woody_litter_to_use, &
          i_beetles_generation, B_beetles_kill_legacy, &
-         max_wind_speed_storm, max_wind_ratio_storm, wind_ratio_max_save, & ! JJ 2026: added companions
+         ! JJ 2026: added companions
+         max_wind_speed_storm, max_wind_ratio_storm, wind_ratio_max_save, &
          wind_ratio_sum_save, wind_speed_max_save, wind_mean_save, wind_sum, &
          is_storm, count_storm, biomass_init_drought, kill_vessels, &
          ni_acc, litterfuel, &
@@ -6036,17 +6073,19 @@ SUBROUTINE stomate_initialize &
     ALLOCATE(age_stand(kjpindex,nvm),stat=ier)
     l_error = l_error .OR. (ier /= 0)
     IF (l_error) THEN
-       WRITE(numout,*) 'Memory allocation error for age_stand. We stop. We need kjpindex*nvm words',  &
+       WRITE(numout, &
+            *) 'Memory allocation error for age_stand. We stop. We need kjpindex*nvm words',  &
        &     kjpindex, nvm
        CALL ipslerr_p (3,'stomate_init', 'Memory allocation issue','','')
     ENDIF
 
-    ! Guillaume M. -- Conserved area-weighted stand age. Always allocated (cheap) so that
+    ! Guillaume M. (AI gen) -- Conserved area-weighted stand age. Always allocated (cheap) so that
     ! restart and deallocation stay unconditional; the diagnostic is always computed.
     ALLOCATE(age_stand_area(kjpindex,nvm),stat=ier)
     l_error = l_error .OR. (ier /= 0)
     IF (l_error) THEN
-       WRITE(numout,*) 'Memory allocation error for age_stand_area. We stop. We need kjpindex*nvm words',  &
+       WRITE(numout, &
+            *) 'Memory allocation error for age_stand_area. We stop. We need kjpindex*nvm words',  &
        &     kjpindex, nvm
        CALL ipslerr_p (3,'stomate_init', 'Memory allocation issue','','')
     ENDIF
@@ -6286,7 +6325,7 @@ SUBROUTINE stomate_initialize &
     ! edge_length_ref are populated from edge_length(:) on the first Edge_length.nc read.
     ALLOCATE(edge_length_dyn(kjpindex), stat=ier)
     l_error = l_error .OR. (ier /= 0)
-    ! Guillaume M. -- OK_STORM_PEAK_TRIGGER: peak ranking, yearly buffer and reference (0 = empty).
+    ! Guillaume M. (AI gen) -- OK_STORM_PEAK_TRIGGER: peak ranking, yearly buffer and reference (0 = empty).
     IF (ok_storm_peak_trigger) THEN
        ALLOCATE(peak_top(kjpindex,wind_peak_ref_ntop), peak_ref_save(kjpindex,legacy_years_wind), &
             peak_ref(kjpindex), stat=ier)
@@ -6295,20 +6334,23 @@ SUBROUTINE stomate_initialize &
           peak_top(:,:) = zero; peak_ref_save(:,:) = zero; peak_ref(:) = zero
        ENDIF
     ENDIF
-    ! Guillaume M. -- OK_STORM_GUST: today's gust, hours above levels, their climatology and the episode doses.
+    ! Guillaume M. (AI gen) -- OK_STORM_GUST: today's gust, hours above levels, their climatology and the
+    ! episode doses.
     IF (ok_storm_gust) THEN
        ALLOCATE(gust_levels(ngust_lev), gust_daily(kjpindex), gust_hours(kjpindex,ngust_lev), &
             gust_hours_clim(kjpindex,ngust_lev), storm_gust_dose_closer(kjpindex,nvm), &
             storm_gust_dose_further(kjpindex,nvm), stat=ier)
        l_error = l_error .OR. (ier /= 0)
        IF (ier == 0) THEN
-          gust_levels(:) = zero; gust_daily(:) = zero; gust_hours(:,:) = zero; gust_hours_clim(:,:) = zero
+          gust_levels(:) = zero; gust_daily(:) = zero; gust_hours(:,:) = zero; gust_hours_clim(:, &
+               :) = zero
           storm_gust_dose_closer(:,:) = zero; storm_gust_dose_further(:,:) = zero
        ENDIF
     ENDIF
-    ! Guillaume M. -- OK_BEETLE_ACUTE_DROUGHT: yearly moisture low (1 = no low yet) and its buffer.
+    ! Guillaume M. (AI gen) -- OK_BEETLE_ACUTE_DROUGHT: yearly moisture low (1 = no low yet) and its buffer.
     IF (ok_beetle_acute_drought) THEN
-       ALLOCATE(moist_min_year(kjpindex,nvm), moist_min_legacy(kjpindex,nvm,beetle_drought_nref), stat=ier)
+       ALLOCATE(moist_min_year(kjpindex,nvm), moist_min_legacy(kjpindex,nvm,beetle_drought_nref), &
+            stat=ier)
        l_error = l_error .OR. (ier /= 0)
        IF (ier == 0) THEN
           moist_min_year(:,:) = un; moist_min_legacy(:,:,:) = zero
@@ -6317,9 +6359,6 @@ SUBROUTINE stomate_initialize &
     ALLOCATE(edge_fresh(kjpindex), stat=ier)   ! AED_STORM: edge along fresh class-0 openings
     l_error = l_error .OR. (ier /= 0)
     IF (ier == 0) edge_fresh(:) = zero
-    ALLOCATE(edge_open_conv(kjpindex), stat=ier)   ! AED_PEST_FRESH: edge per opened area
-    l_error = l_error .OR. (ier /= 0)
-    IF (ier == 0) edge_open_conv(:) = zero
     ALLOCATE(edge_length_ref(kjpindex), stat=ier)
     l_error = l_error .OR. (ier /= 0)
     ALLOCATE(dA_fire(kjpindex),  stat=ier)
@@ -6347,9 +6386,9 @@ SUBROUTINE stomate_initialize &
     ! them. mi_frac starts at zero => a cell is unmanaged until the file is read (no harvest
     ! edge, rotation = class 1 = never).
 
-    ! Guillaume M. -- AED_EDGE_RDI_WEIGHT is allocated as soon as the weight is requested,
-    ! outside the ok_management_intensity block: the two concepts are independent.
-    IF (ok_aed_edge_rdi_weight) THEN
+    ! Guillaume M. (AI gen) -- rdi_stand weights the class-1 edge source: allocated with the
+    ! class-0 edge path, outside the ok_management_intensity block (independent concepts).
+    IF (ok_edge_from_age_class) THEN
        ALLOCATE(rdi_stand(kjpindex, nvm), stat=ier)
        IF (ier /= 0) THEN
           WRITE(numout,*) 'Memory allocation error for rdi_stand. We stop. kjpindex x nvm = ',&
@@ -6368,7 +6407,7 @@ SUBROUTINE stomate_initialize &
        road_length_map(:) = zero
     ENDIF
 
-    ! Guillaume M. -- FRAG_3TERMS permanent: lake, coast and river edge. Same pattern as the
+    ! Guillaume M. (AI gen) -- FRAG_3TERMS permanent: lake, coast and river edge. Same pattern as the
     ! road map -- static, read once, added as is.
     IF (TRIM(edge_hydro_file) /= 'NONE') THEN
        ALLOCATE(edge_hydro_map(kjpindex), stat=ier)
@@ -6377,8 +6416,8 @@ SUBROUTINE stomate_initialize &
     ENDIF
 
     IF (ok_management_intensity) THEN
-       ! Guillaume M. -- ROTATION_GROWTH output, allocated with the management it blends
-       ! into (it used to hide under OK_AED_EDGE_RDI_WEIGHT, an unrelated flag). The blend
+       ! Guillaume M. (AI gen) -- ROTATION_GROWTH output, allocated with the management it blends
+       ! into (it used to hide under an unrelated flag). The blend
        ! itself is gated by rotation_growth_weight. mat_age_entry is allocated only when a
        ! consumer asks for it, so that the default restart keeps its variable list.
        ALLOCATE(rotation_growth(kjpindex, nvm), stat=ier)
@@ -6430,6 +6469,10 @@ SUBROUTINE stomate_initialize &
        ALLOCATE(class0_veg(kjpindex, nvmap, n_class0), stat=ier)
        IF (ier /= 0) CALL ipslerr_p(3,'stomate_init','Pb alloc class0_veg','','')
        class0_veg(:,:,:) = zero
+       ! Guillaume M. (AI gen) -- Agent tags of class0_veg, allocated with it (diagnostic).
+       ALLOCATE(class0_agent(kjpindex, n_class0, nagent), stat=ier)
+       IF (ier /= 0) CALL ipslerr_p(3,'stomate_init','Pb alloc class0_agent','','')
+       class0_agent(:,:,:) = zero
        ! Guillaume M. -- Allocated HERE and not under ok_edge_from_age_class: same reason as
        ! class0_veg above, this conveyor is gated on n_class0 and nothing else.
        ALLOCATE(class0_restitute(kjpindex, nvm), stat=ier)
@@ -6438,18 +6481,15 @@ SUBROUTINE stomate_initialize &
     ENDIF
 
     IF (ok_edge_from_age_class) THEN
-       ALLOCATE(class0_area(kjpindex, nagent, n_recruit_max), stat=ier)
-       l_error = l_error .OR. (ier /= 0)
        ALLOCATE(class0_recovered(kjpindex), stat=ier)
        l_error = l_error .OR. (ier /= 0)
        ALLOCATE(agent_flux(kjpindex, nagent), stat=ier)   ! AED_REGROWTH v2 (A_open agent mix)
        l_error = l_error .OR. (ier /= 0)
        IF (l_error) THEN
           WRITE(numout,*) ' Memory allocation error for AED_REGROWTH class0 arrays. ' // &
-               'kjpindex = ', kjpindex, ' nagent = ', nagent, ' n_recruit_max = ', n_recruit_max
+               'kjpindex = ', kjpindex, ' nagent = ', nagent
           CALL ipslerr_p (3,'stomate_init', 'Memory allocation issue','','')
        ENDIF
-       class0_area(:,:,:)  = zero
        class0_recovered(:) = zero
        class0_year_clock_s = zero
        agent_flux(:,:)     = zero
@@ -6914,12 +6954,10 @@ SUBROUTINE stomate_initialize &
     IF (ALLOCATED(dA_pest))    DEALLOCATE (dA_pest)
     IF (ALLOCATED(dA_harvest)) DEALLOCATE (dA_harvest)
     ! Guillaume M. -- AED_REGROWTH class-0 conveyor.
-    IF (ALLOCATED(class0_area))      DEALLOCATE (class0_area)
     IF (ALLOCATED(class0_recovered)) DEALLOCATE (class0_recovered)
     IF (ALLOCATED(class0_restitute)) DEALLOCATE (class0_restitute)
+    IF (ALLOCATED(class0_agent))     DEALLOCATE (class0_agent)
     IF (ALLOCATED(agent_flux))       DEALLOCATE (agent_flux)         ! AED_REGROWTH v2
-    IF (ALLOCATED(recruit_time_pft)) DEALLOCATE (recruit_time_pft)   ! Trecruit(PFT) 2026-06-18
-    IF (ALLOCATED(n_recruit_eff))    DEALLOCATE (n_recruit_eff)
  !! 2. reset l_first
 
     l_first_stomate=.TRUE.

@@ -2664,11 +2664,14 @@ CONTAINS
     LOGICAL                          :: l_error     !! Check errors in allocation
     INTEGER(i_std)                   :: ier         !! Check errors in allocation
     INTEGER(i_std)                   :: iout        !! Index
-    CHARACTER(LEN=2)                 :: striout     !! string suffix indicating output diameter class
+    !! string suffix indicating output diameter class
+    CHARACTER(LEN=2)                 :: striout
     INTEGER(i_std)                   :: jv_loc      !! PFT index (AGE_CLASS_BOUNDS_PFT)
     INTEGER(i_std)                   :: ic_loc      !! Age class index (AGE_CLASS_BOUNDS_PFT)
-    REAL(r_std)                      :: acifsum     !! Sum of AGE_CLASS_INIT_FRAC, used to renormalise it
-    REAL(r_std), ALLOCATABLE, DIMENSION(:) :: age_class_bound_glo !! Global bounds read from the namelist, broadcast to every PFT
+    !! Sum of AGE_CLASS_INIT_FRAC, used to renormalise it
+    REAL(r_std)                      :: acifsum
+    !! Global bounds read from the namelist, broadcast to every PFT
+    REAL(r_std), ALLOCATABLE, DIMENSION(:) :: age_class_bound_glo
     CHARACTER(LEN=80)                :: edge_scenario_str !! EDGE_SCENARIO as read (real|off|max)
 
     !_ ================================================================================================================================
@@ -2712,19 +2715,24 @@ CONTAINS
     CALL getin_p('TAU_FIRE',tau_fire)
     !
     !Config Key   = CR_FIRE
-    !Config Desc  = VPD fire-danger precip-suppression coefficient: FDI = VPD*exp(-CR_FIRE*precip_month). Was hardcoded 2.0; exposed as a calibration knob.
+    !Config Desc  = VPD fire-danger precip-suppression coefficient: FDI =
+    !Config         VPD*exp(-CR_FIRE*precip_month). Was hardcoded 2.0; exposed as a calibration
+    !Config         knob.
     !Config If    = OK_SPITFIRE
     !Config Def   = 2.0
-    !Config Help  = Lower -> less rain suppression -> higher FDI -> more fire. Compensates the scale-dependence of the 0.5deg/weekly VPD.
+    !Config Help  = Lower -> less rain suppression -> higher FDI -> more fire. Compensates the
+    !Config         scale-dependence of the 0.5deg/weekly VPD.
     !Config Units = [-]
     cr_fire = 2.0
     CALL getin_p('CR_FIRE',cr_fire)
     !
     !Config Key   = A_ND_SCALE
-    !Config Desc  = Multiplicative scaling of the human-ignition parameter a_nd (human_ign = exp(-0.5*sqrt(popd))*a_nd*A_ND_SCALE*popd). Calibration knob.
+    !Config Desc  = Multiplicative scaling of the human-ignition parameter a_nd (human_ign =
+    !Config         exp(-0.5*sqrt(popd))*a_nd*A_ND_SCALE*popd). Calibration knob.
     !Config If    = OK_SPITFIRE
     !Config Def   = 1.0
-    !Config Help  = Higher -> more human ignitions -> more fire. Absorbs the scale-dependence of anthropogenic ignition density (0.5deg/daily).
+    !Config Help  = Higher -> more human ignitions -> more fire. Absorbs the scale-dependence of
+    !Config         anthropogenic ignition density (0.5deg/daily).
     !Config Units = [-]
     a_nd_scale = 1.0
     CALL getin_p('A_ND_SCALE',a_nd_scale)
@@ -2881,7 +2889,8 @@ CONTAINS
     CALL getin_p('EDGE_LOAD_MAX_HEIGHTS', edge_load_max_heights)
     !
     !Config Key   = OK_SPACING_TOP_CLASS
-    !Config Desc  = Compute tree spacing from the largest circumference class only (original formula)
+    !Config Desc  = Compute tree spacing from the largest circumference class only (original
+    !Config         formula)
     !Config If    = OK_WINDTHROW
     !Config Def   = n
     !Config Help  = current_spacing is today 1/sqrt(SUM(ccn_inv)), i.e. every merchantable tree,
@@ -2896,27 +2905,14 @@ CONTAINS
     ok_spacing_top_class = .FALSE.
     CALL getin_p('OK_SPACING_TOP_CLASS', ok_spacing_top_class)
     !
-    !Config Key   = OK_STORM_WIND_PER_EVENT
-    !Config Desc  = Damage wind and wind ratio taken as the maximum of the current storm only
-    !Config If    = OK_WINDTHROW
-    !Config Def   = n
-    !Config Help  = max_wind_speed_storm and max_wind_ratio_storm set the magnitude of storm damage.
-    !Config         By default they are raised every day, storm or not, and reset only after a
-    !Config         kill, so they hold the record wind since the last kill, restart included:
-    !Config         DAILY_MAX_TUNE then no longer changes the damage. Set to y to accumulate them
-    !Config         during a storm only and to reset them at storm onset.
-    !Config         [CATEGORIE : ECHAFAUDAGE DE VALIDATION -- retirer (chemin y structurel)
-    !Config          apres le banc regional et le recalage de DAILY_MAX_TUNE avec ce drapeau]
-    !Config Units = [-]
-    ok_storm_wind_per_event = .FALSE.
-    CALL getin_p('OK_STORM_WIND_PER_EVENT', ok_storm_wind_per_event)
-    !
     !Config Key   = OK_STORM_PEAK_TRIGGER
     !Config Desc  = Storm onset on the daily peak wind over a local climatological peak
     !Config If    = OK_WINDTHROW
     !Config Def   = n
-    !Config Help  = A storm starts when the raw daily peak wind exceeds WIND_PEAK_TRIGGER_THR times a
-    !Config         local reference: the mean over the last years of the WIND_PEAK_REF_NTOP-th largest
+    !Config Help  = A storm starts when the raw daily peak wind exceeds WIND_PEAK_TRIGGER_THR times
+    !Config         a
+    !Config         local reference: the mean over the last years of the WIND_PEAK_REF_NTOP-th
+    !Config         largest
     !Config         daily peak of each year. No onset before one full year of reference.
     !Config         See design/MODULE_DESIGN_STORM_PEAK_TRIGGER.md.
     !Config         [CATEGORIE : OPTION SCIENTIFIQUE -- choix de modelisation, permanent]
@@ -2928,7 +2924,8 @@ CONTAINS
     !Config Desc  = Onset threshold on daily peak / local reference peak
     !Config If    = OK_STORM_PEAK_TRIGGER
     !Config Def   = 1.35
-    !Config Help  = Chosen offline on EURO-CORDEX 0.5 deg 1980-2010 for about one false alarm per cell
+    !Config Help  = Chosen offline on EURO-CORDEX 0.5 deg 1980-2010 for about one false alarm per
+    !Config         cell
     !Config         and decade. Tied to the forcing resolution: recalibrate for another forcing.
     !Config Units = [-]
     wind_peak_trigger_thr = 1.35
@@ -2938,38 +2935,33 @@ CONTAINS
     !Config Desc  = Rank of the yearly daily peak used as the local reference
     !Config If    = OK_STORM_PEAK_TRIGGER
     !Config Def   = 4
-    !Config Help  = 4 = the 4th largest daily peak of the year, i.e. the 99th percentile of 365 daily peaks.
+    !Config Help  = 4 = the 4th largest daily peak of the year, i.e. the 99th percentile of 365
+    !Config         daily peaks.
     !Config Units = [-]
     wind_peak_ref_ntop = 4
     CALL getin_p('WIND_PEAK_REF_NTOP', wind_peak_ref_ntop)
     IF (wind_peak_ref_ntop < 1) CALL ipslerr_p(3, 'config_stomate_parameters', &
          'WIND_PEAK_REF_NTOP must be >= 1', '', '')
     !
-    ! Guillaume M. -- OK_STORM_PRESSURE_GATE (with STORM_PRESSURE_GATE_THR, _NDAYS, _FILE) and
-    ! OK_WIND_DAMAGE_RELATIVE (with WIND_DAMAGE_X0, _SX, WIND_CWS_REF) removed: the gate did not transfer
+    ! Guillaume M. (AI gen) -- OK_STORM_PRESSURE_GATE (with STORM_PRESSURE_GATE_THR, _NDAYS, _FILE) and
+    ! OK_WIND_DAMAGE_RELATIVE (with WIND_DAMAGE_X0, _SX, WIND_CWS_REF) removed: the gate did not
+    ! transfer
     ! across regions and the relative law could not separate harmless gales from destructive storms.
     ! Both are superseded by OK_STORM_GUST. See design/REPORT_WIND_GUST_DOSE.md section 7.
     !
-    !Config Key   = OK_STORM_KILL_AREA_WEIGHTED
-    !Config Desc  = Storm kill weighted by the area fraction of the edge and interior zones
-    !Config If    = OK_WINDTHROW
-    !Config Def   = n
-    !Config Help  = cal_storm_circ_class_kill cancelled the zone area fraction, so each zone killed its rate over
-    !Config         the whole slot and the edge channel acted as a switch. Set to y to weight the trees killed by
-    !Config         the area fraction (total = af_closer*r_closer + af_further*r_further), on the two-zone path.
-    !Config         [CATEGORIE : ECHAFAUDAGE DE VALIDATION -- retirer (chemin y structurel) une fois adopte]
-    !Config Units = [-]
-    ok_storm_kill_area_weighted = .FALSE.
-    CALL getin_p('OK_STORM_KILL_AREA_WEIGHTED', ok_storm_kill_area_weighted)
-    !
     !Config Key   = OK_STORM_GUST
-    !Config Desc  = Storm detection and damage driven by the ERA5 gust file (dose of hours above the critical gust)
+    !Config Desc  = Storm detection and damage driven by the ERA5 gust file (dose of hours above the
+    !Config         critical gust)
     !Config If    = OK_STORM_PEAK_TRIGGER
     !Config Def   = n
-    !Config Help  = The daily maximum gust of STORM_GUST_FILE replaces the forcing wind in the storm module (peak rule) and
-    !Config         the damage rate is a logistic in the episode's hours with gust above CWS x STORM_GUST_GREF, its
-    !Config         midpoint raised by STORM_GUST_KAPPA x the usual yearly hours (acclimation). Requires
-    !Config         OK_STORM_KILL_AREA_WEIGHTED = y. See design/MODULE_DESIGN_WIND_GUST.md sections 10-12.
+    !Config Help  = The daily maximum gust of STORM_GUST_FILE replaces the forcing wind in the storm
+    !Config         module (peak rule) and
+    !Config         the damage rate is a logistic in the episode's hours with gust above CWS x
+    !Config         STORM_GUST_GREF, its
+    !Config         midpoint raised by STORM_GUST_KAPPA x the usual yearly hours (acclimation).
+    !Config         Requires
+    !Config         the area-weighted kill. See design/MODULE_DESIGN_WIND_GUST.md sections
+    !Config         10-12.
     !Config         [CATEGORIE : OPTION SCIENTIFIQUE -- choix de modelisation, permanent]
     !Config Units = [-]
     ok_storm_gust = .FALSE.
@@ -2979,7 +2971,8 @@ CONTAINS
     !Config Desc  = Yearly gust file on the forcing grid (gust_max, gust_hours, gust_hours_clim)
     !Config If    = OK_STORM_GUST
     !Config Def   = NONE
-    !Config Help  = Built by scripts/build_storm_gust_file.py; one file per year, copied by the job under this name.
+    !Config Help  = Built by scripts/build_storm_gust_file.py; one file per year, copied by the job
+    !Config         under this name.
     !Config Units = [-]
     storm_gust_file = 'NONE'
     CALL getin_p('STORM_GUST_FILE', storm_gust_file)
@@ -3009,7 +3002,8 @@ CONTAINS
     CALL getin_p('STORM_GUST_S', storm_gust_s)
     !
     !Config Key   = STORM_GUST_KAPPA
-    !Config Desc  = Acclimation: the logistic midpoint is raised by STORM_GUST_KAPPA x the usual yearly hours above the critical gust
+    !Config Desc  = Acclimation: the logistic midpoint is raised by STORM_GUST_KAPPA x the usual
+    !Config         yearly hours above the critical gust
     !Config If    = OK_STORM_GUST
     !Config Def   = 6.0
     !Config Units = [-]
@@ -3018,12 +3012,12 @@ CONTAINS
     IF (ok_storm_gust) THEN
        IF (.NOT. ok_storm_peak_trigger) CALL ipslerr_p(3, 'config_stomate_parameters', &
             'OK_STORM_GUST requires OK_STORM_PEAK_TRIGGER = y', '', '')
-       IF (.NOT. ok_storm_kill_area_weighted) CALL ipslerr_p(3, 'config_stomate_parameters', &
-            'OK_STORM_GUST requires OK_STORM_KILL_AREA_WEIGHTED = y', '(each zone must kill over its own area)', '')
        IF (TRIM(storm_gust_file) == 'NONE') CALL ipslerr_p(3, 'config_stomate_parameters', &
             'OK_STORM_GUST requires STORM_GUST_FILE', '', '')
-       IF (storm_gust_s <= zero .OR. storm_gust_d50 < zero .OR. storm_gust_kappa < zero) CALL ipslerr_p(3, &
-            'config_stomate_parameters', 'STORM_GUST_S must be > 0, STORM_GUST_D50 and STORM_GUST_KAPPA >= 0', '', '')
+       IF (storm_gust_s <= zero .OR. storm_gust_d50 < zero &
+            .OR. storm_gust_kappa < zero) CALL ipslerr_p(3, &
+            'config_stomate_parameters', &
+                 'STORM_GUST_S must be > 0, STORM_GUST_D50 and STORM_GUST_KAPPA >= 0', '', '')
     ENDIF
     !
     !Config Key   = OK_BEETLE_ACUTE_DROUGHT
@@ -3031,8 +3025,10 @@ CONTAINS
     !Config If    = OK_PEST
     !Config Def   = n
     !Config Help  = Adds BEETLE_DROUGHT_GAIN times the relative drop of this year's low of monthly
-    !Config         root-zone moisture, against the mean low of previous years, to the drought stress
-    !Config         of i_hosts_defence. Drought weakens living hosts; drought-killed wood is not added
+    !Config         root-zone moisture, against the mean low of previous years, to the drought
+    !Config         stress
+    !Config         of i_hosts_defence. Drought weakens living hosts; drought-killed wood is not
+    !Config         added
     !Config         to beetle breeding material. See design/MODULE_DESIGN_BEETLE_ACUTE_DROUGHT.md.
     !Config         [CATEGORIE : OPTION SCIENTIFIQUE -- choix de modelisation, permanent]
     !Config Units = [-]
@@ -3053,7 +3049,8 @@ CONTAINS
     !Config Desc  = Weekly air temperature above which the yearly moisture low is tracked
     !Config If    = OK_BEETLE_ACUTE_DROUGHT
     !Config Def   = 5.0
-    !Config Help  = Excludes winter, when frozen soil lowers available water without any beetle activity.
+    !Config Help  = Excludes winter, when frozen soil lowers available water without any beetle
+    !Config         activity.
     !Config Units = [C]
     beetle_drought_tact = 5.0
     CALL getin_p('BEETLE_DROUGHT_TACT', beetle_drought_tact)
@@ -3062,8 +3059,10 @@ CONTAINS
     !Config Desc  = Length of the yearly moisture-low buffer (this year plus the reference years)
     !Config If    = OK_BEETLE_ACUTE_DROUGHT
     !Config Def   = 11
-    !Config Help  = The reference low is the mean over the previous NREF-1 years. A short buffer turns any
-    !Config         year slightly drier than the last two into an anomaly; ten reference years give a
+    !Config Help  = The reference low is the mean over the previous NREF-1 years. A short buffer
+    !Config         turns any
+    !Config         year slightly drier than the last two into an anomaly; ten reference years give
+    !Config         a
     !Config         local climatology.
     !Config Units = [years]
     beetle_drought_nref = 11
@@ -3088,10 +3087,13 @@ CONTAINS
     !Config Desc  = Beetle pressure braked by the depletion of the attackable host wood
     !Config If    = OK_PEST
     !Config Def   = n
-    !Config Help  = Patch-killing beetles stop when the host runs out at the landscape scale, not when
-    !Config         stands thin. d = aboveground wood of the age classes >= 2 per m2 of grid cell over
+    !Config Help  = Patch-killing beetles stop when the host runs out at the landscape scale, not
+    !Config         when
+    !Config         stands thin. d = aboveground wood of the age classes >= 2 per m2 of grid cell
+    !Config         over
     !Config         its running mean (HOST_REF_YEARS); the pressure is scaled by a sigmoid of d,
-    !Config         normalised to 1 at d >= 1. See design/MODULE_DESIGN_BEETLE_OUTBREAK_MEMORY.md 7.14.
+    !Config         normalised to 1 at d >= 1. See design/MODULE_DESIGN_BEETLE_OUTBREAK_MEMORY.md
+    !Config         7.14.
     !Config         [CATEGORIE : OPTION SCIENTIFIQUE -- choix de modelisation, permanent]
     !Config Units = [-]
     ok_beetle_host_depletion = .FALSE.
@@ -3127,7 +3129,8 @@ CONTAINS
     !Config Desc  = Brood on living trees replaces the beetle population less than windfall does
     !Config If    = OK_PEST
     !Config Def   = n
-    !Config Help  = A living spruce yields far fewer offspring per gallery than a felled one, so trees
+    !Config Help  = A living spruce yields far fewer offspring per gallery than a felled one, so
+    !Config         trees
     !Config         killed by beetles feed the next generation less than windfall. The living-host
     !Config         survival channel and the beetle kill rate feeding the activity are scaled by
     !Config         BEETLE_LIVE_BROOD. See design/MODULE_DESIGN_BEETLE_OUTBREAK_MEMORY.md 7.15.
@@ -3140,12 +3143,14 @@ CONTAINS
     !Config Desc  = Brood success on living trees relative to windfall
     !Config If    = OK_BEETLE_LIVE_BROOD
     !Config Def   = 0.4
-    !Config Help  = About 2 offspring per gallery on living trees against a tenfold increase in windfall;
+    !Config Help  = About 2 offspring per gallery on living trees against a tenfold increase in
+    !Config         windfall;
     !Config         0.4 lets a storm outbreak peak 2-3 years after the storm and end on its own.
     !Config Units = [-]
     beetle_live_brood = 0.4
     CALL getin_p('BEETLE_LIVE_BROOD', beetle_live_brood)
-    IF (beetle_live_brood < zero .OR. beetle_live_brood > un) CALL ipslerr_p(3, 'config_stomate_parameters', &
+    IF (beetle_live_brood < zero .OR. beetle_live_brood > un) CALL ipslerr_p(3, &
+         'config_stomate_parameters', &
          'BEETLE_LIVE_BROOD must lie in [0,1]', '', '')
     !
     !Config Key   = OK_AED_PEST
@@ -3205,7 +3210,8 @@ CONTAINS
        IF (edge_storm_plateau < zero .OR. edge_storm_plateau > un .OR. &
            edge_storm_acclim_yr <= zero .OR. edge_storm_factor < zero) THEN
           CALL ipslerr_p(3, 'config_stomate_parameters', &
-               'AED_STORM: EDGE_STORM_PLATEAU in [0,1], EDGE_STORM_ACCLIM_YR > 0, EDGE_STORM_FACTOR >= 0', &
+               'AED_STORM: EDGE_STORM_PLATEAU in [0,1], EDGE_STORM_ACCLIM_YR > 0, ' // &
+               'EDGE_STORM_FACTOR >= 0', &
                'check the namelist', '')
        ENDIF
     ENDIF
@@ -3271,7 +3277,8 @@ CONTAINS
     !Config Desc  = Share of the population-driven human ignitions kept when OK_AED_HUMIGN is on
     !Config If    = OK_AED_HUMIGN
     !Config Def   = 1.0
-    !Config Help  = human_ign = base*A_ND_SCALE*EDGE_IGNITION_BASE_FRAC + EDGE_IGNITION_FACTOR*fedge.
+    !Config Help  = human_ign = base*A_ND_SCALE*EDGE_IGNITION_BASE_FRAC +
+    !Config         EDGE_IGNITION_FACTOR*fedge.
     !Config         The edge term is additive; set this below 1 so that the pan-EU total of
     !Config         ignitions is the same with and without the edge term (calibrated on the
     !Config         off/real pair). A_ND_SCALE is the resolution factor, not a scenario knob.
@@ -3279,7 +3286,8 @@ CONTAINS
     edge_ignition_base_frac = 1.0_r_std
     CALL getin_p('EDGE_IGNITION_BASE_FRAC', edge_ignition_base_frac)
     IF (edge_ignition_base_frac < zero .OR. edge_ignition_base_frac > un) THEN
-       CALL ipslerr_p(3, 'config_stomate_parameters', 'EDGE_IGNITION_BASE_FRAC must be in [0,1]', '', '')
+       CALL ipslerr_p(3, 'config_stomate_parameters', 'EDGE_IGNITION_BASE_FRAC must be in [0,1]', &
+            '', '')
     ENDIF
     !
     !Config Key   = EDGE_WIND_FACTOR
@@ -3335,7 +3343,8 @@ CONTAINS
     !Config If    = OK_AED_LIGHT
     !Config Def   = 0.225 (Marie 2026, edge_effect.pdf slide 16)
     !Config Help  = Multiplies (1 + pgap_edge_factor * fedge_pgap(AED_light)) onto Pgap_cumul
-    !Config         and Pgap_perlevel computed by effective_lai. Positive: edge canopies are more porous.
+    !Config         and Pgap_perlevel computed by effective_lai. Positive: edge canopies are more
+    !Config         porous.
     !Config Units = [-]
     pgap_edge_factor = 0.225
     CALL getin_p('EDGE_PGAP_FACTOR', pgap_edge_factor)
@@ -3355,7 +3364,8 @@ CONTAINS
     !Config If    = OK_AED_LIGHT
     !Config Def   = 20.0 (Marie 2026 ; Laurance 2002 ; Schmidt 2017)
     !Config Help  = Penetration depth of the edge perturbation on canopy light regime.
-    !Config         Used in the shared fragmentation form fedge_X = 1 - (AED-edge_distance_X/2)^2/AED^2.
+    !Config         Used in the shared fragmentation form fedge_X = 1 -
+    !Config         (AED-edge_distance_X/2)^2/AED^2.
     !Config Units = [m]
     edge_distance_light = 20.0
     CALL getin_p('EDGE_DISTANCE_LIGHT', edge_distance_light)
@@ -3374,52 +3384,52 @@ CONTAINS
     CALL getin_p('OK_AED_FEEDBACK', ok_aed_feedback)
     !
     !Config Key   = EDGE_FEEDBACK_ALPHA_FIRE
-    !Config Desc  = Edge length generated per m² burnt
+    !Config Desc  = Edge length generated per m2 burnt
     !Config If    = OK_AED_FEEDBACK
-    !Config Def   = 0.0237 (moyenne pan-EU de la carte EFDA, 2026-07-30)
+    !Config Def   = 0.0237 (moyenne pan-EU de la carte EFDA)
     !Config Help  = Linear sensitivity of edge_length to burnt area. Calibrated
     !Config         against the European Forest Disturbance Atlas (Senf et al. 2025)
     !Config         on AL/IT/FR/DE/SE (1985-2023): per-agent perimeter-to-area ratio
     !Config         dEL/dA for fire patches. Country-by-country range 0.018-0.029.
-    !Config Units = [m/m²]
+    !Config Units = [m/m2]
     !Config         Pan-EU forest-area mean of the EFDA calibration.
     alpha_fire_edge = 0.0237
     CALL getin_p('EDGE_FEEDBACK_ALPHA_FIRE', alpha_fire_edge)
     !
     !Config Key   = EDGE_FEEDBACK_ALPHA_STORM
-    !Config Desc  = Edge length generated per m² stormed
+    !Config Desc  = Edge length generated per m2 stormed
     !Config If    = OK_AED_FEEDBACK
     !Config Def   = 0.0241
     !Config Help  = Storm patches are larger and more compact than dispersed
-    !Config         bark-beetle mortality → lower perimeter/area ratio.
-    !Config         Decoupling: EFDA groups wind+beetle (median α = 0.040 m/m²);
+    !Config         bark-beetle mortality -> lower perimeter/area ratio.
+    !Config         Decoupling: EFDA groups wind+beetle (median alpha = 0.040 m/m2);
     !Config         Patacca 2023 DFDE 2000-2019 gives f_storm = 63%, f_beetle = 37%
-    !Config         in timber volume; geometric hypothesis α_pest = 2·α_storm
-    !Config         (beetle patches ~4× smaller area, 2× higher periphery/surface)
-    !Config         then yields α_storm ≈ 0.029, α_pest ≈ 0.058, recombining to 0.040.
+    !Config         in timber volume; geometric hypothesis alpha_pest = 2*alpha_storm
+    !Config         (beetle patches ~4x smaller area, 2x higher periphery/surface)
+    !Config         then yields alpha_storm ~ 0.029, alpha_pest ~ 0.058, recombining to 0.040.
     !Config         Guillaume M. -- The values in force are LOWER than that derivation
     !Config         (0.0241 and 0.0481, same 2:1 ratio). The derivation above is kept as
     !Config         the method; which of the two is intended has not been re-established.
-    !Config Units = [m/m²]
+    !Config Units = [m/m2]
     !Config         Pan-EU forest-area mean of the EFDA calibration.
     alpha_storm_edge = 0.0241
     CALL getin_p('EDGE_FEEDBACK_ALPHA_STORM', alpha_storm_edge)
     !
     !Config Key   = EDGE_FEEDBACK_ALPHA_PEST
-    !Config Desc  = Edge length generated per m² pest-killed
+    !Config Desc  = Edge length generated per m2 pest-killed
     !Config If    = OK_AED_FEEDBACK
     !Config Def   = 0.0481
     !Config Help  = Bark-beetle mortality is dispersed; many small individual
     !Config         patches yield a HIGHER perimeter/area ratio than compact
-    !Config         storm or fire scars. See α_storm help for the EFDA+Patacca
+    !Config         storm or fire scars. See alpha_storm help for the EFDA+Patacca
     !Config         decoupling procedure.
-    !Config Units = [m/m²]
+    !Config Units = [m/m2]
     !Config         Pan-EU forest-area mean of the EFDA calibration.
     alpha_pest_edge = 0.0481
     CALL getin_p('EDGE_FEEDBACK_ALPHA_PEST', alpha_pest_edge)
     !
     !Config Key   = EDGE_FEEDBACK_ALPHA_HARVEST
-    !Config Desc  = Edge length generated per m² harvested or LCC-cut
+    !Config Desc  = Edge length generated per m2 harvested or LCC-cut
     !Config If    = OK_AED_FEEDBACK
     !Config Def   = 0.0219
     !Config Help  = Commercial cuts (clearcut, thinning, coppice) and LCC-driven
@@ -3429,10 +3439,10 @@ CONTAINS
     !Config         1985-2023. In Europe, harvest dominates total disturbed area
     !Config         (~73 % of pixel-years over the five-country sample) and thus
     !Config         contributes the bulk of the perturbation-driven edge production.
-    !Config         Sourced from harvest_area (= veget_max·area·contfrac, m²) summed
+    !Config         Sourced from harvest_area (= veget_max*area*contfrac, m2) summed
     !Config         across PFTs and across iharvest+ilcc components, accumulated in
     !Config         dA_harvest by stomate_lpj.
-    !Config Units = [m/m²]
+    !Config Units = [m/m2]
     !Config         Pan-EU forest-area mean of the EFDA calibration.
     alpha_harvest_edge = 0.0219
     CALL getin_p('EDGE_FEEDBACK_ALPHA_HARVEST', alpha_harvest_edge)
@@ -3440,10 +3450,10 @@ CONTAINS
     !Config Key   = EDGE_FEEDBACK_TAU_RECOVERY
     !Config Desc  = Edge-length recovery time toward Edge_length.nc reference
     !Config If    = OK_AED_FEEDBACK
-    !Config Def   = 3.4715e8 (11 yr in seconds, EFDA 5-country spinup §10bis)
+    !Config Def   = 3.4715e8 (11 yr in seconds, EFDA 5-country spinup sec.10bis)
     !Config Help  = Exponential relaxation timescale of edge_length_dyn toward
     !Config         edge_length_ref (Bowring 2024 climatology). Calibrated by
-    !Config         AED_SPINUP test §10bis on AL/IT/FR/DE/SE: τ_rec=11 yr gives
+    !Config         AED_SPINUP test sec.10bis on AL/IT/FR/DE/SE: tau_rec=11 yr gives
     !Config         steady-state endpoint bias <5% vs EFDA EL_obs(2023). The
     !Config         historical default of 20 yr (6.3072e8 s) is deprecated.
     !Config Units = [s]
@@ -3458,8 +3468,8 @@ CONTAINS
     !Config         already integrates the historical perturbations. Using it as the
     !Config         additive baseline / relaxation target of the feedback makes
     !Config         EL_dyn = EFDA + source > EFDA by construction (double-count, see
-    !Config         REPORT_AED_SPINUP_G_EFDA.md §4bis). The feedback baseline is now
-    !Config         EDGE_FEEDBACK_REF_FRAC·edge_length_ref : 0 = continuous-forest
+    !Config         REPORT_AED_SPINUP_G_EFDA.md sec.4bis). The feedback baseline is now
+    !Config         EDGE_FEEDBACK_REF_FRAC*edge_length_ref : 0 = continuous-forest
     !Config         pristine baseline (EL_dyn built purely from simulated disturbances,
     !Config         validated against EFDA) ; 1 = legacy EL_dyn = EFDA + source.
     !Config         edge_length_ref keeps its role as the static edge when the feedback
@@ -3471,19 +3481,21 @@ CONTAINS
     !Config Key   = EDGE_MIN_PATCH_AREA
     !Config Desc  = Minimum forest/disturbance patch area used for the edge-length cap
     !Config If    = OK_AED_FEEDBACK
-    !Config Def   = 4000. (0.4 ha, EFDA-inferred patch size AL/IT/FR/DE/SE)
-    !Config Help  = Upper physical bound on edge_length_dyn is 4·(area·contfrac)/
-    !Config         sqrt(EDGE_MIN_PATCH_AREA) = 4·sqrt(area)·sqrt(N_patch), the
+    !Config Def   = 700. (0.07 ha; EFDA-inferred patch sizes are about 4000 m2)
+    !Config Help  = Upper physical bound on edge_length_dyn is 4*(area*contfrac)/
+    !Config         sqrt(EDGE_MIN_PATCH_AREA) = 4*sqrt(area)*sqrt(N_patch), the
     !Config         perimeter of a cell fully tiled by square patches of this size
     !Config         (N_patch = area/EDGE_MIN_PATCH_AREA). Replaces the single-patch
-    !Config         cap 4·sqrt(area) which under-bounds fragmented landscapes by
-    !Config         2-3 orders of magnitude. Smaller value → higher cap.
-    !Config Units = [m²]
-    edge_min_patch_area = 4000.
+    !Config         cap 4*sqrt(area) which under-bounds fragmented landscapes by
+    !Config         2-3 orders of magnitude. Smaller value -> higher cap.
+    !Config Units = [m2]
+    ! Guillaume M. (AI gen) -- 700 m2 is the value of the D5.2 chain; the former 4000 is kept as an option.
+    edge_min_patch_area = 700.
     CALL getin_p('EDGE_MIN_PATCH_AREA', edge_min_patch_area)
     !
     !Config Key   = EDGE_SCENARIO
-    !Config Desc  = Edge-length scenario: real (calibrated chain), off (no edge), max (circular patches), min (mirror of max)
+    !Config Desc  = Edge-length scenario: real (calibrated chain), off (no edge), max (circular
+    !Config         patches), min (mirror of max)
     !Config If    = OK_AED_FEEDBACK
     !Config Cat   = SCIENTIFIC OPTION
     !Config Def   = real
@@ -3498,7 +3510,7 @@ CONTAINS
     !Config         absence of coalescence, not by shape: a disc has the smallest perimeter
     !Config         at a given area. Meso, roads and water terms are unchanged under max.
     !Config         min: log mirror of max, alpha = alpha_real**2 / alpha_circ for the four agents,
-    !Config         i.e. disturbances aggregated in compact patches (12-17 ha for fire, storm, harvest).
+    !Config         i.e. disturbances aggregated in compact patches larger than the real ones.
     !Config         real: nothing executed, bit-identical to the previous binary.
     !Config Units = [-]
     edge_scenario_str = 'real'
@@ -3522,7 +3534,8 @@ CONTAINS
     ! LANDSCAPE_SCENARIO, HARVEST_CLEARCUT_AREA and CLEARCUT_AREA_FILE.
     ! See design/MODULE_DESIGN_MANAGEMENT_INTENSITY.md.
     !Config Key   = OK_MANAGEMENT_INTENSITY
-    !Config Desc  = Single management-intensity concept driving rotation, cut diameter and clearcut size
+    !Config Desc  = Single management-intensity concept driving rotation, cut diameter and clearcut
+    !Config         size
     !Config If    = OK_STOMATE
     !Config Cat   = SCIENTIFIC OPTION
     !Config Def   = n
@@ -3535,25 +3548,27 @@ CONTAINS
     CALL getin_p('OK_MANAGEMENT_INTENSITY', ok_management_intensity)
     !
     !Config Key   = MANAGEMENT_INTENSITY_FILE
-    !Config Desc  = NetCDF map of management-intensity class fractions (fields "f_class1".."f_class5")
+    !Config Desc  = NetCDF map of management-intensity class fractions (fields
+    !Config         "f_class1".."f_class5")
     !Config If    = OK_MANAGEMENT_INTENSITY
     !Config Def   = NONE
     !Config Help  = Read annually and interpolated to the model grid (like alpha_map.nc).
     !Config         Fractions of forest area per Scherpenhuijzen 2025 class:
     !Config         1 Unmanaged, 2 Close-to-nature, 3 Combined-objective, 4 Intensive,
-    !Config         5 Very-intensive. Built by scripts/build_management_intensity.py
+    !Config         5 Very-intensive. Built by scripts/mi_build_intensity_maps.py
     !Config         (historical 1990-2014 from EFDA-driven decision tree; SSP 2015-2100).
     !Config Units = [FILE]
     management_intensity_file = 'NONE'
     CALL getin_p('MANAGEMENT_INTENSITY_FILE', management_intensity_file)
     !
-    ! Guillaume M. -- ROTATION_REF_FILE: the reference rotation gets a REGIONAL axis (McGrath
+    ! Guillaume M. (AI gen) -- ROTATION_REF_FILE: the reference rotation gets a REGIONAL axis (McGrath
     ! et al. 2015 table 4). The map replaces ROTATION_REF(pft) upstream of the intensity
     ! factor; it is not the TARGET_ROTATION_AGE_FILE removed above, which sat downstream.
     ! See design/MODULE_DESIGN_ROTATION_REGION.md.
     !
     !Config Key   = ROTATION_REF_FILE
-    !Config Desc  = NetCDF map of the reference rotation per PFT (field "rotation_ref", veget x lat x lon)
+    !Config Desc  = NetCDF map of the reference rotation per PFT (field "rotation_ref", veget x lat
+    !Config         x lon)
     !Config If    = OK_MANAGEMENT_INTENSITY
     !Config Def   = NONE
     !Config Help  = Regional reference rotation under MULTIFUNCTIONAL management (years), read
@@ -3589,7 +3604,7 @@ CONTAINS
     !Config If    = OK_MANAGEMENT_INTENSITY
     !Config Def   = 1., 1., 1., 1., 1.
     !Config Help  = The management intensity modulates the TARGET DIAMETER, not the
-    !Config         rotation length (decision 2026-07-27). A MULTIPLIER on
+    !Config         rotation length. A MULTIPLIER on
     !Config         largest_tree_dia(pft) rather than an absolute diameter, so that the
     !Config         difference between species is preserved (eucalyptus 0.20 m vs oak
     !Config         0.38 m) while management still shifts the target. Because the age
@@ -3626,7 +3641,7 @@ CONTAINS
     !Config Units = [-]
     !Config Key   = N_CLASS0
     !Config Desc  = Duree de la phase de regeneration apres coupe rase (an)
-    !Config If    = OK_AGE_CLASS_BOUND_PFT
+    !Config If    = NAGEC > 1
     !Config Def   = 0
     !Config Help  = Entre la coupe rase et un peuplement installe il s'ecoule 3 a 5 ans :
     !Config         preparation du terrain, plantation, degagements. Le modele TELEPORTE --
@@ -3672,7 +3687,7 @@ CONTAINS
     !Config Desc  = Feu, tempete et scolyte transitent par le registre de classe 0
     !Config If    = N_CLASS0 > 0
     !Config Def   = n
-    !Config Help  = Constat 2026-08-07 : seule la recolte progressive alimentait le registre,
+    !Config Help  = Finding: seule la recolte progressive alimentait le registre,
     !Config         donc les perturbations naturelles sautaient la phase de regeneration.
     !Config         Les trois agents sont credites ENSEMBLE, sur le taux somme, comme la
     !Config         condition de bascule les traite deja. Defaut n => bit-neutre.
@@ -3698,7 +3713,7 @@ CONTAINS
 
     !Config Key   = AC12_DIA_RATIO_START
     !Config Desc  = Rapport max_dia/borne a partir duquel les classes 2 et 3 montent
-    !Config If    = OK_AGE_CLASS_BOUND_PFT
+    !Config If    = NAGEC > 1
     !Config Def   = 0.60
     !Config Help  = Au-dela de la classe 1 la bascule n'est plus une fermeture de couvert
     !Config         mais une dimension d'exploitabilite : elle se juge en DIAMETRE, sans
@@ -3715,7 +3730,7 @@ CONTAINS
 
     !Config Key   = AC12_DIA_RATIO_LAST
     !Config Desc  = Seuil propre au dernier passage, celui qui alimente la classe terminale
-    !Config If    = OK_AGE_CLASS_BOUND_PFT
+    !Config If    = NAGEC > 1
     !Config Def   = -1 (repli sur AC12_DIA_RATIO_START, donc bit-neutre)
     !Config Help  = La classe terminale est la seule dont le receveur est aussi l'ensemble
     !Config         coupable : elle est remplie au 31 decembre puis rasee dans la meme
@@ -3734,7 +3749,7 @@ CONTAINS
 
     !Config Key   = OK_RDI_RAMP
     !Config Desc  = La consigne de RDI descend pendant la classe d'amelioration
-    !Config If    = OK_CLEARCUT_LAST_CLASS
+    !Config If    = NAGEC > 1
     !Config Def   = n
     !Config Help  = Sans rampe, la bande RDI est CONSTANTE sur toute la classe : le
     !Config         peuplement subirait un echelon a l'entree au lieu d'une eclaircie
@@ -3782,7 +3797,7 @@ CONTAINS
 
     !Config Key   = OK_MIN_DENSITY_RDI
     !Config Desc  = CONDITION 1 juge l'effondrement sur le RDI, pas sur un nombre de tiges
-    !Config If    = OK_MIN_DENSITY_RESET
+    !Config If    = NAGEC > 1
     !Config Def   = n
     !Config Help  = CONDITION 1 rase un peuplement dont la densite tombe sous DENS_TARGET
     !Config         (200 tiges/ha). Son commentaire reconnait la faiblesse : "density alone
@@ -3819,7 +3834,7 @@ CONTAINS
     !
     !Config Key   = OK_COPPICE_2CLASS
     !Config Desc  = Deux classes de maturite pour le taillis, graduees en HAUTEUR
-    !Config If    = OK_AGE_CLASS_BOUND_PFT
+    !Config If    = NAGEC > 1
     !Config Def   = n
     !Config Help  = L'echelle de maturite en diametre est un objet de futaie reguliere :
     !Config         elle encode "bois de qualite croissante jusqu'a la dimension
@@ -3875,7 +3890,7 @@ CONTAINS
 
     !Config Key   = OK_MATURITY_TRANSFER
     !Config Desc  = Promotion de maturite par COPIE INTACTE du peuplement, cadence MAT_F_REF
-    !Config If    = OK_AGE_CLASS_BOUND_PFT
+    !Config If    = NAGEC > 1
     !Config Def   = n
     !Config Help  = When y, three things change at once: (a) the moving stand is an intact
     !Config         copy of the donor -- every circumference class travels, none is selected,
@@ -4027,8 +4042,20 @@ CONTAINS
        CALL ipslerr_p(3,'constantes','HARV_COUPLING_GAIN < 0', &
             'a negative gain inverts the correction; use 0 for per-group quotas only','')
     ENDIF
+    !
+    !Config Key   = HARVEST_DEMAND_FILE
+    !Config Desc  = Yearly file of the clear-cut demand multiplier (field harvest_demand_mult)
+    !Config If    = OK_PROGRESSIVE_HARVEST
+    !Config Def   = NONE
+    !Config Help  = Multiplies the progressive-harvest clear-cut demand of the year (1 = model
+    !Config         demand). Read at each stomate_initialize, so one file per year copied by the
+    !Config         job (PeriodLength = 1Y). Built by scripts/build_harvest_demand.py.
+    !Config         NONE = bit-neutral. [CATEGORIE : OPTION SCIENTIFIQUE -- permanent]
+    !Config Units = [FILE]
+    harvest_demand_file = 'NONE'
+    CALL getin_p('HARVEST_DEMAND_FILE', harvest_demand_file)
 
-    ! Guillaume M. -- Ratios from Suvanto et al. 2025 harvest regimes (clearcut rate by dominant
+    ! Guillaume M. (AI gen) -- Ratios from Suvanto et al. 2025 harvest regimes (clearcut rate by dominant
     ! intensity class, design/NGC_w5_t5.3.md section 6): close-to-nature is NOT cut less often
     ! than multifunctional (1.00), intensive 0.75, very intensive 0.30. Unmanaged unmeasured.
     mi_rotation_factor(:) = (/ 20.0_r_std, 1.00_r_std, 1.00_r_std, 0.75_r_std, 0.30_r_std /)
@@ -4051,7 +4078,7 @@ CONTAINS
     !Config Help  = Class 1 (unmanaged) = 999 yr, i.e. never reaches the rotation criterion
     !Config         (de facto protection). This is the ONLY channel through which management
     !Config         intensity acts on the model dynamics (via AGE_ROTATION).
-    !Config         CALIBRATION (2026-07-26, design §2.6) — literature, NOT the EFDA
+    !Config         CALIBRATION -- literature, NOT the EFDA
     !Config         renewal-rate estimator, which is biased HIGH (Landsat misses partial
     !Config         fellings; the forest mask includes unproductive/set-aside area):
     !Config           class 5 = 20 yr  : Duncker et al. 2012 define short-rotation forestry
@@ -4060,7 +4087,7 @@ CONTAINS
     !Config                              Eucalyptus S. Europe 8-12 yr.
     !Config           class 4 = 90 yr  : S. Sweden pine/spruce ~80 yr, Picea N. Europe ~100 yr,
     !Config                              Central Europe spruce 70-110 yr.
-    !Config           classes 2-3 (180/120) : expert judgement — the literature reports
+    !Config           classes 2-3 (180/120) : expert judgement -- the literature reports
     !Config                              rotations by species and country, not by FMA, and
     !Config                              continuous-cover forestry has no true rotation.
     !Config         NB the edge/rotation first-order compensation is ROBUST to this table
@@ -4126,7 +4153,7 @@ CONTAINS
     !Config         north-western Russia, Belarus, Ukraine) the cells carry forest but no
     !Config         class fractions, and the former hard-coded fallback was class 1,
     !Config         unmanaged, which multiplies the reference rotation by 20 and switches
-    !Config         harvest edge off. [MESURE 2026-09-15] that covers 230 cells and
+    !Config         harvest edge off. [measured] that covers 230 cells and
     !Config         42.9 Mha, 17.7 percent of the forest of the domain, at a median applied
     !Config         rotation of 2200 years against 79 years where the map speaks. Those
     !Config         forests are managed, so the multifunctional reference (class 3, factor
@@ -4143,12 +4170,12 @@ CONTAINS
     ENDIF
     !
     !Config Key   = PEST_BIOMASS_REF
-    !Config Desc  = Standing biomass density used to convert beetle kill (gC/m²) to area
+    !Config Desc  = Standing biomass density used to convert beetle kill (gC/m2) to area
     !Config If    = OK_AED_FEEDBACK
     !Config Def   = 10000.0 (temperate mature stand)
     !Config Help  = Used in stomate_pest to map B_beetles_kill (gC m-2 yr-1) to
-    !Config         a m² area affected per m² of forest, before applying alpha_pest_edge.
-    !Config Units = [gC/m²]
+    !Config         a m2 area affected per m2 of forest, before applying alpha_pest_edge.
+    !Config Units = [gC/m2]
     pest_biomass_ref = 10000.0
     CALL getin_p('PEST_BIOMASS_REF', pest_biomass_ref)
     !Config Key   = AED_BEETLE_EPIDEMIC_THRESHOLD
@@ -4202,7 +4229,7 @@ CONTAINS
     !Config Desc  = Permanent hydrographic edge (lakes, coastline, rivers), NetCDF; NONE = off
     !Config If    = OK_AED_FEEDBACK
     !Config Def   = NONE
-    !Config Help  = Guillaume M. -- Third piece of the PERMANENT term, beside the roads. The
+    !Config Help  = Guillaume M. (AI gen) -- Third piece of the PERMANENT term, beside the roads. The
     !Config         meso term is built from veget_max on area_land, so it sees only TERRESTRIAL
     !Config         non-forest: the model has no channel by which a lake, a coast or a river
     !Config         could cut forest. This map supplies it. Field `edge_hydro` (m per cell),
@@ -4295,9 +4322,9 @@ CONTAINS
     !Config         prescrit non nul : le peuplement nait donc deja age de quelques annees.
     !Config         Sans ce plancher, une classe 1 regeneree apres coupe rase afficherait 0
     !Config         puis 1, 2, 3 ans, soit un decalage permanent de AGE_STAND_ESTAB annees.
-    !Config         La refonte du 2026-07-25 avait retire AGE_RECRUIT_OFFSET en pariant que
-    !Config         « la dynamique absorbe le decalage » -- elle ne l'absorbe pas, le
-    !Config         diametre initial reste (constat utilisateur 2026-07-29).
+    !Config         La refonte avait retire AGE_RECRUIT_OFFSET en pariant que
+    !Config         " la dynamique absorbe le decalage " -- elle ne l'absorbe pas, le
+    !Config         diametre initial reste.
     !Config         Purement DIAGNOSTIQUE : age_stand_area n'est lu par aucune decision.
     !Config Units = [an]
     age_stand_estab = 5.
@@ -4322,7 +4349,8 @@ CONTAINS
     ! target_rotation_age is now filled by set_management_intensity from the class
     ! fractions: one source, one file, no competing scalar branch.
     IF (ok_management_intensity .AND. TRIM(management_intensity_file) == 'NONE') THEN
-       CALL ipslerr_p(3, 'constantes', 'OK_MANAGEMENT_INTENSITY=y requires MANAGEMENT_INTENSITY_FILE', &
+       CALL ipslerr_p(3, 'constantes', &
+            'OK_MANAGEMENT_INTENSITY=y requires MANAGEMENT_INTENSITY_FILE', &
             'no class-fraction map to derive the management parameters from', '')
     ENDIF
     !
@@ -4358,14 +4386,16 @@ CONTAINS
     ! target rotation R to pace the harvest from. A silent combination of management flags
     ! is what once inflated the edge length by a factor 2.5, so it is refused here.
     IF (ok_progressive_harvest .AND. .NOT. ok_management_intensity) THEN
-       CALL ipslerr_p(3, 'constantes', 'OK_PROGRESSIVE_HARVEST=y requires OK_MANAGEMENT_INTENSITY=y', &
+       CALL ipslerr_p(3, 'constantes', &
+            'OK_PROGRESSIVE_HARVEST=y requires OK_MANAGEMENT_INTENSITY=y', &
             'the harvest pace comes from target_rotation_age (R)', '')
     ENDIF
     ! Guillaume M. -- Placed HERE and not with its own block: ok_progressive_harvest is
     ! read only at this point (order trap). Without the pre-pass the coupling has no
     ! quota to modulate and would be silently inert -- refused, same policy as above.
     IF (ok_harvest_feed_coupling .AND. .NOT. ok_progressive_harvest) THEN
-       CALL ipslerr_p(3, 'constantes', 'OK_HARVEST_FEED_COUPLING=y requires OK_PROGRESSIVE_HARVEST=y', &
+       CALL ipslerr_p(3, 'constantes', &
+            'OK_HARVEST_FEED_COUPLING=y requires OK_PROGRESSIVE_HARVEST=y', &
             'the coupling modulates the progressive-harvest quota (design doc 4.4)', '')
     ENDIF
     !
@@ -4428,34 +4458,6 @@ CONTAINS
     ok_edge_from_age_class = .FALSE.
     CALL getin_p('OK_EDGE_FROM_AGE_CLASS', ok_edge_from_age_class)
     !
-    !Config Key   = AED_RECRUIT_TIME
-    !Config Desc  = Years to canopy reclosure (class-0 conveyor length)
-    !Config If    = OK_EDGE_FROM_AGE_CLASS
-    !Config Def   = 11
-    !Config Help  = Residence time of a disturbed (stand-replaced) patch in the
-    !Config         class-0 open pool before it graduates back to forest. Replaces
-    !Config         tau_rec. Default 11 yr from the EFDA box-model pre-check and
-    !Config         AED_SPINUP §10bis (both converge on ~11 yr). Boreal stands may
-    !Config         need a longer value.
-    !Config Units = [yr]
-    n_recruit = 11
-    CALL getin_p('AED_RECRUIT_TIME', n_recruit)
-    !
-    !Config Key   = AED_RECRUIT_TIME_MAX
-    !Config Desc  = Max class-0 conveyor length (= max per-PFT recovery time)
-    !Config If    = OK_EDGE_FROM_AGE_CLASS
-    !Config Def   = 30
-    !Config Help  = Dimensions class0_area (3rd dim). The per-PFT recovery times
-    !Config         recruit_time_pft (built at runtime from MTC: sclerophyll 20,
-    !Config         boreal 30, deciduous 10, ...) must not exceed this. Default 30
-    !Config         covers the slowest (boreal). Cells graduate at their veget_max-
-    !Config         weighted effective time n_recruit_eff(ji), not this maximum.
-    !Config Units = [yr]
-    n_recruit_max = 30
-    CALL getin_p('AED_RECRUIT_TIME_MAX', n_recruit_max)
-    n_recruit_max = MAX(n_recruit_max, n_recruit)
-    !
-    !
     !Config Key   = AED_MIX_TAU
     !Config Desc  = v2 leaky agent-flux memory (yr) for the per-agent edge mix
     !Config If    = OK_EDGE_FROM_AGE_CLASS
@@ -4495,7 +4497,7 @@ CONTAINS
     !Config If    = OK_EDGE_FROM_AGE_CLASS
     !Config Def   = 1.0
     !Config Help  = A_open = AED_ALPHA_REG * A_class1, optionally weighted by the stand
-    !Config         openness (OK_AED_EDGE_RDI_WEIGHT). Age class 1 is the only true
+    !Config         openness (1-RDI weight). Age class 1 is the only true
     !Config         internal gap, so it keeps weight 1 (the value the removed AED_OPEN_W1
     !Config         carried). Only the AREA is set here -- the area-to-length conversion by
     !Config         the agent-weighted alpha is unchanged. TO BE CALIBRATED against EFDA
@@ -4510,10 +4512,6 @@ CONTAINS
        CALL ipslerr_p(3, 'config_stomate_parameters', &
             'OK_EDGE_FROM_AGE_CLASS=y requires OK_AED_FEEDBACK=y', &
             'edge_length_dyn and the dA_* accumulators are owned by AED_FEEDBACK.', '')
-    ENDIF
-    IF (ok_edge_from_age_class .AND. n_recruit < 1) THEN
-       CALL ipslerr_p(3, 'config_stomate_parameters', &
-            'AED_RECRUIT_TIME must be >= 1 year when OK_EDGE_FROM_AGE_CLASS=y', '', '')
     ENDIF
     !
     ! Guillaume M. -- calculate_aed always consumes edge_length_dyn, which only
@@ -6601,7 +6599,7 @@ CONTAINS
     !Config         AGE_CLASS_AGE_FRAC(c) * MIN(target_rotation_age, ce plafond).
     !Config         La carte d'intensite de gestion porte une sentinelle "non gere" a 999
     !Config         ans ; sans plafond, 16,3 % de la surface forestiere recevait des ages de
-    !Config         100/450/699/919 ans (mesure spin51v2chk a froid, 2026-07-27), ce qui
+    !Config         100/450/699/919 ans, ce qui
     !Config         rendait l'age NON MONOTONE entre classes (classe 3 a 197,7 ans contre
     !Config         classe 4 a 194,0) alors que le convoyeur suppose l'age croissant avec
     !Config         l'indice de classe. Un peuplement non gere n'a pas de rotation : 0,92*999
@@ -6632,13 +6630,16 @@ CONTAINS
     ALLOCATE(age_class_bound(nagec,nvm),stat=ier)
     l_error = l_error .OR. (ier /= 0)
     IF (l_error) THEN
-       WRITE(numout,*) 'Memory allocation error for age_class_bound. We stop. We need nagec x nvm words',nagec,nvm
+       WRITE(numout, &
+            *) 'Memory allocation error for age_class_bound. We stop. We need nagec x nvm words', &
+                 nagec,nvm
        STOP 'constantes.f90'
     ENDIF
     ALLOCATE(age_class_bound_glo(nagec),stat=ier)
     l_error = l_error .OR. (ier /= 0)
     IF (l_error) THEN
-       WRITE(numout,*) 'Memory allocation error for age_class_bound_glo. We stop. We need nagec words',nagec
+       WRITE(numout, &
+            *) 'Memory allocation error for age_class_bound_glo. We stop. We need nagec words',nagec
        STOP 'constantes.f90'
     ENDIF
     !
@@ -6676,7 +6677,8 @@ CONTAINS
             'or add values in the orchidee_pft.def')
     END IF
 
-    ! Guillaume M. -- Broadcast the global vector to every PFT (default state = historical behaviour).
+    ! Guillaume M. -- Broadcast the global vector to every PFT (default state = historical
+    ! behaviour).
     DO jv_loc = 1, nvm
        age_class_bound(:,jv_loc) = age_class_bound_glo(:)
     ENDDO
@@ -6732,7 +6734,8 @@ CONTAINS
     ALLOCATE(mat_target_frac(nagec),stat=ier)
     l_error = l_error .OR. (ier /= 0)
     IF (l_error) THEN
-       WRITE(numout,*) 'Memory allocation error for mat_target_frac. We stop. We need nagec words',nagec
+       WRITE(numout, &
+            *) 'Memory allocation error for mat_target_frac. We stop. We need nagec words',nagec
        STOP 'constantes.f90'
     ENDIF
     mat_target_frac(:) = un / REAL(nagec,r_std)
@@ -6759,23 +6762,6 @@ CONTAINS
        CALL ipslerr_p(3,'constantes','MAT_A3_FRAC_MAX must lie in (0,1)','','')
     ENDIF
 
-    !
-    ! Guillaume M. -- AGE_CLASS_BOUNDS_PFT: see design/MODULE_DESIGN_AGE_CLASS_BOUNDS_PFT.md
-    !
-    !Config Key   = OK_AGE_CLASS_BOUND_PFT
-    !Config Desc  = Derive age class bounds from each PFT largest_tree_dia
-    !Config If    = OK_STOMATE
-    !Config Def   = n
-    !Config Help  = When y, age_class_bound(:,jv) = AGE_CLASS_FRAC(:)*largest_tree_dia(jv)
-    !Config         for tree PFTs, so that every species reaches its last age class just
-    !Config         before its clearcut diameter. n = single global vector for all PFTs
-    !Config         (bit-identical to the historical behaviour).
-    !Config         [CATEGORIE : ECHAFAUDAGE DE VALIDATION -- retirer quand le test §6.2
-    !Config          du design AGE_CLASS_BOUNDS_PFT (les 4 classes atteignables) sera passe]
-    !Config Units = [-]
-    ok_age_class_bound_pft = .FALSE.
-    CALL getin_p('OK_AGE_CLASS_BOUND_PFT', ok_age_class_bound_pft)
-
     ALLOCATE(age_class_frac(MAX(nagec-1,1)),stat=ier)
     l_error = l_error .OR. (ier /= 0)
     IF (l_error) THEN
@@ -6794,10 +6780,10 @@ CONTAINS
     ENDIF
     !Config Key   = AGE_CLASS_FRAC
     !Config Desc  = Age class bounds as a fraction of largest_tree_dia
-    !Config If    = OK_AGE_CLASS_BOUND_PFT
+    !Config If    = NAGEC > 1
     !Config Def   = 0.25, 0.50, 0.75
     !Config Help  = nagec-1 strictly increasing values in ]0,1[. /!\ LA DERNIERE VALEUR
-    !Config         N'EST PLUS LIBRE depuis le 2026-07-28 : elle est DERIVEE de
+    !Config         N'EST PLUS LIBRE now : elle est DERIVEE de
     !Config         DIA_ROTATION_TOL (voir ci-dessous). La renseigner au namelist est sans
     !Config         effet sur le dernier element.
     !Config Units = [-]
@@ -6823,7 +6809,7 @@ CONTAINS
     !Config         everything in the youngest class, which is the historical behaviour.
     !Config Units = [-]
     CALL getin_p('AGE_CLASS_INIT_FRAC', age_class_init_frac)
-    ! Guillaume M. -- A vector that does not sum to 1 is renormalised; an all-zero one is
+    ! Guillaume M. (AI gen) -- A vector that does not sum to 1 is renormalised; an all-zero one is
     ! refused, because it would silently wipe the vegetation area at the cold start.
     acifsum = SUM(age_class_init_frac(1:MAX(nagec,1)))
     IF (acifsum <= zero .OR. ANY(age_class_init_frac(1:MAX(nagec,1)) < zero)) THEN
@@ -6852,6 +6838,20 @@ CONTAINS
     ENDIF
     ! Guillaume M. -- Negative sentinel = disabled: rdi_use keeps rdi_start(ivm), bit-neutral.
     prescribe_rdi_frac(:) = -un
+    !Config Key   = OK_SLOW_DEATH_DENSITY
+    !Config Desc  = Keep the slow death of stands below dens_target
+    !Config If    = OK_STOMATE
+    !Config Def   = n
+    !Config Help  = y = trunk behaviour: a stand below dens_target loses ndying stems
+    !Config         per day (stomate_kill, circ_class_n -= ndying) and dies over
+    !Config         ndying_year, which spreads the wood litter input over several years.
+    !Config         n = that mortality sink is removed, which keeps age class 1 more open
+    !Config         (measured: class-1 RDI 0.325 with it, 0.400 without).
+    !Config         [CATEGORIE : OPTION SCIENTIFIQUE -- trunk behaviour, off in the D5.2 chain]
+    !Config Units = [-]
+    ok_slow_death_density = .FALSE.
+    CALL getin_p('OK_SLOW_DEATH_DENSITY', ok_slow_death_density)
+
     !Config Key   = PRESCRIBE_RDI_FRAC
     !Config Desc  = Establishment RDI as a fraction of rdi_max, per age class
     !Config If    = OK_STOMATE
@@ -6866,74 +6866,6 @@ CONTAINS
     !Config Units = [-]
     CALL getin_p('PRESCRIBE_RDI_FRAC', prescribe_rdi_frac)
 
-    !Config Key   = OK_MIN_DENSITY_RESET
-    !Config Desc  = Keep the minimum-density resets driven by dens_target
-    !Config If    = OK_STOMATE
-    !Config Def   = y
-    !Config Help  = y = historical behaviour: a stand below dens_target is clearcut
-    !Config         (sapiens_forestry CONDITION 1). n = that clearcut is disabled.
-    !Config         Scope: CONDITION 1 only. The slow-death block of stomate_kill also
-    !Config         keys on dens_target but has its own flag (OK_SLOW_DEATH_DENSITY),
-    !Config         because the two are NOT of the same nature: CONDITION 1 resets the
-    !Config         stand at once, the other is a progressive mortality sink.
-    !Config         Measured on a 1-year panEU run: CONDITION 1 fires 407 times against
-    !Config         21 for the rotation clearcut, 95 % of them in age class 1. This reset
-    !Config         is also what forced the desync workaround in stomate_prescribe
-    !Config         (a low establishment RDI falls below dens_target and is removed at
-    !Config         once), so disabling it is a prerequisite for PRESCRIBE_RDI_FRAC to
-    !Config         have any effect on age class 1.
-    !Config         [CATEGORIE : ECHAFAUDAGE DE VALIDATION -- retirer avec
-    !Config          OK_SLOW_DEATH_DENSITY, apres leur controle de signe pluriannuel]
-    !Config Units = [-]
-    ok_min_density_reset = .TRUE.
-    CALL getin_p('OK_MIN_DENSITY_RESET', ok_min_density_reset)
-
-    !Config Key   = OK_SLOW_DEATH_DENSITY
-    !Config Desc  = Keep the slow death of stands below dens_target
-    !Config If    = OK_STOMATE
-    !Config Def   = n
-    !Config Help  = y = historical behaviour: a stand below dens_target loses ndying stems
-    !Config         per day (stomate_kill, circ_class_n -= ndying) and dies over
-    !Config         ndying_year, which spreads the wood litter input over several years.
-    !Config         n = that mortality sink is removed. MEASURED CONSEQUENCE: removing it
-    !Config         raises the age-class-1 RDI from 0.325 to 0.400 over 4280 slots on a
-    !Config         1-year panEU run, i.e. it makes age class 1 DENSER -- the opposite of
-    !Config         the opening sought by PRESCRIBE_RDI_FRAC. Kept as a separate knob from
-    !Config         OK_MIN_DENSITY_RESET precisely so the two effects stay attributable.
-    !Config         [CATEGORIE : ECHAFAUDAGE DE VALIDATION -- garder SEPARE de
-    !Config          OK_MIN_DENSITY_RESET : c'est cette separation qui a permis d'imputer les
-    !Config          +0.074 de RDI classe 1 a ce bloc et non au RDI d'etablissement]
-    !Config Units = [-]
-    ok_slow_death_density = .FALSE.
-    CALL getin_p('OK_SLOW_DEATH_DENSITY', ok_slow_death_density)
-
-    !Config Key   = OK_AED_EDGE_RDI_WEIGHT
-    !Config Desc  = Weight the AED age-class-1 edge source by the stand openness
-    !Config If    = OK_EDGE_FROM_AGE_CLASS
-    !Config Def   = n
-    !Config Help  = When y, the regeneration term of the edge becomes
-    !Config         alpha_reg * SUM(veget_max(class 1)) * MAX(0, 1-MIN(1, RDI)) instead of
-    !Config         the raw area, so a regenerating stand stops producing edge as it
-    !Config         stocks up. The recovery dynamics become emergent and subsume
-    !Config         tau_rec / Trecruit. RDI is used rather than veget/veget_max because
-    !Config         the latter does NOT respond to the clearcut (measured: median gap
-    !Config         change +0.037, 66 % of 1109 cut events show no opening at all) and
-    !Config         collapses every winter for deciduous PFTs. Requires
-    !Config         OK_EDGE_FROM_AGE_CLASS: the weight applies to A_open, which only that
-    !Config         path computes. Re-anchor AED_ALPHA_REG and MI_EDGE_SHAPE_COEF
-    !Config         afterwards (median class-1 weight is about 0.675).
-    !Config         [CATEGORIE : ECHAFAUDAGE DE VALIDATION -- retirer quand le controle de
-    !Config          signe pluriannuel du poids (1-RDI) sera fait sur aedstandage]
-    !Config Units = [-]
-    ok_aed_edge_rdi_weight = .FALSE.
-    CALL getin_p('OK_AED_EDGE_RDI_WEIGHT', ok_aed_edge_rdi_weight)
-
-    IF (ok_aed_edge_rdi_weight .AND. .NOT. ok_edge_from_age_class) THEN
-       CALL ipslerr_p(3,'constantes.f90',&
-            'OK_AED_EDGE_RDI_WEIGHT requires OK_EDGE_FROM_AGE_CLASS',&
-            'the weight applies to A_open, which only that path computes,',&
-            'without it the flag would be silently inert')
-    ENDIF
 
     IF (ANY(prescribe_rdi_frac(:) > zero)) THEN
        DO ic_loc = 1, nagec
@@ -6945,34 +6877,13 @@ CONTAINS
                   'set every class, or leave the whole array <= 0 to disable')
           ENDIF
        ENDDO
-       IF (ok_min_density_reset) THEN
-          CALL ipslerr_p(2,'constantes.f90',&
-               'PRESCRIBE_RDI_FRAC with OK_MIN_DENSITY_RESET still on',&
-               'an open age class 1 falls below dens_target and is clearcut at once,',&
-               'so the prescribed opening will not survive its first year')
-       ENDIF
     ENDIF
 
-    !Config Key   = OK_CLEARCUT_LAST_CLASS
-    !Config Desc  = Restrict management clearcut to the last age class
-    !Config If    = OK_STOMATE
-    !Config Def   = n
-    !Config Help  = When y, the management clearcut triggers of sapiens_forestry_main
-    !Config         (CONDITION 2/2bis diameter-age, CONDITION 3/3bis PAI<MAI) are refused
-    !Config         outside the last age class of the group. Stand-failure resets
-    !Config         (CONDITION 1), forced/spinup clearcuts, species change and all natural
-    !Config         disturbances are NOT affected: they must be able to reset any class.
-    !Config         [CATEGORIE : ECHAFAUDAGE DE VALIDATION -- retirer avec
-    !Config          OK_AGE_CLASS_BOUND_PFT, meme test]
-    !Config Units = [-]
-    ok_clearcut_last_class = .FALSE.
-    CALL getin_p('OK_CLEARCUT_LAST_CLASS', ok_clearcut_last_class)
-    !
     !Config Key   = OK_RDI_BAND_CLASS1
     !Config Desc  = Age class 1 joins the thinned classes and gets the RDI band
-    !Config If    = OK_CLEARCUT_LAST_CLASS
+    !Config If    = NAGEC > 1
     !Config Def   = n
-    !Config Help  = Guillaume M. -- OK_CLEARCUT_LAST_CLASS thins classes 2..nagec-1 only:
+    !Config Help  = Guillaume M. -- The last-class restriction (NAGEC > 1) thins classes 2..nagec-1 only:
     !Config         class 1 is left RDI-FREE as a post-disturbance opening. That closes a
     !Config         trap on fertile-poor cells -- a dense class 1 can neither be thinned nor
     !Config         grow past age_class_bound(1), so it never reaches class 2 and the stand
@@ -6981,7 +6892,7 @@ CONTAINS
     !Config         which are per-slot hence per-age-class. The last class stays unthinned.
     !Config         /!\ Costs the edge signal its openness: class 1 is what AED_ALPHA_REG
     !Config         converts into edge, and thinning it lowers RDI, hence raises the
-    !Config         (1-RDI) weight of OK_AED_EDGE_RDI_WEIGHT. Re-anchor before any EFDA
+    !Config         (1-RDI) edge weight. Re-anchor before any EFDA
     !Config         comparison.
     !Config         [CATEGORIE : OPTION SCIENTIFIQUE -- choix de modelisation, permanent]
     !Config Units = [-]
@@ -7037,7 +6948,7 @@ CONTAINS
     !Config Desc  = Memory of the entry-age integrator (online a3 and age-based R_growth)
     !Config If    = MAT_A3_ONLINE or ROTATION_GROWTH_WEIGHT > 0
     !Config Def   = 30.
-    !Config Help  = Guillaume M. -- The age at which area enters each maturity class is
+    !Config Help  = Guillaume M. (AI gen) -- The age at which area enters each maturity class is
     !Config         averaged over decades, so that neither the setpoint nor the rotation
     !Config         chases one year's transfers. See design/MODULE_DESIGN_MAT_AGE_ENTRY.md.
     !Config Units = [yr]
@@ -7046,10 +6957,11 @@ CONTAINS
     mat_age_entry_tau = MAX(mat_age_entry_tau, un)
     !
     !Config Key   = MAT_A3_ONLINE
-    !Config Desc  = Terminal-class setpoint from the entry age the model measures, not from MAT_A3_ENTRY
+    !Config Desc  = Terminal-class setpoint from the entry age the model measures, not from
+    !Config         MAT_A3_ENTRY
     !Config If    = OK_MATURITY_TRANSFER or OK_HARVEST_FEED_COUPLING
     !Config Def   = n
-    !Config Help  = Guillaume M. -- With y, a3 in the setpoint 1 - a3/R is the leaky mean of
+    !Config Help  = Guillaume M. (AI gen) -- With y, a3 in the setpoint 1 - a3/R is the leaky mean of
     !Config         the age of the area that entered the terminal class (mat_age_entry),
     !Config         so the age structure follows the realised growth (e.g. under rising CO2);
     !Config         MAT_A3_ENTRY seeds it and remains the fallback where no area has entered
@@ -7082,21 +6994,17 @@ CONTAINS
             'above 1 the demotion would fire on a stand that has reached its bound', '')
     ENDIF
     !
-    ! Guillaume M. -- Without the last-class restriction the thinning interval is not
-    ! defined, so the flag would be silently inert -- the trap this repository has paid for.
-    IF (ok_rdi_band_class1 .AND. .NOT. ok_clearcut_last_class) THEN
-       CALL ipslerr_p(3, 'constantes', 'OK_RDI_BAND_CLASS1=y requires OK_CLEARCUT_LAST_CLASS=y', &
-            'it widens the thinned age-class interval, which only that flag defines', '')
+    ! Guillaume M. (AI gen) -- The last-class restriction (nagec > 1) defines the thinning interval:
+    ! with a single age class OK_RDI_BAND_CLASS1 would be silently inert.
+    IF (ok_rdi_band_class1 .AND. nagec < 2) THEN
+       CALL ipslerr_p(3, 'constantes', 'OK_RDI_BAND_CLASS1=y requires NAGEC >= 2', &
+            'it widens the thinned age-class interval, which needs several age classes', '')
     ENDIF
     !
 
-    ! Guillaume M. -- Guards active only under the flag: with the flag off the fractions are
-    ! unused and an existing configuration must not be invalidated.
-    IF (ok_age_class_bound_pft) THEN
-       IF (nagec < 2) THEN
-          CALL ipslerr_p(3,'constantes.f90','OK_AGE_CLASS_BOUND_PFT needs NAGEC >= 2',&
-               'with a single age class the bounds carry no function','')
-       ENDIF
+    ! Guillaume M. (AI gen) -- Per-PFT age-class bounds need several classes: with a single
+    ! one the fractions are unused and an existing configuration must not be invalidated.
+    IF (nagec >= 2) THEN
        DO ic_loc = 1, nagec-1
           IF (age_class_frac(ic_loc) <= zero .OR. age_class_frac(ic_loc) >= un) THEN
              WRITE(numout,*) 'AGE_CLASS_FRAC out of ]0,1[ : ',age_class_frac(:)
@@ -7105,7 +7013,8 @@ CONTAINS
           IF (ic_loc > 1) THEN
              IF (age_class_frac(ic_loc) <= age_class_frac(ic_loc-1)) THEN
                 WRITE(numout,*) 'AGE_CLASS_FRAC not strictly increasing : ',age_class_frac(:)
-                CALL ipslerr_p(3,'constantes.f90','AGE_CLASS_FRAC must be strictly increasing','','')
+                CALL ipslerr_p(3,'constantes.f90','AGE_CLASS_FRAC must be strictly increasing','', &
+                     '')
              ENDIF
           ENDIF
        ENDDO
@@ -7120,18 +7029,6 @@ CONTAINS
                'AGE_CLASS_FRAC(nagec-1) doit EGALER 1-DIA_ROTATION_TOL',&
                'la derniere classe d age doit coincider avec l ensemble coupable',&
                'la derivation a-t-elle ete retiree ?')
-       ENDIF
-       IF (.NOT. ok_clearcut_last_class) THEN
-          CALL ipslerr_p(1,'constantes.f90',&
-               'OK_AGE_CLASS_BOUND_PFT without OK_CLEARCUT_LAST_CLASS',&
-               'bounds are consistent but nothing forbids a clearcut in another class','')
-       ENDIF
-    ELSE
-       IF (ok_clearcut_last_class) THEN
-          CALL ipslerr_p(2,'constantes.f90',&
-               'OK_CLEARCUT_LAST_CLASS without OK_AGE_CLASS_BOUND_PFT',&
-               'with global bounds no PFT ever reaches the last age class,',&
-               'so every management clearcut would be refused and the forest would freeze')
        ENDIF
     ENDIF
 
@@ -7335,8 +7232,9 @@ CONTAINS
     !Config Def   = 3
     !Config Help  =
     !Config Units = years
-    ! Guillaume M. -- Windfall stays breeding material for three years, the span over which the
-    ! outbreak loop was calibrated; a restart written with fewer years reads the missing ones as zero.
+    ! Guillaume M. (AI gen) -- Windfall stays breeding material for three years, the span over which the
+    ! outbreak loop was calibrated; a restart written with fewer years reads the missing ones as
+    ! zero.
     legacy_years_wood = 3
     CALL getin_p('LEGACY_YEARS_WOOD',legacy_years_wood)
 

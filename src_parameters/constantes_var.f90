@@ -808,16 +808,22 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(ok_spitfire)
   LOGICAL, SAVE :: ok_lightningfire                    !! Activate lightning fires with spitfire
 !$OMP THREADPRIVATE(ok_lightningfire)
-  CHARACTER(LEN=100), SAVE :: road_length_file           !! FRAG_3TERMS macro: road-length NetCDF; 'NONE' = term off
+  !! FRAG_3TERMS macro: road-length NetCDF; 'NONE' = term off
+  CHARACTER(LEN=100), SAVE :: road_length_file
 !$OMP THREADPRIVATE(road_length_file)
-  CHARACTER(LEN=100), SAVE :: edge_hydro_file           !! FRAG_3TERMS permanent: lake/coast/river edge NetCDF; 'NONE' = term off
+  !! FRAG_3TERMS permanent: lake/coast/river edge NetCDF; 'NONE' = term off
+  CHARACTER(LEN=100), SAVE :: edge_hydro_file
 !$OMP THREADPRIVATE(edge_hydro_file)
-  REAL(r_std), SAVE :: road_grip_correction              !! FRAG_3TERMS macro: GRIP under-reporting factor (Bowring et al. 2024: 2.0)
+  !! FRAG_3TERMS macro: GRIP under-reporting factor (Bowring et al. 2024: 2.0)
+  REAL(r_std), SAVE :: road_grip_correction
 !$OMP THREADPRIVATE(road_grip_correction)
-  LOGICAL, SAVE :: ok_road_forest_mask                   !! FRAG_3TERMS macro: T = map already restricted to forest (5 arcmin EFDA);
-                                                         !! F = map is total road length, apply the model's own forest fraction
+  !! FRAG_3TERMS macro: T = map already restricted to forest (5 arcmin EFDA);
+  LOGICAL, SAVE :: ok_road_forest_mask
+                                                         !! F = map is total road length, apply the
+                                                         !! model's own forest fraction
 !$OMP THREADPRIVATE(ok_road_forest_mask)
-  REAL(r_std), SAVE :: edge_grain_default                !! FRAG_3TERMS: fallback sub-grid fragmentation grain (m)
+  !! FRAG_3TERMS: fallback sub-grid fragmentation grain (m)
+  REAL(r_std), SAVE :: edge_grain_default
 !$OMP THREADPRIVATE(edge_grain_default)
   LOGICAL, SAVE :: ok_aed_wind                         !! flag that allows fragmentation wind effect (true/false)
 !$OMP THREADPRIVATE(ok_aed_wind)
@@ -827,63 +833,95 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(ok_aed_humign)
   LOGICAL, SAVE :: ok_aed_fuel                         !! flag that allows fragmentation fuel wetness effect (true/false)
 !$OMP THREADPRIVATE(ok_aed_fuel)
-  ! Guillaume M. -- Edge -> windthrow channel (AED_STORM). The stand fraction exposed to edge
+  ! Guillaume M. (AI gen) -- Edge -> windthrow channel (AED_STORM). The stand fraction exposed to edge
   ! gusts comes from the AED edge geometry, weighted by a stand-age sensitivity that decays
   ! to a plateau (acclimation belongs to the trees, not to the edge line).
-  LOGICAL, SAVE :: ok_aed_storm                        !! flag: edge-driven closer/further split in wind_damage (true/false)
+  !! flag: edge-driven closer/further split in wind_damage (true/false)
+  LOGICAL, SAVE :: ok_aed_storm
 !$OMP THREADPRIVATE(ok_aed_storm)
-  REAL(r_std), SAVE :: edge_storm_factor = 1.0_r_std   !! gain on the exposed fraction, calibrated for a zero pan-EU bias (unitless)
+  !! gain on the exposed fraction, calibrated for a zero pan-EU bias (unitless)
+  REAL(r_std), SAVE :: edge_storm_factor = 1.0_r_std
 !$OMP THREADPRIVATE(edge_storm_factor)
-  REAL(r_std), SAVE :: edge_storm_acclim_yr = 20.0_r_std !! e-folding stand age of wind acclimation (years)
+  !! e-folding stand age of wind acclimation (years)
+  REAL(r_std), SAVE :: edge_storm_acclim_yr = 20.0_r_std
 !$OMP THREADPRIVATE(edge_storm_acclim_yr)
-  REAL(r_std), SAVE :: edge_storm_plateau = 0.25_r_std !! residual sensitivity of acclimated stands (unitless, 0-1)
+  !! residual sensitivity of acclimated stands (unitless, 0-1)
+  REAL(r_std), SAVE :: edge_storm_plateau = 0.25_r_std
 !$OMP THREADPRIVATE(edge_storm_plateau)
-  LOGICAL, SAVE :: ok_aed_light                        !! flag that allows fragmentation light/canopy effect (true/false)
+  !! flag that allows fragmentation light/canopy effect (true/false)
+  LOGICAL, SAVE :: ok_aed_light
 !$OMP THREADPRIVATE(ok_aed_light)
-  LOGICAL, SAVE :: ok_aed_feedback                     !! flag for perturbation -> edge_length feedback (Marie 2026, true/false)
+  !! flag for perturbation -> edge_length feedback (Marie 2026, true/false)
+  LOGICAL, SAVE :: ok_aed_feedback
 !$OMP THREADPRIVATE(ok_aed_feedback)
-  LOGICAL, SAVE :: ok_edge_from_age_class                     !! edge length derived from the young age-class open area A_open, instead of a tau_rec relaxation
+  !! edge length derived from the young age-class open area A_open, instead of a tau_rec relaxation
+  LOGICAL, SAVE :: ok_edge_from_age_class
 !$OMP THREADPRIVATE(ok_edge_from_age_class)
-  LOGICAL, SAVE :: stand_age_in_restart = .FALSE.      !! STAND_AGE: TRUE when age_stand_area (or the legacy age_stand_bm) was present in the restart -> cold-start derivation must NOT override it
+  !! Keep the dens_target-driven slow death of sparse stands (stomate_kill)
+  LOGICAL, SAVE :: ok_slow_death_density
+!$OMP THREADPRIVATE(ok_slow_death_density)
+  !! STAND_AGE: TRUE when age_stand_area (or the legacy age_stand_bm) was present in the restart ->
+  !! cold-start derivation must NOT override it
+  LOGICAL, SAVE :: stand_age_in_restart = .FALSE.
 !$OMP THREADPRIVATE(stand_age_in_restart)
-  REAL(r_std), SAVE :: dia_rotation_tol                !! AGE_ROTATION: lower tolerance on the clearcut diameter (fraction, ~0.15-0.20)
+  !! AGE_ROTATION: lower tolerance on the clearcut diameter (fraction, ~0.15-0.20)
+  REAL(r_std), SAVE :: dia_rotation_tol
 !$OMP THREADPRIVATE(dia_rotation_tol)
-  LOGICAL, SAVE :: ok_progressive_harvest              !! PROGRESSIVE_HARVEST: clearcut a rotation-paced FRACTION of the mature slot
-                                                       !! instead of emptying it. Default FALSE = all-or-nothing (bit-neutral)
+  !! PROGRESSIVE_HARVEST: clearcut a rotation-paced FRACTION of the mature slot
+  LOGICAL, SAVE :: ok_progressive_harvest
+                                                       !! instead of emptying it. Default FALSE =
+                                                       !! all-or-nothing (bit-neutral)
 !$OMP THREADPRIVATE(ok_progressive_harvest)
   REAL(r_std), SAVE :: cc_n_floor           !! Effectif sous lequel une classe de circonference
-                                            !! n'existe pas (ind m-2). Sa biomasse TOTALE et ses tiges
-                                            !! descendent d'une classe. Defaut 0 => historique (bit-neutre).
+                                            !! n'existe pas (ind m-2). Sa biomasse TOTALE et ses
+                                            !! tiges
+                                            !! descendent d'une classe. Defaut 0 => historique
+                                            !! (bit-neutre).
 !$OMP THREADPRIVATE(cc_n_floor)
-  LOGICAL, SAVE :: ok_rdi_ramp                         !! RDI consigne DESCEND pendant la classe d'amelioration (rampe intra-classe)
+  !! RDI consigne DESCEND pendant la classe d'amelioration (rampe intra-classe)
+  LOGICAL, SAVE :: ok_rdi_ramp
 !$OMP THREADPRIVATE(ok_rdi_ramp)
-  LOGICAL, SAVE :: ok_forced_thinning                  !! Eclaircie ANNUELLE forcee sur les classes de maturite jeunes
+  !! Eclaircie ANNUELLE forcee sur les classes de maturite jeunes
+  LOGICAL, SAVE :: ok_forced_thinning
 !$OMP THREADPRIVATE(ok_forced_thinning)
-  INTEGER(i_std), SAVE :: forced_thin_last_class       !! Derniere classe de maturite soumise a l'eclaircie forcee
+  !! Derniere classe de maturite soumise a l'eclaircie forcee
+  INTEGER(i_std), SAVE :: forced_thin_last_class
 !$OMP THREADPRIVATE(forced_thin_last_class)
-  LOGICAL, SAVE :: ok_min_density_rdi                  !! CONDITION 1 judges collapse on RDI, not on a fixed stem count:
-                                                       !! a stand thinned to its target is sparse BY DESIGN, not collapsed
+  !! CONDITION 1 judges collapse on RDI, not on a fixed stem count:
+  LOGICAL, SAVE :: ok_min_density_rdi
+                                                       !! a stand thinned to its target is sparse BY
+                                                       !! DESIGN, not collapsed
 !$OMP THREADPRIVATE(ok_min_density_rdi)
-  REAL(r_std), SAVE :: min_density_rdi_floor           !! RDI below which a stand is held to have collapsed (-)
+  !! RDI below which a stand is held to have collapsed (-)
+  REAL(r_std), SAVE :: min_density_rdi_floor
 !$OMP THREADPRIVATE(min_density_rdi_floor)
-  LOGICAL, SAVE :: ok_coppice_2class                   !! COPPICE_2CLASS: a coppice has two maturity classes, not four, and
-                                                       !! graduates on HEIGHT. Default FALSE = current behaviour (bit-neutral)
+  !! COPPICE_2CLASS: a coppice has two maturity classes, not four, and
+  LOGICAL, SAVE :: ok_coppice_2class
+                                                       !! graduates on HEIGHT. Default FALSE =
+                                                       !! current behaviour (bit-neutral)
 !$OMP THREADPRIVATE(ok_coppice_2class)
-  REAL(r_std), SAVE :: cop_r_up                        !! COPPICE_2CLASS: height ratio above which class 1 feeds the terminal class (-)
+  !! COPPICE_2CLASS: height ratio above which class 1 feeds the terminal class (-)
+  REAL(r_std), SAVE :: cop_r_up
 !$OMP THREADPRIVATE(cop_r_up)
-  REAL(r_std), SAVE :: cop_r_down                      !! COPPICE_2CLASS: height ratio below which a slot falls back to class 1 (-)
+  !! COPPICE_2CLASS: height ratio below which a slot falls back to class 1 (-)
+  REAL(r_std), SAVE :: cop_r_down
 !$OMP THREADPRIVATE(cop_r_down)
-  REAL(r_std), SAVE :: age_stand_estab                 !! Age d'un peuplement fraichement etabli (an), plancher de age_stand_area
+  !! Age d'un peuplement fraichement etabli (an), plancher de age_stand_area
+  REAL(r_std), SAVE :: age_stand_estab
 !$OMP THREADPRIVATE(age_stand_estab)
-  REAL(r_std), SAVE :: aed_mix_tau                     !! AED_REGROWTH v2: memory (yr) of the leaky agent-flux integrator (agent mix)
+  !! AED_REGROWTH v2: memory (yr) of the leaky agent-flux integrator (agent mix)
+  REAL(r_std), SAVE :: aed_mix_tau
 !$OMP THREADPRIVATE(aed_mix_tau)
   ! Guillaume M. -- A_open carries the regeneration gap ONLY. The four opening weights
   ! AED_OPEN_W1..W4 and the landscape term AED_ALPHA_FRAG both described the mature-forest
   ! edge, which the meso term produces from the landscape geometry (EL_meso = A*4*f*(1-f)/r).
   ! Keeping either alongside the meso term counts the same interface twice.
-  REAL(r_std), SAVE :: aed_alpha_reg                   !! Weight of the regeneration gap (age class 1), the only true internal gap
+  !! Weight of the regeneration gap (age class 1), the only true internal gap
+  REAL(r_std), SAVE :: aed_alpha_reg
 !$OMP THREADPRIVATE(aed_alpha_reg)
-  REAL(r_std), SAVE :: aed_bg_frac                     !! AED_REGROWTH v2: background-edge fraction for young/open forest with no current disturbance flux (piste B)
+  !! AED_REGROWTH v2: background-edge fraction for young/open forest with no current disturbance
+  !! flux (piste B)
+  REAL(r_std), SAVE :: aed_bg_frac
 !$OMP THREADPRIVATE(aed_bg_frac)
   LOGICAL, SAVE :: spinup_analytic                     !! Flag to activate analytical resolution for spinup (true/false)
 !$OMP THREADPRIVATE(spinup_analytic)
@@ -1686,9 +1724,13 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
 
   REAL(r_std), SAVE :: tau_fire                     !! Time scale for memory of the fire index (days).
 !$OMP THREADPRIVATE(tau_fire)
-  REAL(r_std), SAVE :: cr_fire                      !! VPD fire-danger precip-suppression coeff (FDI = VPD*exp(-cr_fire*precip_month)); calibration knob, was hardcoded 2.0.
+  !! VPD fire-danger precip-suppression coeff (FDI = VPD*exp(-cr_fire*precip_month)); calibration
+  !! knob, was hardcoded 2.0.
+  REAL(r_std), SAVE :: cr_fire
 !$OMP THREADPRIVATE(cr_fire)
-  REAL(r_std), SAVE :: a_nd_scale                   !! Multiplicative scaling of the human-ignition parameter a_nd (default 1.0); fire knob: higher -> more human ignitions -> more fire. Absorbs scale-dependence of anthropogenic ignition density.
+  !! Multiplicative scaling of the human-ignition parameter a_nd (default 1.0); fire knob: higher ->
+  !! more human ignitions -> more fire. Absorbs scale-dependence of anthropogenic ignition density.
+  REAL(r_std), SAVE :: a_nd_scale
 !$OMP THREADPRIVATE(a_nd_scale)
   REAL(r_std), SAVE :: litter_crit                  !! Critical litter quantity for fire
                                                     !! below which iginitions extinguish 
@@ -1727,11 +1769,12 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
 !$OMP THREADPRIVATE(patch_multiplier_forest)
   REAL(r_std), SAVE          :: edge_ignition_factor       !! The multiplier for increasing ignition due to edge (unitless) (0-1)
 !$OMP THREADPRIVATE(edge_ignition_factor)
-  ! Guillaume M. -- Share of the population-driven ignitions kept when the edge term is on. The
+  ! Guillaume M. (AI gen) -- Share of the population-driven ignitions kept when the edge term is on. The
   ! edge term is additive, so conserving the total ignitions between a world without edges and
   ! the real one needs the base to give up the share the edge takes. A_ND_SCALE is the grid
   ! resolution factor and must not carry this.
-  REAL(r_std), SAVE          :: edge_ignition_base_frac = 1.0_r_std !! base-ignition share kept under OK_AED_HUMIGN (unitless, 0-1)
+  !! base-ignition share kept under OK_AED_HUMIGN (unitless, 0-1)
+  REAL(r_std), SAVE          :: edge_ignition_base_frac = 1.0_r_std
 !$OMP THREADPRIVATE(edge_ignition_base_frac)
   REAL(r_std), SAVE          :: edge_wind_factor           !! The multiplier for increasing wind due to edge (unitless) (0-1)
 !$OMP THREADPRIVATE(edge_wind_factor)
@@ -1743,124 +1786,185 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
 !$OMP THREADPRIVATE(edge_distance_wind)
   REAL(r_std), SAVE          :: edge_distance_wetness      !! The edge distance for decreasing feul moisture (unit: m)
 !$OMP THREADPRIVATE(edge_distance_wetness)
-  REAL(r_std), SAVE          :: edge_distance_light        !! The edge distance for the canopy light effect (unit: m)
+  !! The edge distance for the canopy light effect (unit: m)
+  REAL(r_std), SAVE          :: edge_distance_light
 !$OMP THREADPRIVATE(edge_distance_light)
-  REAL(r_std), SAVE          :: pgap_edge_factor           !! Relative change of Pgap at the edge vs interior (unitless)
+  !! Relative change of Pgap at the edge vs interior (unitless)
+  REAL(r_std), SAVE          :: pgap_edge_factor
 !$OMP THREADPRIVATE(pgap_edge_factor)
-  REAL(r_std), SAVE          :: laieff_edge_factor         !! Relative change of LAIeff at the edge vs interior (unitless, negative)
+  !! Relative change of LAIeff at the edge vs interior (unitless, negative)
+  REAL(r_std), SAVE          :: laieff_edge_factor
 !$OMP THREADPRIVATE(laieff_edge_factor)
-  REAL(r_std), SAVE          :: alpha_fire_edge            !! Edge generated per m² burnt (m/m², Marie 2026 AED_FEEDBACK)
+  !! Edge generated per m2 burnt (m/m2, Marie 2026 AED_FEEDBACK)
+  REAL(r_std), SAVE          :: alpha_fire_edge
 !$OMP THREADPRIVATE(alpha_fire_edge)
-  REAL(r_std), SAVE          :: alpha_storm_edge           !! Edge generated per m² stormed (m/m²)
+  REAL(r_std), SAVE          :: alpha_storm_edge           !! Edge generated per m2 stormed (m/m2)
 !$OMP THREADPRIVATE(alpha_storm_edge)
-  REAL(r_std), SAVE          :: alpha_pest_edge            !! Edge generated per m² pest-killed (m/m²)
+  !! Edge generated per m2 pest-killed (m/m2)
+  REAL(r_std), SAVE          :: alpha_pest_edge
 !$OMP THREADPRIVATE(alpha_pest_edge)
-  REAL(r_std), SAVE          :: alpha_harvest_edge         !! Edge generated per m² harvested or LCC-cut (m/m²). Repli scalaire du chemin
-                                                           !! legacy (OK_MANAGEMENT_INTENSITY=n et pas d'alpha_map) : CONSERVE pour la
-                                                           !! bit-neutralite OFF, au meme titre que alpha_{fire,storm,pest}_edge
+  !! Edge generated per m2 harvested or LCC-cut (m/m2). Repli scalaire du chemin
+  REAL(r_std), SAVE          :: alpha_harvest_edge
+                                                           !! legacy (OK_MANAGEMENT_INTENSITY=n et
+                                                           !! pas d'alpha_map) : CONSERVE pour la
+                                                           !! bit-neutralite OFF, au meme titre que
+                                                           !! alpha_{fire,storm,pest}_edge
 !$OMP THREADPRIVATE(alpha_harvest_edge)
-  REAL(r_std), SAVE          :: tau_rec_edge               !! Edge-length recovery time toward the feedback baseline (s)
+  !! Edge-length recovery time toward the feedback baseline (s)
+  REAL(r_std), SAVE          :: tau_rec_edge
 !$OMP THREADPRIVATE(tau_rec_edge)
-  REAL(r_std), SAVE          :: aed_edge_ref_frac          !! Fraction of edge_length_ref (EFDA) kept as the continuous-forest
-                                                           !! baseline of the edge feedback. 0 = pure perturbation-driven
-                                                           !! edge (no EFDA double-count, default) ; 1 = legacy EL_dyn=EFDA+source
+  !! Fraction of edge_length_ref (EFDA) kept as the continuous-forest
+  REAL(r_std), SAVE          :: aed_edge_ref_frac
+                                                           !! baseline of the edge feedback. 0 =
+                                                           !! pure perturbation-driven
+                                                           !! edge (no EFDA double-count, default) ;
+                                                           !! 1 = legacy EL_dyn=EFDA+source
 !$OMP THREADPRIVATE(aed_edge_ref_frac)
-  REAL(r_std), SAVE          :: edge_min_patch_area        !! Min disturbance/forest patch area for the edge cap (m²)
+  !! Min disturbance/forest patch area for the edge cap (m2)
+  REAL(r_std), SAVE          :: edge_min_patch_area
 !$OMP THREADPRIVATE(edge_min_patch_area)
-  ! Guillaume M. -- EDGE_SCENARIO (MODULE_DESIGN_EDGE_SCENARIO.md): real = the calibrated
+  ! Guillaume M. (AI gen) -- EDGE_SCENARIO (MODULE_DESIGN_EDGE_SCENARIO.md): real = the calibrated
   ! chain, off = no edge at all (trunk behaviour, AED = 50 km), max = every disturbed patch an
   ! isolated disc of edge_min_patch_area. One key so the three D5.2 runs differ by it alone.
-  ! Guillaume M. -- min = log mirror of max: alpha_real**2/alpha_circ, as far below real as max is above.
-  INTEGER(i_std), PARAMETER  :: edge_scen_real = 0, edge_scen_off = 1, edge_scen_max = 2, edge_scen_min = 3
+  ! Guillaume M. (AI gen) -- min = log mirror of max: alpha_real**2/alpha_circ, as far below real as max is
+  ! above.
+  INTEGER(i_std), PARAMETER  :: edge_scen_real = 0, edge_scen_off = 1, edge_scen_max = 2, &
+       edge_scen_min = 3
   INTEGER(i_std), SAVE       :: edge_scenario = edge_scen_real  !! Edge scenario selector (-)
 !$OMP THREADPRIVATE(edge_scenario)
   !! --- Intensite de gestion : concept unique dont derivent tous les parametres de
-  !!     gestion par maille (design/MODULE_DESIGN_MANAGEMENT_INTENSITY.md, 2026-07-25).
+  !!     gestion par maille (design/MODULE_DESIGN_MANAGEMENT_INTENSITY.md).
   !!     Remplace le levier fragmentation (ok_harvest_fragmentation, edge_shape_coef,
   !!     clearcut_area_by_fmclass, landscape_scenario, harvest_clearcut_area,
   !!     clearcut_area_file) ET la source spatiale d'AGE_ROTATION (target_rotation_age*).
-  INTEGER(i_std), PARAMETER  :: nmiclass = 5               !! Nb de classes d'intensite (Scherpenhuijzen 2025)
-  LOGICAL, SAVE              :: ok_management_intensity    !! Derive rotation / alpha_harvest / clearcut_area des fractions de classe
+  !! Nb de classes d'intensite (Scherpenhuijzen 2025)
+  INTEGER(i_std), PARAMETER  :: nmiclass = 5
+  !! Derive rotation / alpha_harvest / clearcut_area des fractions de classe
+  LOGICAL, SAVE              :: ok_management_intensity
 !$OMP THREADPRIVATE(ok_management_intensity)
-  CHARACTER(LEN=100), SAVE   :: management_intensity_file  !! NetCDF annuel, fractions f_class1..5 ; "NONE" = desactive
+  !! NetCDF annuel, fractions f_class1..5 ; "NONE" = desactive
+  CHARACTER(LEN=100), SAVE   :: management_intensity_file
 !$OMP THREADPRIVATE(management_intensity_file)
-  CHARACTER(LEN=100), SAVE   :: rotation_ref_file          !! ROTATION_REF_FILE: regional reference rotation (veget, lat, lon) ; "NONE" = namelist ROTATION_REF only
+  !! ROTATION_REF_FILE: regional reference rotation (veget, lat, lon) ; "NONE" = namelist
+  !! ROTATION_REF only
+  CHARACTER(LEN=100), SAVE   :: rotation_ref_file
 !$OMP THREADPRIVATE(rotation_ref_file)
-  REAL(r_std), SAVE, DIMENSION(nmiclass) :: mi_clearcut_size !! Taille de parcelle de realisation par classe (m2), 1 ha .. 25 ha
+  !! Taille de parcelle de realisation par classe (m2), 1 ha .. 25 ha
+  REAL(r_std), SAVE, DIMENSION(nmiclass) :: mi_clearcut_size
 !$OMP THREADPRIVATE(mi_clearcut_size)
-  REAL(r_std), SAVE, DIMENSION(nmiclass) :: mi_dia_factor    !! Facteur multiplicatif sur le diametre de coupe par classe d'intensite (-), 1 = inchange
+  !! Facteur multiplicatif sur le diametre de coupe par classe d'intensite (-), 1 = inchange
+  REAL(r_std), SAVE, DIMENSION(nmiclass) :: mi_dia_factor
 !$OMP THREADPRIVATE(mi_dia_factor)
   INTEGER(i_std), SAVE :: n_class0          !! Guillaume M. -- MATURITY_CONVEYOR: number of class-0
                                             !! slots. Residence time is n_class0 - 1 years.
-                                            !! 0 => convoyeur inactif, comportement historique (bit-neutre).
+                                            !! 0 => convoyeur inactif, comportement historique
+                                            !! (bit-neutre).
 !$OMP THREADPRIVATE(n_class0)
-  REAL(r_std), SAVE :: ac12_h_ratio_start   !! MATURITY_CONVEYOR : rapport de hauteur h1/h_ref a partir duquel
+  !! MATURITY_CONVEYOR : rapport de hauteur h1/h_ref a partir duquel
+  REAL(r_std), SAVE :: ac12_h_ratio_start
                                             !! la classe 1 commence a monter en classe 2 (-)
 !$OMP THREADPRIVATE(ac12_h_ratio_start)
   LOGICAL, SAVE :: ok_disturb_via_class0   !! MATURITY_CONVEYOR : feu, tempete et scolyte creditent
                                             !! le registre de classe 0 au lieu de redescendre
                                             !! directement en classe 1. Defaut FALSE => bit-neutre.
 !$OMP THREADPRIVATE(ok_disturb_via_class0)
-  LOGICAL, SAVE :: ok_class0_replant       !! MATURITY_CONVEYOR : la restitution du convoyeur de classe 0
+  !! MATURITY_CONVEYOR : la restitution du convoyeur de classe 0
+  LOGICAL, SAVE :: ok_class0_replant
                                             !! REPLANTE la fraction rendue au creneau de classe 1.
                                             !! Defaut FALSE => bit-neutre.
 !$OMP THREADPRIVATE(ok_class0_replant)
-  REAL(r_std), SAVE :: ac12_dia_ratio_start !! MATURITY_CONVEYOR : rapport de DIAMETRE max_dia/borne a partir
-                                            !! duquel les classes 2 et 3 montent (-). Distinct du critere de
-                                            !! classe 1 : la bascule 1->2 est une fermeture de couvert, donc
+  !! MATURITY_CONVEYOR : rapport de DIAMETRE max_dia/borne a partir
+  REAL(r_std), SAVE :: ac12_dia_ratio_start
+                                            !! duquel les classes 2 et 3 montent (-). Distinct du
+                                            !! critere de
+                                            !! classe 1 : la bascule 1->2 est une fermeture de
+                                            !! couvert, donc
                                             !! une affaire de hauteur ; au-dela c'est une dimension
                                             !! d'exploitabilite, qui se juge en diametre.
 !$OMP THREADPRIVATE(ac12_dia_ratio_start)
-  REAL(r_std), SAVE :: ac12_dia_ratio_last  !! MATURITY_CONVEYOR : meme rapport, mais pour le DERNIER passage,
-                                            !! celui qui alimente la classe terminale (-). Elle seule a pour
-                                            !! receveur l'ensemble coupable : remplie au 31 decembre puis rasee
-                                            !! dans la meme sequence, son bilan est negatif si la cadence
+  !! MATURITY_CONVEYOR : meme rapport, mais pour le DERNIER passage,
+  REAL(r_std), SAVE :: ac12_dia_ratio_last
+                                            !! celui qui alimente la classe terminale (-). Elle
+                                            !! seule a pour
+                                            !! receveur l'ensemble coupable : remplie au 31 decembre
+                                            !! puis rasee
+                                            !! dans la meme sequence, son bilan est negatif si la
+                                            !! cadence
                                             !! d'alimentation ne depasse pas celle de la coupe.
                                             !! <= 0 => repli sur ac12_dia_ratio_start (bit-neutre).
 !$OMP THREADPRIVATE(ac12_dia_ratio_last)
-  LOGICAL, SAVE :: ok_maturity_transfer     !! MATURITY_TRANSFER : the moving stand is an intact COPY of the
-                                            !! donor (no circumference-class selection), its rate comes from
-                                            !! MAT_F_REF, and the receiver merges by diameter proximity
-                                            !! instead of re-drawing the Weibull. .FALSE. => historical paths.
+  !! MATURITY_TRANSFER : the moving stand is an intact COPY of the
+  LOGICAL, SAVE :: ok_maturity_transfer
+                                            !! donor (no circumference-class selection), its rate
+                                            !! comes from
+                                            !! MAT_F_REF, and the receiver merges by diameter
+                                            !! proximity
+                                            !! instead of re-drawing the Weibull. .FALSE. =>
+                                            !! historical paths.
 !$OMP THREADPRIVATE(ok_maturity_transfer)
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: mat_f_ref !! MATURITY_TRANSFER : reference promotion rate per age
-                                                            !! class (fraction of donor area per year). Allocated to
-                                                            !! nagec AFTER NAGEC is read; the terminal entry is unused
-                                                            !! (that class leaves through the harvest, not upward).
+  !! MATURITY_TRANSFER : reference promotion rate per age
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: mat_f_ref
+                                                            !! class (fraction of donor area per
+                                                            !! year). Allocated to
+                                                            !! nagec AFTER NAGEC is read; the
+                                                            !! terminal entry is unused
+                                                            !! (that class leaves through the
+                                                            !! harvest, not upward).
 !$OMP THREADPRIVATE(mat_f_ref)
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: mat_target_frac !! MATURITY_TRANSFER : target area share of each age
-                                                                  !! class within its group (sums to one). The regulator
-                                                                  !! measures filling ratios against it. Allocated to
+  !! MATURITY_TRANSFER : target area share of each age
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: mat_target_frac
+                                                                  !! class within its group (sums to
+                                                                  !! one). The regulator
+                                                                  !! measures filling ratios against
+                                                                  !! it. Allocated to
                                                                   !! nagec AFTER NAGEC is read.
 !$OMP THREADPRIVATE(mat_target_frac)
-  REAL(r_std), SAVE :: mat_a3_frac_max                              !! MAT_TARGET_A3: cap of the terminal setpoint 1 - a3/R (-)
+  !! MAT_TARGET_A3: cap of the terminal setpoint 1 - a3/R (-)
+  REAL(r_std), SAVE :: mat_a3_frac_max
 !$OMP THREADPRIVATE(mat_a3_frac_max)
-  REAL(r_std), SAVE :: mat_band_low          !! MATURITY_TRANSFER : lower edge of the regulator dead band on the
-                                             !! receiver filling ratio; inside the band f = MAT_F_REF (-)
+  !! MATURITY_TRANSFER : lower edge of the regulator dead band on the
+  REAL(r_std), SAVE :: mat_band_low
+                                             !! receiver filling ratio; inside the band f =
+                                             !! MAT_F_REF (-)
 !$OMP THREADPRIVATE(mat_band_low)
   REAL(r_std), SAVE :: mat_band_high         !! MATURITY_TRANSFER : upper edge of the dead band (-)
 !$OMP THREADPRIVATE(mat_band_high)
   REAL(r_std), SAVE :: mat_gain              !! MATURITY_TRANSFER : exponent of the cross correction
-                                             !! (r_don/r_rec)**gain outside the dead band; 0 = regulator off (-)
+                                             !! (r_don/r_rec)**gain outside the dead band; 0 =
+                                             !! regulator off (-)
 !$OMP THREADPRIVATE(mat_gain)
-  REAL(r_std), SAVE :: mat_f_min             !! MATURITY_TRANSFER : floor of the regulated rate (1/year)
+  !! MATURITY_TRANSFER : floor of the regulated rate (1/year)
+  REAL(r_std), SAVE :: mat_f_min
 !$OMP THREADPRIVATE(mat_f_min)
-  REAL(r_std), SAVE :: mat_f_max             !! MATURITY_TRANSFER : ceiling of the regulated rate (1/year)
+  !! MATURITY_TRANSFER : ceiling of the regulated rate (1/year)
+  REAL(r_std), SAVE :: mat_f_max
 !$OMP THREADPRIVATE(mat_f_max)
-  REAL(r_std), SAVE :: mat_shift             !! MATURITY_TRANSFER : maturity step of the moving stand, as a
-                                             !! relative DIAMETER offset along the self-thinning trajectory.
-                                             !! Creates the gap between adjacent classes that the area
+  !! MATURITY_TRANSFER : maturity step of the moving stand, as a
+  REAL(r_std), SAVE :: mat_shift
+                                             !! relative DIAMETER offset along the self-thinning
+                                             !! trajectory.
+                                             !! Creates the gap between adjacent classes that the
+                                             !! area
                                              !! regulator erodes; 0 = intact copy (no gap) (-)
 !$OMP THREADPRIVATE(mat_shift)
-  LOGICAL, SAVE :: ok_harvest_feed_coupling !! HARVEST_FEED_COUPLING : the progressive-harvest quota is computed
-                                            !! PER SPECIES GROUP and its demand is modulated by the mature-class
-                                            !! filling ratio through the MAT_BAND dead band (design doc 4.4).
-                                            !! .FALSE. => historical pixel-level quota (bit-neutral).
+  !! HARVEST_FEED_COUPLING : the progressive-harvest quota is computed
+  LOGICAL, SAVE :: ok_harvest_feed_coupling
+                                            !! PER SPECIES GROUP and its demand is modulated by the
+                                            !! mature-class
+                                            !! filling ratio through the MAT_BAND dead band (design
+                                            !! doc 4.4).
+                                            !! .FALSE. => historical pixel-level quota
+                                            !! (bit-neutral).
 !$OMP THREADPRIVATE(ok_harvest_feed_coupling)
-  REAL(r_std), SAVE :: harv_coupling_gain    !! HARVEST_FEED_COUPLING : exponent of the demand modulation
-                                             !! g = r4**gain outside the dead band; 0 = per-group quota
+  !! HARVEST_FEED_COUPLING : exponent of the demand modulation
+  REAL(r_std), SAVE :: harv_coupling_gain
+                                             !! g = r4**gain outside the dead band; 0 = per-group
+                                             !! quota
                                              !! without modulation (-)
 !$OMP THREADPRIVATE(harv_coupling_gain)
+  CHARACTER(LEN=100), SAVE :: harvest_demand_file !! yearly clear-cut demand multiplier file;
+                                                  !! 'NONE' = model demand (bit-neutral)
+!$OMP THREADPRIVATE(harvest_demand_file)
   ! Guillaume M. -- Well-posedness bounds of the demand modulation, NOT calibration
   ! targets: contracts and sanitary fellings prevent a full stop, mobilization
   ! capacity prevents a doubling.
@@ -1870,47 +1974,56 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
   ! slot whose QMD exceeds this factor times largest_tree_dia is not a stand but a
   ! numerical runaway (per-tree growth in 1/n); its biomass goes to litter and the slot
   ! is reset. Named constant, not a knob: consistent with validation criterion 5.
-  REAL(r_std), PARAMETER :: phantom_dia_factor = 2.0_r_std  !! QMD/largest_tree_dia ratio above which a floor-area slot is purged (-)
+  !! QMD/largest_tree_dia ratio above which a floor-area slot is purged (-)
+  REAL(r_std), PARAMETER :: phantom_dia_factor = 2.0_r_std
   ! Guillaume M. -- /!\ Residual slots FLOAT slightly above min_vegfrac, they do not sit
   ! on it (measured 1.009e-5 for a 1e-5 floor: a <= min_vegfrac test misses them by
   ! 0.9 percent). Real stands are >= 100x the floor; 10x separates the two populations.
-  REAL(r_std), PARAMETER :: phantom_area_factor = 10.0_r_std !! veget_max/min_vegfrac ratio below which a slot counts as floor-area (-)
-  REAL(r_std), SAVE, DIMENSION(nmiclass) :: mi_rotation_factor !! Multiplicateur de la rotation de reference, par classe d'intensite (-).
-                                                               !! STRICTEMENT symetrique de mi_dia_factor :
-                                                               !!   diametre de coupe = largest_tree_dia(pft) * mi_dia_factor(c)
-                                                               !!   rotation          = rotation_ref(pft)     * mi_rotation_factor(c)
-                                                               !! Actif seulement si rotation_ref(pft) > 0 ; sinon la rotation
-                                                               !! reste indefinie (zero), valeur qu'aucun arbre ne lit.
+  !! veget_max/min_vegfrac ratio below which a slot counts as floor-area (-)
+  REAL(r_std), PARAMETER :: phantom_area_factor = 10.0_r_std
+  !! Multiplicateur de la rotation de reference, par classe d'intensite (-).
+  REAL(r_std), SAVE, DIMENSION(nmiclass) :: mi_rotation_factor
+                                                               !! STRICTEMENT symetrique de
+                                                               !! mi_dia_factor :
+                                                               !!   diametre de coupe =
+                                                               !! largest_tree_dia(pft) *
+                                                               !! mi_dia_factor(c)
+                                                               !!   rotation = rotation_ref(pft) *
+                                                               !! mi_rotation_factor(c)
+                                                               !! Actif seulement si
+                                                               !! rotation_ref(pft) > 0 ; sinon la
+                                                               !! rotation
+                                                               !! reste indefinie (zero), valeur
+                                                               !! qu'aucun arbre ne lit.
 !$OMP THREADPRIVATE(mi_rotation_factor)
-  REAL(r_std), SAVE          :: mi_edge_shape_coef         !! k dans alpha_c = k/sqrt(S_c) ; cale sur la lisiere EFDA (alpha pan-EU moyen 0.0219)
+  !! k dans alpha_c = k/sqrt(S_c) ; cale sur la lisiere EFDA (alpha pan-EU moyen 0.0219)
+  REAL(r_std), SAVE          :: mi_edge_shape_coef
 !$OMP THREADPRIVATE(mi_edge_shape_coef)
-  REAL(r_std), SAVE          :: mi_age_mod_strength        !! Force de la modulation de S par la concentration d'age (HHI) ; 0 = desactivee
+  !! Force de la modulation de S par la concentration d'age (HHI) ; 0 = desactivee
+  REAL(r_std), SAVE          :: mi_age_mod_strength
 !$OMP THREADPRIVATE(mi_age_mod_strength)
   REAL(r_std), SAVE          :: mi_clearcut_size_min       !! Borne basse de S apres modulation (m2)
 !$OMP THREADPRIVATE(mi_clearcut_size_min)
   REAL(r_std), SAVE          :: mi_clearcut_size_max       !! Borne haute de S apres modulation (m2)
 !$OMP THREADPRIVATE(mi_clearcut_size_max)
-  ! Guillaume M. -- Intensity class applied where the management map is silent. The map
+  ! Guillaume M. (AI gen) -- Intensity class applied where the management map is silent. The map
   ! stops at the EFDA footprint, so the gap is managed forest (Turkey, Russia, Ukraine),
   ! not wilderness: class 3 states the reference regime instead of claiming no harvest.
-  INTEGER(i_std), SAVE       :: mi_default_class           !! Classe d'intensite appliquee quand la carte est muette (-)
+  !! Classe d'intensite appliquee quand la carte est muette (-)
+  INTEGER(i_std), SAVE       :: mi_default_class
 !$OMP THREADPRIVATE(mi_default_class)
-  REAL(r_std), SAVE          :: pest_biomass_ref           !! Standing biomass density used to convert beetle kill to area (gC/m²)
+  !! Standing biomass density used to convert beetle kill to area (gC/m2)
+  REAL(r_std), SAVE          :: pest_biomass_ref
 !$OMP THREADPRIVATE(pest_biomass_ref)
-  REAL(r_std), SAVE          :: aed_beetle_epidemic_threshold !! Mass-attack index (0-1) above which beetle kills feed the AED edge budget (epidemic phase); below = endemic / background mortality, excluded
+  !! Mass-attack index (0-1) above which beetle kills feed the AED edge budget (epidemic phase);
+  !! below = endemic / background mortality, excluded
+  REAL(r_std), SAVE          :: aed_beetle_epidemic_threshold
 !$OMP THREADPRIVATE(aed_beetle_epidemic_threshold)
-  INTEGER(i_std), SAVE       :: n_recruit                  !! AED_REGROWTH: years to canopy reclosure (scalar fallback / non-forest cells)
-!$OMP THREADPRIVATE(n_recruit)
-  INTEGER(i_std), SAVE       :: n_recruit_max              !! AED_REGROWTH: max conveyor length = max recruit time over PFTs (dim of class0_area)
-!$OMP THREADPRIVATE(n_recruit_max)
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: recruit_time_pft   !! AED_REGROWTH: per-PFT canopy-reclosure time (yr), mapped from MTC
-!$OMP THREADPRIVATE(recruit_time_pft)
-  INTEGER(i_std), ALLOCATABLE, SAVE, DIMENSION(:) :: n_recruit_eff   !! AED_REGROWTH: per-point effective graduation bin (veget_max-weighted)
-!$OMP THREADPRIVATE(n_recruit_eff)
-  LOGICAL, SAVE              :: ok_dia_stagger             !! Cold-start: establish each age class at its own diameter bin (staggered qmd)
+  !! Cold-start: establish each age class at its own diameter bin (staggered qmd)
+  LOGICAL, SAVE              :: ok_dia_stagger
 !$OMP THREADPRIVATE(ok_dia_stagger)
   ! /!\ dia_inv_file, dia_inv_dmax_scale/min/max et dia_inv_dbar_default SUPPRIMES le
-  ! 2026-07-30 : l'echelle de maturite est entierement derivee de LARGEST_TREE_DIA par PFT,
+  ! l'echelle de maturite est entierement derivee de LARGEST_TREE_DIA par PFT,
   ! la carte externe de diametre moyen D_bar n'a plus de role. Voir CALL_GRAPH.md.
 
   !
@@ -2025,7 +2138,7 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
   !! scalaire PRECIP_LONGTERM_INIT. Le test ALLOCATED() EST le drapeau.
   !! Raison d'etre : sans cela precip_longterm vaut zero au premier pas de temps, pipe_tune2
   !! est rabattu sur min_pipe_tune2, et prescribe dimensionne les peuplements dans une
-  !! allometrie qui n'a pas cours -> RDI d'etablissement divise par ~2,25 (2026-07-29).
+  !! allometrie qui n'a pas cours -> RDI d'etablissement divise par ~2,25.
   REAL(r_std), SAVE, ALLOCATABLE, DIMENSION(:) :: precip_forcing_mean   !! (mm/jour)
 !$OMP THREADPRIVATE(precip_forcing_mean)
   REAL(r_std), SAVE :: tau_longterm_max          !! (days)  
@@ -2657,11 +2770,14 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
 !$OMP THREADPRIVATE(wind_sum_threshold)
   REAL(r_std), SAVE :: wind_ratio_threshold           !! The threshold for the ratio of wind to longterm wind for each time step to sum ratios
 !$OMP THREADPRIVATE(wind_ratio_threshold)
-  REAL(r_std), SAVE :: wind_ratio_a                    !! JJ 2026: Gompertz asymptote for the storm wind-ratio damage weight
+  !! JJ 2026: Gompertz asymptote for the storm wind-ratio damage weight
+  REAL(r_std), SAVE :: wind_ratio_a
 !$OMP THREADPRIVATE(wind_ratio_a)
-  REAL(r_std), SAVE :: wind_ratio_b                    !! JJ 2026: Gompertz steepness for the storm wind-ratio damage weight
+  !! JJ 2026: Gompertz steepness for the storm wind-ratio damage weight
+  REAL(r_std), SAVE :: wind_ratio_b
 !$OMP THREADPRIVATE(wind_ratio_b)
-  REAL(r_std), SAVE :: wind_ratio_c                    !! JJ 2026: Gompertz inflection for the storm wind-ratio damage weight
+  !! JJ 2026: Gompertz inflection for the storm wind-ratio damage weight
+  REAL(r_std), SAVE :: wind_ratio_c
 !$OMP THREADPRIVATE(wind_ratio_c)
   REAL(r_std), SAVE :: gap_threshold                  !! The threshold for the basal area loss to be considered to create the gap with edges
 !$OMP THREADPRIVATE(gap_threshold)
@@ -2747,38 +2863,43 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
   ! n'etait jamais atteinte. Dans l'approche AED les classes sont FONCTIONNELLES
   ! (classe 1 = ouvert post-perturbation, seule assiette d'A_open ; classe nagec = fin de
   ! rotation), donc la fonction doit etre invariante par PFT.
-  ! Gate OFF : toutes les colonnes recoivent le vecteur global => bit-neutre.
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:) :: age_class_bound !! Boundaries of the age classes defined as threshold diameters (nagec, nvm) (m)
+  !! Boundaries of the age classes defined as threshold diameters (nagec, nvm) (m)
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:) :: age_class_bound
 !$OMP THREADPRIVATE(age_class_bound)
-  LOGICAL, SAVE             :: ok_age_class_bound_pft     !! Derive age class bounds from largest_tree_dia (per PFT) instead of the global vector
-!$OMP THREADPRIVATE(ok_age_class_bound_pft)
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: age_class_frac !! Age class bounds as a fraction of largest_tree_dia (nagec-1) (-)
+  !! Age class bounds as a fraction of largest_tree_dia (nagec-1) (-)
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: age_class_frac
 !$OMP THREADPRIVATE(age_class_frac)
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: age_class_init_frac !! Cold-start area fraction of each age class (nagec) (-)
+  !! Cold-start area fraction of each age class (nagec) (-)
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: age_class_init_frac
 !$OMP THREADPRIVATE(age_class_init_frac)
-  LOGICAL, SAVE             :: ok_clearcut_last_class     !! Management clearcut (CONDITION 2/3) restricted to the last age class
-!$OMP THREADPRIVATE(ok_clearcut_last_class)
-  LOGICAL, SAVE             :: ok_rdi_band_class1         !! Age class 1 joins the thinned classes and gets the RDI band
+  !! Age class 1 joins the thinned classes and gets the RDI band
+  LOGICAL, SAVE             :: ok_rdi_band_class1
 !$OMP THREADPRIVATE(ok_rdi_band_class1)
-  REAL(r_std), SAVE         :: ac12_dia_ratio_down        !! Demotion threshold as a fraction of age_class_bound(1); 1.0 = no hysteresis (-)
+  !! Demotion threshold as a fraction of age_class_bound(1); 1.0 = no hysteresis (-)
+  REAL(r_std), SAVE         :: ac12_dia_ratio_down
 !$OMP THREADPRIVATE(ac12_dia_ratio_down)
   ! Guillaume M. -- ROTATION_GROWTH: weight of the SITE against the published silvicultural
   ! itinerary in the applied rotation. See design/MODULE_DESIGN_ROTATION_GROWTH.md.
-  REAL(r_std), SAVE         :: rotation_growth_weight     !! Weight of site conditions in the rotation; 0 = recommendation alone (-)
+  !! Weight of site conditions in the rotation; 0 = recommendation alone (-)
+  REAL(r_std), SAVE         :: rotation_growth_weight
 !$OMP THREADPRIVATE(rotation_growth_weight)
-  REAL(r_std), SAVE         :: mat_age_entry_tau          !! MAT_AGE_ENTRY: memory of the entry-age integrator (yr)
+  !! MAT_AGE_ENTRY: memory of the entry-age integrator (yr)
+  REAL(r_std), SAVE         :: mat_age_entry_tau
 !$OMP THREADPRIVATE(mat_age_entry_tau)
-  LOGICAL, SAVE             :: mat_a3_online              !! MAT_AGE_ENTRY: terminal setpoint from the measured entry age
+  !! MAT_AGE_ENTRY: terminal setpoint from the measured entry age
+  LOGICAL, SAVE             :: mat_a3_online
 !$OMP THREADPRIVATE(mat_a3_online)
-  REAL(r_std), SAVE         :: rotation_growth_min        !! Lower bound of the growth-derived rotation (yr)
+  !! Lower bound of the growth-derived rotation (yr)
+  REAL(r_std), SAVE         :: rotation_growth_min
 !$OMP THREADPRIVATE(rotation_growth_min)
-  REAL(r_std), SAVE         :: rotation_growth_max        !! Upper bound of the growth-derived rotation (yr)
+  !! Upper bound of the growth-derived rotation (yr)
+  REAL(r_std), SAVE         :: rotation_growth_max
 !$OMP THREADPRIVATE(rotation_growth_max)
-  ! Bande de RDI cible FIXE pour les classes d'age intermediaires (2026-07-28).
+  ! Bande de RDI cible FIXE pour les classes d'age intermediaires.
   ! Court-circuite les polynomes calculate_rdi_boundaries, cales par PFT et par TYPE de
   ! gestion mais AVEUGLES a l'intensite : a un diametre donne ils plafonnent trop bas et le
   ! peuplement ne peut jamais se densifier. Calee sur Pucher (RDI observe median 0,686).
-  ! Ouverture de la classe 1 a l'etablissement (2026-07-27, demande utilisateur).
+  ! Ouverture de la classe 1 a l'etablissement.
   ! Mesure : sur 1109 arrivees d'aire en classe 1, la coupe ne degrade PAS la fermeture
   ! radiative (ecart median +0.037, 66 % des evenements sans ouverture) alors qu'elle
   ! produit bien la discontinuite structurelle (hauteur 13.8 -> 5.1 m). La classe 1 est
@@ -2786,115 +2907,132 @@ REAL(r_std), SAVE :: omg2                                !! Second tuning consta
   ! Exprime en FRACTION de rdi_max(ivm, forest_managed) et non en RDI absolu : rdi_max
   ! depend de la gestion (0.9 non gere / 0.7 rotationnel), un RDI absolu de 0.8 en
   ! classe 4 depasserait le plafond d'une foret eclaircie qui l'eclaircirait aussitot.
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: prescribe_rdi_frac !! Establishment RDI as a fraction of rdi_max, per age class (nagec) (-)
+  !! Establishment RDI as a fraction of rdi_max, per age class (nagec) (-)
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: prescribe_rdi_frac
 !$OMP THREADPRIVATE(prescribe_rdi_frac)
-  ! Guillaume M. -- SOIL_INIT_FILE: soil reservoirs of a reference spinup, read at cold start
+  ! Guillaume M. (AI gen) -- SOIL_INIT_FILE: soil reservoirs of a reference spinup, read at cold start
   ! only (in place of the val_exp fallback of readrestart). 'NONE' = off, no other switch.
   ! The optional PFT map SOIL_INIT_PFT_MAP is read in stomate_io (needs nvm and nvm_src).
-  CHARACTER(LEN=80), SAVE   :: soil_init_file             !! Reference soil-pool file, regular lon/lat grid ('NONE' = off)
+  !! Reference soil-pool file, regular lon/lat grid ('NONE' = off)
+  CHARACTER(LEN=80), SAVE   :: soil_init_file
 !$OMP THREADPRIVATE(soil_init_file)
-  ! Guillaume M. -- OK_STORM_EDGE_BAND: the two wind-load factors of wind_damage are evaluated
+  ! Guillaume M. (AI gen) -- OK_STORM_EDGE_BAND: the two wind-load factors of wind_damage are evaluated
   ! at ONE point each (the outer edge of the near band, and 9 tree heights inside). A band
   ! compared to a point makes the edge come out more resistant than the interior. Under this
   ! flag the load is averaged over the band and over the interior instead.
-  LOGICAL, SAVE             :: ok_storm_edge_band          !! Average the edge wind load over the band instead of one point
+  !! Average the edge wind load over the band instead of one point
+  LOGICAL, SAVE             :: ok_storm_edge_band
 !$OMP THREADPRIVATE(ok_storm_edge_band)
-  ! Guillaume M. -- Width of the zone where the edge raises the wind load, in tree heights.
+  ! Guillaume M. (AI gen) -- Width of the zone where the edge raises the wind load, in tree heights.
   ! tree_heights_from_edge is the wind PENETRATION depth (28/LAI/h), often 4 to 6 heights; the
   ! edge term of Hale et al. decays by a factor 3 per height, so it is spent after 1 to 2.
-  REAL(r_std), SAVE         :: edge_load_max_heights       !! Width of the edge-affected zone (tree heights)
+  !! Width of the edge-affected zone (tree heights)
+  REAL(r_std), SAVE         :: edge_load_max_heights
 !$OMP THREADPRIVATE(edge_load_max_heights)
-  ! Guillaume M. -- OK_SPACING_TOP_CLASS: current_spacing counts ALL merchantable trees, which
+  ! Guillaume M. (AI gen) -- OK_SPACING_TOP_CLASS: current_spacing counts ALL merchantable trees, which
   ! compensates a self-thinning defect inside the wind module and masks any fix of stem density.
   ! Under this flag the original formula is restored: the largest circumference class only.
-  LOGICAL, SAVE             :: ok_spacing_top_class        !! Tree spacing from the largest circumference class only
+  !! Tree spacing from the largest circumference class only
+  LOGICAL, SAVE             :: ok_spacing_top_class
 !$OMP THREADPRIVATE(ok_spacing_top_class)
-  ! Guillaume M. -- OK_STORM_WIND_PER_EVENT: the damage wind max_wind_speed_storm is otherwise a
-  ! record kept since the last kill, fed every day and stored in the restart. Under this flag it
-  ! is the maximum of the current storm only, reset at onset.
-  LOGICAL, SAVE             :: ok_storm_wind_per_event     !! Damage wind taken over the current storm only
-!$OMP THREADPRIVATE(ok_storm_wind_per_event)
-  ! Guillaume M. -- OK_STORM_PEAK_TRIGGER: storm onset on the raw daily peak wind over a local
+  ! Guillaume M. (AI gen) -- OK_STORM_PEAK_TRIGGER: storm onset on the raw daily peak wind over a local
   ! climatological peak (mean over the last years of the n-th largest daily peak), one threshold
   ! everywhere.
-  LOGICAL, SAVE             :: ok_storm_peak_trigger       !! Storm onset on the daily peak over the local reference
+  !! Storm onset on the daily peak over the local reference
+  LOGICAL, SAVE             :: ok_storm_peak_trigger
 !$OMP THREADPRIVATE(ok_storm_peak_trigger)
-  REAL(r_std), SAVE         :: wind_peak_trigger_thr       !! Onset threshold on peak / reference (-)
+  !! Onset threshold on peak / reference (-)
+  REAL(r_std), SAVE         :: wind_peak_trigger_thr
 !$OMP THREADPRIVATE(wind_peak_trigger_thr)
-  INTEGER(i_std), SAVE      :: wind_peak_ref_ntop          !! Rank of the daily peak kept as the yearly reference (-)
+  !! Rank of the daily peak kept as the yearly reference (-)
+  INTEGER(i_std), SAVE      :: wind_peak_ref_ntop
 !$OMP THREADPRIVATE(wind_peak_ref_ntop)
-  LOGICAL, SAVE             :: ok_storm_kill_area_weighted !! Storm kill weighted by the area fraction of each zone
-!$OMP THREADPRIVATE(ok_storm_kill_area_weighted)
-  ! Guillaume M. -- OK_STORM_GUST: storm detection and damage driven by the ERA5 gust file (daily max and hours above
-  ! levels); damage = logistic in the episode's hours above the stand's critical gust, acclimated to the usual yearly dose.
+  ! Guillaume M. (AI gen) -- OK_STORM_GUST: storm detection and damage driven by the ERA5 gust file (daily
+  ! max and hours above
+  ! levels); damage = logistic in the episode's hours above the stand's critical gust, acclimated to
+  ! the usual yearly dose.
   LOGICAL, SAVE             :: ok_storm_gust               !! Storm module driven by STORM_GUST_FILE
 !$OMP THREADPRIVATE(ok_storm_gust)
   CHARACTER(LEN=100), SAVE  :: storm_gust_file             !! Yearly gust file on the forcing grid
 !$OMP THREADPRIVATE(storm_gust_file)
-  REAL(r_std), SAVE         :: storm_gust_gref             !! Critical gust = CWS x storm_gust_gref (-)
+  !! Critical gust = CWS x storm_gust_gref (-)
+  REAL(r_std), SAVE         :: storm_gust_gref
 !$OMP THREADPRIVATE(storm_gust_gref)
-  REAL(r_std), SAVE         :: storm_gust_d50              !! Dose (h above the critical gust) for half the maximum damage (h)
+  !! Dose (h above the critical gust) for half the maximum damage (h)
+  REAL(r_std), SAVE         :: storm_gust_d50
 !$OMP THREADPRIVATE(storm_gust_d50)
   REAL(r_std), SAVE         :: storm_gust_s                !! Width of the dose logistic (h)
 !$OMP THREADPRIVATE(storm_gust_s)
-  REAL(r_std), SAVE         :: storm_gust_kappa            !! Acclimation: d50 += kappa x usual yearly hours above the critical gust (-)
+  !! Acclimation: d50 += kappa x usual yearly hours above the critical gust (-)
+  REAL(r_std), SAVE         :: storm_gust_kappa
 !$OMP THREADPRIVATE(storm_gust_kappa)
-  INTEGER(i_std), PARAMETER :: ngust_lev = 21              !! Gust levels of the file (10, 12.5, ... 60 m s-1)
-  ! Guillaume M. -- OK_BEETLE_ACUTE_DROUGHT: the yearly low of root-zone moisture, relative to the
+  !! Gust levels of the file (10, 12.5, ... 60 m s-1)
+  INTEGER(i_std), PARAMETER :: ngust_lev = 21
+  ! Guillaume M. (AI gen) -- OK_BEETLE_ACUTE_DROUGHT: the yearly low of root-zone moisture, relative to the
   ! lows of previous years, weakens spruce defence against bark beetles. The chronic channel
   ! (vegstress_season) saturates at one and is smoothed over a decade, so it never moves.
   LOGICAL, SAVE             :: ok_beetle_acute_drought     !! Acute drought anomaly in host defence
 !$OMP THREADPRIVATE(ok_beetle_acute_drought)
-  REAL(r_std), SAVE         :: beetle_drought_gain         !! Weight of the relative anomaly in the defence stress (-)
+  !! Weight of the relative anomaly in the defence stress (-)
+  REAL(r_std), SAVE         :: beetle_drought_gain
 !$OMP THREADPRIVATE(beetle_drought_gain)
-  REAL(r_std), SAVE         :: beetle_drought_tact         !! Weekly air temperature above which the low is tracked (C)
+  !! Weekly air temperature above which the low is tracked (C)
+  REAL(r_std), SAVE         :: beetle_drought_tact
 !$OMP THREADPRIVATE(beetle_drought_tact)
-  INTEGER(i_std), SAVE      :: beetle_drought_nref         !! Years in the moisture-low buffer (this year + reference years)
-  ! Guillaume M. -- OK_BEETLE_SURVIVAL_UNION: beetle survival combines the live-host, dead-wood and drought
+  !! Years in the moisture-low buffer (this year + reference years)
+  INTEGER(i_std), SAVE      :: beetle_drought_nref
+  ! Guillaume M. (AI gen) -- OK_BEETLE_SURVIVAL_UNION: beetle survival combines the live-host, dead-wood and
+  ! drought
   ! channels as independent chances, 1 - prod(1 - x), instead of keeping only the largest.
-  LOGICAL, SAVE             :: ok_beetle_survival_union    !! Union instead of maximum of the survival channels
+  !! Union instead of maximum of the survival channels
+  LOGICAL, SAVE             :: ok_beetle_survival_union
 !$OMP THREADPRIVATE(ok_beetle_survival_union)
-  LOGICAL, SAVE             :: ok_beetle_host_depletion    !! Beetle pressure braked by the depletion of the attackable host wood
+  !! Beetle pressure braked by the depletion of the attackable host wood
+  LOGICAL, SAVE             :: ok_beetle_host_depletion
 !$OMP THREADPRIVATE(ok_beetle_host_depletion)
-  REAL(r_std), SAVE         :: host_ref_years              !! Time scale of the running reference of the host wood (years)
+  !! Time scale of the running reference of the host wood (years)
+  REAL(r_std), SAVE         :: host_ref_years
 !$OMP THREADPRIVATE(host_ref_years)
-  REAL(r_std), SAVE         :: host_depl_limit             !! Host wood ratio at which the pressure is halved (unitless)
+  !! Host wood ratio at which the pressure is halved (unitless)
+  REAL(r_std), SAVE         :: host_depl_limit
 !$OMP THREADPRIVATE(host_depl_limit)
-  REAL(r_std), SAVE         :: s_host_depl                 !! Slope of the depletion brake (unitless)
+  !! Slope of the depletion brake (unitless)
+  REAL(r_std), SAVE         :: s_host_depl
 !$OMP THREADPRIVATE(s_host_depl)
-  LOGICAL, SAVE             :: ok_beetle_live_brood        !! Brood on living trees replaces the population less than windfall
+  !! Brood on living trees replaces the population less than windfall
+  LOGICAL, SAVE             :: ok_beetle_live_brood
 !$OMP THREADPRIVATE(ok_beetle_live_brood)
-  REAL(r_std), SAVE         :: beetle_live_brood           !! Brood success on living trees relative to windfall (unitless, 0-1)
+  !! Brood success on living trees relative to windfall (unitless, 0-1)
+  REAL(r_std), SAVE         :: beetle_live_brood
 !$OMP THREADPRIVATE(beetle_live_brood)
 !$OMP THREADPRIVATE(beetle_drought_nref)
-  ! Guillaume M. -- OK_AED_PEST: edge trees sit in a warmer, drier microclimate and are the
+  ! Guillaume M. (AI gen) -- OK_AED_PEST: edge trees sit in a warmer, drier microclimate and are the
   ! easy targets a beetle population settles on. Under this flag the host health index of
   ! bark_beetle_damage becomes a bounded convex mix of an edge zone and an interior one,
   ! on the same AED geometry the storm channel uses.
-  LOGICAL, SAVE             :: ok_aed_pest                 !! Edge microclimate raises host susceptibility to bark beetles
+  !! Edge microclimate raises host susceptibility to bark beetles
+  LOGICAL, SAVE             :: ok_aed_pest
 !$OMP THREADPRIVATE(ok_aed_pest)
-  REAL(r_std), SAVE         :: edge_pest_depth             !! Depth of the edge-affected band for bark beetles (m)
+  !! Depth of the edge-affected band for bark beetles (m)
+  REAL(r_std), SAVE         :: edge_pest_depth
 !$OMP THREADPRIVATE(edge_pest_depth)
-  REAL(r_std), SAVE         :: edge_pest_susc              !! Susceptibility gain applied to hosts within that band (unitless)
+  !! Susceptibility gain applied to hosts within that band (unitless)
+  REAL(r_std), SAVE         :: edge_pest_susc
 !$OMP THREADPRIVATE(edge_pest_susc)
-  LOGICAL, SAVE             :: ok_min_density_reset       !! Keep the dens_target-driven clearcut (sapiens_forestry CONDITION 1)
-!$OMP THREADPRIVATE(ok_min_density_reset)
-  LOGICAL, SAVE             :: ok_slow_death_density      !! Keep the dens_target-driven slow death of sparse stands (stomate_kill)
-!$OMP THREADPRIVATE(ok_slow_death_density)
-  LOGICAL, SAVE             :: ok_aed_edge_rdi_weight     !! Weight the AED age-class-1 edge source by the stand openness (1 - RDI)
-!$OMP THREADPRIVATE(ok_aed_edge_rdi_weight)
-  ! Verrou 1 de la desynchronisation (2026-07-27). Le split d'aire sur les classes d'age
+  ! Verrou 1 de la desynchronisation. Le split d'aire sur les classes d'age
   ! de slowproc_readvegetmax etait gate sur restname_in=='NONE', c'est-a-dire l'absence de
   ! TOUT restart. Or le spinup frais repart d'un restart PARTIEL (sol conserve, veget_max
   ! largue, carte PFT relue) : la condition etait fausse, la branche all-to-youngest
-  ! s'executait, et 100 % de l'aire atterrissait en classe 1 (mesure spin51check).
-  ! Cold-start structure (2026-07-27, cadrage utilisateur) : UN SEUL champ force de
+  ! s'executait, et 100 % de l'aire atterrissait en classe 1.
+  ! Cold-start structure : UN SEUL champ force de
   ! l'exterieur (les fractions d'aire par classe, issues de Pucher), le reste derive en
   ! interne -- diametre par les bornes de classe (deja par PFT), RDI par
   ! prescribe_rdi_frac, age par la rotation cible.
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: age_class_age_frac !! Stand age of each age class as a fraction of the target rotation age (nagec) (-)
+  !! Stand age of each age class as a fraction of the target rotation age (nagec) (-)
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: age_class_age_frac
 !$OMP THREADPRIVATE(age_class_age_frac)
-  REAL(r_std), SAVE :: stand_age_rotation_max                        !! Cap on the rotation used to DERIVE the cold-start stand age only (years)
+  !! Cap on the rotation used to DERIVE the cold-start stand age only (years)
+  REAL(r_std), SAVE :: stand_age_rotation_max
 !$OMP THREADPRIVATE(stand_age_rotation_max)
   LOGICAL, SAVE             :: forced_clear_cut           !! flag at wich the stand is force to clear-cut
 !$OMP THREADPRIVATE(forced_clear_cut)
