@@ -4236,7 +4236,7 @@ CONTAINS
     !Config         already restricted to forest and carrying its geometric factors -- the two
     !Config         banks of a river are already counted. It is added AS IS: no weighting by
     !Config         the forest fraction, no factor 2. Pan-EU map:
-    !Config         /scratch/gmarie/EFDA/edge_permanent_1deg_panEU.nc
+    !Config         edge_permanent_1deg_panEU.nc
     !Config         [CATEGORIE : OPTION SCIENTIFIQUE -- choix de modelisation, permanent]
     !Config Units = [FILE]
     edge_hydro_file = 'NONE'
