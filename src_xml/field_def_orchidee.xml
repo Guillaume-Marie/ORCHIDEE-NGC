@@ -790,7 +790,7 @@
     <field id="LCC_FOREST_n" name="LCC_FOREST_n" long_name="Nitrogen contained in lcc deforestation" unit="gN/grid/y" operation="accumulate"/>
     <field id="HARVEST_LCC_ACC_c" name="HARVEST_LCC_ACC_c" long_name="Carbon contained in wood, grass and crops harvest and lcc" unit="gC/grid/y" operation="instant"/>
     <field id="HARVEST_LCC_ACC_n" name="HARVEST_LCC_ACC_n" long_name="Nitrogen contained in wood, grass and crop harvest and lcc" unit="gN/grid/y" operation="instant"/>
-    <field id="WOOD_VOL_PIX_CUT" name="WOOD_VOL_PIX_CUT" long_name="The wood volume that was harvested or salvaged" unit="m3/m2" grid_ref="grid_ncut" operation="instant"/>
+    <field id="WOOD_VOL_PIX_CUT" name="WOOD_VOL_PIX_CUT" long_name="Wood volume harvested or salvaged, sum over the output period" unit="m3/m2" grid_ref="grid_ncut" operation="accumulate"/>
     <field id="AREA_UNDEFINED" name="AREA_UNDEFINED" long_name="Area of forests with undefined management" unit="km2" operation="instant" grid_ref="grid_nvm"/>
     <field id="AREA_UNMANAGED" name="AREA_UNMANAGED" long_name="Area of forests under conservation management" unit="km2" operation="instant" grid_ref="grid_nvm"/>
     <field id="AREA_ROTATIONAL" name="AREA_ROTATIONAL" long_name="Area of forests under rotational management" unit="km2" operation="instant" grid_ref="grid_nvm"/>
